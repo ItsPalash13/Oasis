@@ -3,6 +3,7 @@ import { Box, Card, CardContent, IconButton, LinearProgress, Typography } from '
 import { useTheme } from '@mui/material/styles';
 import { colors, themeColors } from '../../../theme/colors';
 import { Close as CloseIcon } from '@mui/icons-material';
+import SOUND_FILES from '../../../assets/sound/soundFiles';
 
 // Snackbars that show stacked, one over another, for topic accuracy changes
 // props:
@@ -36,6 +37,7 @@ const AccuracySnackbars = ({ topics, isVisible, onClose, bottomOffset = 20 }) =>
   const [currentIndex, setCurrentIndex] = useState(0); // which snackbar is currently animating
   const [visibleCount, setVisibleCount] = useState(0); // how many snackbars are currently shown (stacked)
   const rafRef = useRef(null);
+  const prevVisibleRef = useRef(0);
 
   const durationMs = 1500; // animate over 1.5s
   // Simple scrolling container – no hover behavior
@@ -107,6 +109,21 @@ const AccuracySnackbars = ({ topics, isVisible, onClose, bottomOffset = 20 }) =>
       setProgressValues(toValues);
     }
   }, [isVisible, running, visibleCount, sanitizedTopics.length, toValues]);
+
+  // Play sound when a new snackbar becomes visible
+  useEffect(() => {
+    if (!isVisible) {
+      prevVisibleRef.current = 0;
+      return;
+    }
+    if (visibleCount > prevVisibleRef.current && visibleCount > 0) {
+      try {
+        const audio = new Audio(SOUND_FILES.LEVEL_TOPIC_PERFORMANCE);
+        audio.play();
+      } catch (_) { /* ignore playback errors */ }
+      prevVisibleRef.current = visibleCount;
+    }
+  }, [visibleCount, isVisible]);
 
   if (!isVisible || sanitizedTopics.length === 0) return null;
 

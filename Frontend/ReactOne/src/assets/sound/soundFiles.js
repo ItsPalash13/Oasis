@@ -8,6 +8,7 @@ import countdownEndSound from './countdown_end.mp3';
 import levelWonSound from './level_won.mp3';
 import achievementSound from './achievement1.mp3';
 import levelLostSound from './level_lost.mp3';
+import leveltopicperformance from './level-up-289723.mp3';
 
 
 
@@ -20,6 +21,7 @@ const SOUND_FILES = {
   LEVEL_WON: levelWonSound,
   ACHIEVEMENT: achievementSound,
   LEVEL_LOST: levelLostSound,
+  LEVEL_TOPIC_PERFORMANCE: leveltopicperformance,
 };
 
 export default SOUND_FILES; 
