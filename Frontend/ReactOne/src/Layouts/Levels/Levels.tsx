@@ -18,7 +18,7 @@ import {
 import { ProgressBar } from 'react-progressbar-fancy';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowBack as ArrowBackIcon, Analytics as AnalyticsIcon, Tour as TourIcon, Timeline as TimelineIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Tour as TourIcon, Timeline as TimelineIcon } from '@mui/icons-material';
 import Joyride, { STATUS, Step } from 'react-joyride';
 // @ts-ignore
 import { useGetChapterInfoQuery, useStartLevelMutation } from '../../features/api/levelAPI';
@@ -105,7 +105,7 @@ export interface Chapter {
   name: string;
   description: string;
   gameName: string;
-  topics: Array<{ _id: string; topic: string }> | string[]; // Updated to handle both populated and unpopulated topics
+  topics: Array<{ _id: string; topic: string; accuracy?: number | null }> | string[]; // Updated to handle both populated and unpopulated topics
   status: boolean;
   thumbnailUrl?: string;
 }
@@ -117,9 +117,7 @@ const Levels: React.FC = () => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
-  const [showPerformance, setShowPerformance] = useState(false);
   const [showTopicsPerformance, setShowTopicsPerformance] = useState(false);
-  const [showUnitPerformance, setShowUnitPerformance] = useState<string | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [selectedLevelForDetails, setSelectedLevelForDetails] = useState<Level | null>(null);
   const { chapterId } = useParams<{ chapterId: string }>();
@@ -155,7 +153,7 @@ const Levels: React.FC = () => {
           <Typography variant="body2" sx={{ mb: 1, lineHeight: 1.5 }}>
             Accuracy matters. Speed rewards you more.
           </Typography>
-          <Typography variant="body2" sx={{ fontStyle: 'italic', color: themeColors.text.primary }}>
+          <Typography variant="body2" sx={{ fontStyle: 'italic'}}>
             🧠 Think before you tap — every second counts.
           </Typography>
         </Box>
@@ -186,7 +184,7 @@ const Levels: React.FC = () => {
           <Typography variant="body2" sx={{ mb: 1, lineHeight: 1.5 }}>
             Fast answers = more XP. Streaks give bonus XP too.
           </Typography>
-          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+          <Typography variant="body2" sx={{ fontStyle: 'italic'}}>
             ⚡ Push your limits — beat the clock, beat your best.
           </Typography>
         </Box>
@@ -369,8 +367,6 @@ const Levels: React.FC = () => {
     });
     return Object.fromEntries(map);
   }, [levels]);
-
-  const chapterTopicIds = useMemo(() => Object.keys(chapterTopicIdToName), [chapterTopicIdToName]);
 
 
 
@@ -588,30 +584,72 @@ const Levels: React.FC = () => {
             {/* Chapter Topics */}
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
               {chapter.topics && chapter.topics.length > 0 ? (
-                chapter.topics.map((topic, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    px: 1,
-                    py: 0.25,
-                    backgroundColor: theme => theme.palette.mode === 'dark' 
-                      ? colors.ui.dark.topicPrimary 
-                      : colors.ui.light.topicPrimary,
-                    color: 'white',
-                    borderRadius: 0.75,
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                chapter.topics.map((topic, index) => {
+                  // Handle both old string format and new object format with accuracy
+                  const topicName = typeof topic === 'string' ? topic : topic.topic;
+                  const accuracy = typeof topic === 'object' && topic.accuracy !== undefined ? topic.accuracy : null;
+                  
+                  // Determine background color based on accuracy
+                  const getBackgroundColor = (acc: number | null) => {
+                    if (acc === null) {
+                      return (theme: any) => theme.palette.mode === 'dark' ? "#0C0C0C" : "#FAFAFA";
                     }
-                  }}
-                >
-                  {typeof topic === 'string' ? topic : topic.topic}
-                </Box>
-                ))
+                    if (acc >= 0.75) return colors.success.main;
+                    if (acc >= 0.5) return colors.warning.main;
+                    return colors.error.main;
+                  };
+                  
+                  // Determine text color based on accuracy
+                  const getTextColor = (acc: number | null) => {
+                    if (acc === null) {
+                      return (theme: any) => theme.palette.mode === 'dark' ? '#F8F9FF' : '#111111';
+                    }
+                    return 'white'; // White text for colored backgrounds
+                  };
+                  
+                  const TopicBox = (
+                    <Box
+                      sx={{
+                        px: 1,
+                        py: 0.25,
+                        backgroundColor: getBackgroundColor(accuracy),
+                        color: getTextColor(accuracy),
+                        borderRadius: 0.75,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                        }
+                      }}
+                    >
+                      {topicName}
+                    </Box>
+                  );
+                  
+                  // Only show tooltip if accuracy data exists
+                  if (accuracy !== null) {
+                    const accuracyPercentage = Math.round(accuracy * 100);
+                    return (
+                      <Tooltip 
+                        key={index}
+                        title={`Accuracy: ${accuracyPercentage}%`}
+                        arrow
+                        placement="top"
+                      >
+                        {TopicBox}
+                      </Tooltip>
+                    );
+                  }
+                  
+                  return (
+                    <Box key={index}>
+                      {TopicBox}
+                    </Box>
+                  );
+                })
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   No topics available
@@ -631,7 +669,7 @@ const Levels: React.FC = () => {
                     <Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                       
-                      <ProgressBar score={chapterProgress} progressColor='blue' hideText={true}/>
+                      <ProgressBar score={chapterProgress} primaryColor='#A020F0' secondaryColor='#FF00FF' hideText={true}/>
                       <Typography variant="body2" sx={{ fontSize: '14px'}}>
                         {chapterProgress}%
                       </Typography>

@@ -15,6 +15,7 @@
     import { processBadgesAfterQuiz } from '../utils/badgeprocessor';
     import { getShortLevelFeedback } from '../utils/gpt';
     import { processUserLevelSession } from '../utils/performance';
+import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance';
 
     // Helper: compute topics accuracy updates from the in-memory session
     const computeTopicsAccuracyUpdates = async (session: any) => {
@@ -29,6 +30,89 @@
       } catch (procErr) {
         console.error('Performance processing failed:', (procErr as any)?.message || procErr);
         return [] as Array<{ topicId: string; topicName: string | null; previousAcc: number | null; updatedAcc: number }>;
+      }
+    };
+
+    // Helper: update user's question history based on session results
+    const updateUserQuestionHistory = async (session: any, userId: string) => {
+      try {
+        console.log(`\n=== Updating User Question History ===`);
+        console.log(`User ID: ${userId}`);
+        console.log(`Session ID: ${session._id}`);
+        console.log(`Level ID: ${session.levelId}`);
+        console.log(`Attempt Type: ${session.attemptType}`);
+        
+        if (!session.questionsAnswered) {
+          console.log('No questionsAnswered data found in session');
+          return;
+        }
+
+        const correctQuestionIds = (session.questionsAnswered.correct || []).map((id: any) => 
+          new mongoose.Types.ObjectId(id.toString())
+        );
+        const incorrectQuestionIds = (session.questionsAnswered.incorrect || []).map((id: any) => 
+          new mongoose.Types.ObjectId(id.toString())
+        );
+        
+        console.log(`Correct questions in this session: ${correctQuestionIds.length}`);
+        console.log(`Incorrect questions in this session: ${incorrectQuestionIds.length}`);
+        console.log(`Correct question IDs: [${correctQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${correctQuestionIds.length > 3 ? '...' : ''}]`);
+        console.log(`Incorrect question IDs: [${incorrectQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${incorrectQuestionIds.length > 3 ? '...' : ''}]`);
+
+        // Update UserChapterLevel with question history
+        const updateOperation: any = {};
+
+        // Add correct questions to correctQuestions array (avoid duplicates)
+        if (correctQuestionIds.length > 0) {
+          updateOperation.$addToSet = {
+            ...(updateOperation.$addToSet || {}),
+            correctQuestions: { $each: correctQuestionIds }
+          };
+        }
+
+        // Add incorrect questions to wrongQuestions array (avoid duplicates)
+        if (incorrectQuestionIds.length > 0) {
+          updateOperation.$addToSet = {
+            ...(updateOperation.$addToSet || {}),
+            wrongQuestions: { $each: incorrectQuestionIds }
+          };
+        }
+
+        // Remove any questions from wrongQuestions that are now in correctQuestions
+        if (correctQuestionIds.length > 0) {
+          updateOperation.$pull = {
+            ...(updateOperation.$pull || {}),
+            wrongQuestions: { $in: correctQuestionIds }
+          };
+        }
+
+        if (Object.keys(updateOperation).length > 0) {
+          console.log(`\n--- Database Update Operation ---`);
+          console.log(`Update operation:`, JSON.stringify(updateOperation, null, 2));
+          
+          await UserChapterLevel.findOneAndUpdate(
+            {
+              userId: new mongoose.Types.ObjectId(userId),
+              chapterId: session.chapterId,
+              levelId: session.levelId,
+              attemptType: session.attemptType
+            },
+            updateOperation,
+            { upsert: true }
+          );
+
+          console.log(`✅ Successfully updated question history for user ${userId}:`);
+          console.log(`- Added ${correctQuestionIds.length} correct questions`);
+          console.log(`- Added ${incorrectQuestionIds.length} wrong questions`);
+          console.log(`- Removed ${correctQuestionIds.length} questions from wrongQuestions (if they were there)`);
+        } else {
+          console.log(`No update operation needed - no new questions to add`);
+        }
+        
+        console.log(`=== End User Question History Update ===\n`);
+      } catch (error) {
+        console.error('Error updating user question history:', error);
+        // Don't throw error to avoid breaking the main flow
       }
     };
 
@@ -206,9 +290,124 @@
       }
     };
 
+    // Helper function to execute all question selection phases
+    const executeQuestionSelectionPhases = async (
+      numQuestions: number,
+      wrongQuestionsQuota: number,
+      newQuestions: any[],
+      availableWrongQuestions: any[],
+      availableCorrectQuestions: any[],
+      allQuestions: any[]
+    ): Promise<{
+      finalQuestions: any[],
+      wrongQuestionsToRemove: string[],
+      correctQuestionsToRemove: string[]
+    }> => {
+      let finalQuestions: any[] = [];
+      let usedQuestionIds = new Set<string>();
+      const wrongQuestionsToRemove: string[] = [];
+      const correctQuestionsToRemove: string[] = [];
+
+      // Phase 1: Handle wrong questions quota (pop from beginning)
+      console.log(`\n--- Phase 1: Wrong Questions Selection ---`);
+      const wrongQuestionsToUse = Math.min(wrongQuestionsQuota, availableWrongQuestions.length);
+      
+      console.log(`Wrong questions quota: ${wrongQuestionsQuota}`);
+      console.log(`Available wrong questions: ${availableWrongQuestions.length}`);
+      console.log(`Wrong questions to use: ${wrongQuestionsToUse}`);
+      
+      // Pop from beginning (FIFO) for wrong questions
+      for (let i = 0; i < wrongQuestionsToUse; i++) {
+        const question = availableWrongQuestions[i];
+        finalQuestions.push(question);
+        usedQuestionIds.add(question._id);
+        wrongQuestionsToRemove.push(question._id);
+      }
+      console.log(`Selected ${wrongQuestionsToUse} wrong questions (from beginning)`);
+      console.log(`Questions to remove from wrongQuestions: [${wrongQuestionsToRemove.slice(0, 3).join(', ')}${wrongQuestionsToRemove.length > 3 ? '...' : ''}]`);
+      console.log(`Total questions selected so far: ${finalQuestions.length}`);
+
+      // Phase 2: Fill remaining slots with new questions
+      console.log(`\n--- Phase 2: New Questions Selection ---`);
+      const remainingSlots = numQuestions - finalQuestions.length;
+      const availableNewQuestions = newQuestions.filter(q => !usedQuestionIds.has(q._id));
+      const newQuestionsToUse = Math.min(remainingSlots, availableNewQuestions.length);
+      const shuffledNewQuestions = availableNewQuestions.sort(() => Math.random() - 0.5);
+      
+      console.log(`Remaining slots: ${remainingSlots}`);
+      console.log(`Available new questions (after filtering used): ${availableNewQuestions.length}`);
+      console.log(`New questions to use: ${newQuestionsToUse}`);
+      
+      for (let i = 0; i < newQuestionsToUse; i++) {
+        finalQuestions.push(shuffledNewQuestions[i]);
+        usedQuestionIds.add(shuffledNewQuestions[i]._id);
+      }
+      console.log(`Selected ${newQuestionsToUse} new questions`);
+      console.log(`Total questions selected so far: ${finalQuestions.length}`);
+
+      // Phase 3: If still need more questions, use correct questions (pop from beginning)
+      if (finalQuestions.length < numQuestions) {
+        console.log(`\n--- Phase 3: Correct Questions Selection (Fallback) ---`);
+        const stillNeed = numQuestions - finalQuestions.length;
+        const availableCorrectQuestionsFiltered = availableCorrectQuestions.filter(q => !usedQuestionIds.has(q._id));
+        
+        console.log(`Still need: ${stillNeed} questions`);
+        console.log(`Available correct questions (after filtering used): ${availableCorrectQuestionsFiltered.length}`);
+        const correctQuestionsToUse = Math.min(stillNeed, availableCorrectQuestionsFiltered.length);
+        console.log(`Correct questions to use: ${correctQuestionsToUse}`);
+        
+        // Pop from beginning (FIFO) for correct questions
+        for (let i = 0; i < correctQuestionsToUse; i++) {
+          const question = availableCorrectQuestionsFiltered[i];
+          finalQuestions.push(question);
+          usedQuestionIds.add(question._id);
+          correctQuestionsToRemove.push(question._id);
+        }
+        console.log(`Selected ${correctQuestionsToUse} correct questions (from beginning)`);
+        console.log(`Questions to remove from correctQuestions: [${correctQuestionsToRemove.slice(0, 3).join(', ')}${correctQuestionsToRemove.length > 3 ? '...' : ''}]`);
+        console.log(`Total questions selected so far: ${finalQuestions.length}`);
+      } else {
+        console.log(`\n--- Phase 3: Skipped (no additional questions needed) ---`);
+      }
+
+
+      // Final shuffle of all selected questions
+      console.log(`\n--- Final Processing ---`);
+      console.log(`Final questions before shuffle: ${finalQuestions.length}`);
+      finalQuestions = finalQuestions.sort(() => Math.random() - 0.5);
+
+      // Ensure we have the exact number of questions needed
+      finalQuestions = finalQuestions.slice(0, numQuestions);
+      console.log(`Final questions after truncation: ${finalQuestions.length}`);
+
+      if (!finalQuestions.length) {
+        throw new Error('No suitable questions found for this unit');
+      }
+
+      // Convert back to original Question format (remove string _id, keep original ObjectId)
+      const result = finalQuestions.map(q => {
+        const originalQuestion = allQuestions.find(orig => (orig._id as any).toString() === q._id);
+        return originalQuestion || q;
+      });
+
+      return {
+        finalQuestions: result,
+        wrongQuestionsToRemove,
+        correctQuestionsToRemove
+      };
+    };
+
     // Function to create question bank based on level's unitId
-    const createQuestionBankByUnit = async (level: any, attemptType: string): Promise<any[]> => {
+    const createQuestionBankByUnit = async (level: any, attemptType: string, userId?: string): Promise<any[]> => {
       try {
+        console.log(`\n=== Starting createQuestionBankByUnit ===`);
+        console.log(`Level ID: ${level._id}`);
+        console.log(`Level Name: ${level.name}`);
+        console.log(`Attempt Type: ${attemptType}`);
+        console.log(`User ID: ${userId || 'No user ID provided'}`);
+        console.log(`Unit ID: ${level.unitId}`);
+        console.log(`Level Topics: ${level.topics?.join(', ') || 'No topics'}`);
+
         // Determine number of questions for the session
         let numQuestions = 10;
         if (attemptType === 'precision_path') {
@@ -216,9 +415,43 @@
         } else if (attemptType === 'time_rush') {
           numQuestions = level.timeRush?.totalQuestions || 10;
         }
+        console.log(`Required questions: ${numQuestions}`);
 
+        // Get user's performance history for this level
+        let userChapterLevel = null;
+        let correctQuestions: string[] = [];
+        let wrongQuestions: string[] = [];
         
-        const questions = await Question.find({
+        if (userId) {
+          console.log(`\n--- Fetching user performance history ---`);
+          userChapterLevel = await UserChapterLevel.findOne({
+            userId: new mongoose.Types.ObjectId(userId),
+            chapterId: level.chapterId,
+            levelId: level._id,
+            attemptType
+          });
+          
+          if (userChapterLevel) {
+            correctQuestions = (userChapterLevel.correctQuestions || []).map(id => id.toString());
+            wrongQuestions = (userChapterLevel.wrongQuestions || []).map(id => id.toString());
+            console.log(`Found user chapter level: ${userChapterLevel._id}`);
+            console.log(`Previous correct questions: ${correctQuestions.length}`);
+            console.log(`Previous wrong questions: ${wrongQuestions.length}`);
+            console.log(`Correct question IDs: [${correctQuestions.slice(0, 5).join(', ')}${correctQuestions.length > 5 ? '...' : ''}]`);
+            console.log(`Wrong question IDs: [${wrongQuestions.slice(0, 5).join(', ')}${wrongQuestions.length > 5 ? '...' : ''}]`);
+          } else {
+            console.log(`No previous user chapter level found for this user/level/type combination`);
+          }
+        } else {
+          console.log(`No user ID provided - proceeding without user history`);
+        }
+
+        // Get all available questions for this unit and topics
+        console.log(`\n--- Fetching questions from database ---`);
+        console.log(`Querying questions for unitId: ${level.unitId}`);
+        console.log(`Topic filter: excluding questions without required topics`);
+        
+        const allQuestions = await Question.find({
           unitId: level.unitId,
           "topics": {
             $not: {
@@ -227,43 +460,115 @@
               }
             }
           }
-        }).populate('topics.id').limit(numQuestions * 3); // Get more questions to filter from
+        }).populate('topics.id');
 
+        console.log(`Total questions found in database: ${allQuestions.length}`);
 
-        if (!questions.length) {
+        if (!allQuestions.length) {
           throw new Error('No questions found for this unit with the required topics');
         }
 
-        // Shuffle and take random questions from unit
-        const shuffledUnitQuestions = questions.sort(() => Math.random() - 0.5).slice(0, numQuestions);
-        let finalQuestions = [...shuffledUnitQuestions];
+                // Convert questions to array with string IDs for easier comparison
+        const questionPool = allQuestions.map(q => ({
+          ...q.toObject(),
+          _id: (q._id as any).toString()
+        }));
 
-
-        // If still not enough, get random questions from all questions
-        if (finalQuestions.length < numQuestions) {
-          const randomQuestions = await Question.aggregate([
-            { $sample: { size: (numQuestions - finalQuestions.length) * 2 } },
-            { $lookup: { from: 'topics', localField: 'topics.id', foreignField: '_id', as: 'topics' } }
-          ]);
-          
-          // Shuffle and add random questions
-          const shuffledRandomQuestions = randomQuestions.sort(() => Math.random() - 0.5);
-          finalQuestions.push(...shuffledRandomQuestions.slice(0, numQuestions - finalQuestions.length));
-        }
-
-        // Final shuffle of all selected questions
-        finalQuestions = finalQuestions.sort(() => Math.random() - 0.5);
-
-        // Truncate to numQuestions if overfilled
-        finalQuestions = finalQuestions.slice(0, numQuestions);
+        // Calculate quotas
+        const wrongQuestionsQuota = Math.ceil(numQuestions * 0.3); // 30%
+        console.log(`\n--- Calculating quotas ---`);
+        console.log(`Wrong questions quota (30%): ${wrongQuestionsQuota}`);
+        console.log(`New questions quota (70%): ${numQuestions - wrongQuestionsQuota}`);
         
+        // Separate questions into categories
+        console.log(`\n--- Categorizing questions ---`);
+        const newQuestions = questionPool.filter(q => 
+          !correctQuestions.includes(q._id) && !wrongQuestions.includes(q._id)
+        );
+        
+        const availableWrongQuestions = questionPool.filter(q => 
+          wrongQuestions.includes(q._id)
+        );
+        
+        const availableCorrectQuestions = questionPool.filter(q => 
+          correctQuestions.includes(q._id)
+        ).sort((a, b) => {
+          // Sort by oldest first (assuming _id contains timestamp or we can use creation order)
+          // For ObjectId, older IDs are lexicographically smaller
+          return a._id.localeCompare(b._id);
+        });
 
+        console.log(`Question pool size: ${questionPool.length}`);
+        console.log(`New questions available: ${newQuestions.length}`);
+        console.log(`Wrong questions available: ${availableWrongQuestions.length}`);
+        console.log(`Correct questions available: ${availableCorrectQuestions.length}`);
 
-        if (!finalQuestions.length) {
-          throw new Error('No suitable questions found for this unit');
+        // Execute question selection phases
+        const selectionResult = await executeQuestionSelectionPhases(
+          numQuestions,
+          wrongQuestionsQuota,
+          newQuestions,
+          availableWrongQuestions,
+          availableCorrectQuestions,
+          allQuestions
+        );
+
+        const { finalQuestions: result, wrongQuestionsToRemove, correctQuestionsToRemove } = selectionResult;
+
+        console.log(`\n=== Question Selection Summary ===`);
+        console.log(`User ID: ${userId || 'No user ID'}`);
+        console.log(`Total questions needed: ${numQuestions}`);
+        console.log(`Total questions returned: ${result.length}`);
+        
+        const newQuestionsUsed = result.filter(q => newQuestions.some(nq => nq._id === q._id.toString())).length;
+        const wrongQuestionsUsed = result.filter(q => wrongQuestions.includes(q._id.toString())).length;
+        const correctQuestionsUsed = result.filter(q => correctQuestions.includes(q._id.toString())).length;
+        const randomQuestionsUsed = result.length - newQuestionsUsed - wrongQuestionsUsed - correctQuestionsUsed;
+        
+        console.log(`- New questions used: ${newQuestionsUsed} (${((newQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
+        console.log(`- Wrong questions used: ${wrongQuestionsUsed} (${((wrongQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
+        console.log(`- Correct questions used: ${correctQuestionsUsed} (${((correctQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
+        console.log(`- Random questions used: ${randomQuestionsUsed} (${((randomQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
+        
+        // Update UserChapterLevel to remove used questions from arrays
+        if (userId && (wrongQuestionsToRemove.length > 0 || correctQuestionsToRemove.length > 0)) {
+          console.log(`\n--- Updating UserChapterLevel (Removing Used Questions) ---`);
+          const updateOperation: any = {};
+          
+          if (wrongQuestionsToRemove.length > 0) {
+            updateOperation.$pull = {
+              ...(updateOperation.$pull || {}),
+              wrongQuestions: { $in: wrongQuestionsToRemove.map(id => new mongoose.Types.ObjectId(id)) }
+            };
+            console.log(`Removing ${wrongQuestionsToRemove.length} questions from wrongQuestions array`);
+          }
+          
+          if (correctQuestionsToRemove.length > 0) {
+            updateOperation.$pull = {
+              ...(updateOperation.$pull || {}),
+              correctQuestions: { $in: correctQuestionsToRemove.map(id => new mongoose.Types.ObjectId(id)) }
+            };
+            console.log(`Removing ${correctQuestionsToRemove.length} questions from correctQuestions array`);
+          }
+          
+          if (Object.keys(updateOperation).length > 0) {
+            await UserChapterLevel.findOneAndUpdate(
+              {
+                userId: new mongoose.Types.ObjectId(userId),
+                chapterId: level.chapterId,
+                levelId: level._id,
+                attemptType
+              },
+              updateOperation,
+              { upsert: false } // Don't create if it doesn't exist
+            );
+            console.log(`✅ Successfully removed used questions from UserChapterLevel arrays`);
+          }
         }
 
-        return finalQuestions;
+        console.log(`=== End createQuestionBankByUnit ===\n`);
+
+        return result;
       } catch (error) {
         console.error('Error creating question bank by Unit:', error);
         throw error;
@@ -271,12 +576,12 @@
     };
 
     // Main function to create question bank based on environment variable
-    const createQuestionBank = async (level: any, attemptType: string): Promise<any[]> => {
+    const createQuestionBank = async (level: any, attemptType: string, userId?: string): Promise<any[]> => {
       const questionFetchStrategy = process.env.QUESTION_FETCH || '0';
       
       if (questionFetchStrategy === '1') {
         console.log('Using Unit-based question fetching strategy');
-        return await createQuestionBankByUnit(level, attemptType);
+        return await createQuestionBankByUnit(level, attemptType, userId);
       } else {
         console.log('Using MU-based question fetching strategy');
         return await createQuestionBankByMu(level, attemptType);
@@ -571,7 +876,7 @@
         }
 
         // Create question bank using the helper function
-        const questionBank = await createQuestionBank(level, attemptType);
+        const questionBank = await createQuestionBank(level, attemptType, userId);
 
         // Create new session with question bank
         const session = await UserLevelSession.create({
@@ -659,8 +964,33 @@
         }
 
         // Get topics for this chapter
-        const chapterTopics = await Topic.find({ chapterId: chapterId }).select('topic');
-        const chapterTopicNames = chapterTopics.map(topic => topic.topic);
+        const chapterTopics = await Topic.find({ chapterId: chapterId }).select('topic').lean();
+        const chapterTopicNames = chapterTopics.map((topic: any) => topic.topic);
+        
+        // Get latest accuracy for chapter topics
+        const userTopicPerformance = await UserTopicPerformance.findOne({ userId: new mongoose.Types.ObjectId(userId) });
+        const topicAccuracyMap = new Map();
+        
+        if (userTopicPerformance && userTopicPerformance.topics) {
+          for (const topicEntry of userTopicPerformance.topics) {
+            const topicId = topicEntry.topicId.toString();
+            const accuracyHistory = topicEntry.accuracyHistory || [];
+            if (accuracyHistory.length > 0) {
+              // Get the latest accuracy entry
+              const latestAccuracy = accuracyHistory.reduce((latest: any, current: any) => 
+                new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
+              );
+              topicAccuracyMap.set(topicId, latestAccuracy.accuracy);
+            }
+          }
+        }
+        
+        // Create chapter topics with accuracy data
+        const chapterTopicsWithAccuracy = chapterTopics.map((topic: any) => ({
+          _id: topic._id,
+          topic: topic.topic,
+          accuracy: topicAccuracyMap.get(topic._id.toString()) || null
+        }));
 
         // Get all units for this chapter (not just those the user has access to)
         const chapterUnits = await Unit.find({
@@ -792,7 +1122,7 @@
           meta: {
             chapter: {
               ...chapter.toObject(),
-              topics: chapterTopicNames
+              topics: chapterTopicsWithAccuracy
             },
             units: unitsWithTopicNames
           },
@@ -892,7 +1222,8 @@
             // Find the next level in the same chapter with the same type
             const nextLevel = await Level.findOne({
               chapterId: session.chapterId,
-              levelNumber: currentLevel.levelNumber + 1
+              levelNumber: currentLevel.levelNumber + 1,
+              status: true
             }).select('_id levelNumber type');
 
             // Calculate progress: min(required score, current level scored) / required score * 100
@@ -1019,6 +1350,9 @@
               console.error('Error generating AI feedback:', error);
             }
 
+            // Update user's question history before processing badges
+            await updateUserQuestionHistory(session, userId);
+
             // Now process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
@@ -1115,6 +1449,9 @@
               console.error('Error generating AI feedback:', error);
             }
 
+            // Update user's question history before processing badges
+            await updateUserQuestionHistory(session, userId);
+
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
@@ -1176,7 +1513,8 @@
             // Find the next level in the same chapter with the same type
             const nextLevel = await Level.findOne({
               chapterId: session.chapterId,
-              levelNumber: currentLevel.levelNumber + 1
+              levelNumber: currentLevel.levelNumber + 1,
+              status: true
             }).select('_id levelNumber type');
 
             // Calculate progress: min(required score, current level scored) / required score * 100
@@ -1305,6 +1643,9 @@
               console.error('Error generating AI feedback:', error);
             }
 
+            // Update user's question history before processing badges
+            await updateUserQuestionHistory(session, userId);
+
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
@@ -1401,6 +1742,9 @@
             } catch (error) {
               console.error('Error generating AI feedback:', error);
             }
+
+            // Update user's question history before processing badges
+            await updateUserQuestionHistory(session, userId);
 
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);

@@ -381,6 +381,26 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       if (isCorrect) {
         session.questionsAnswered.correct.push(session.currentQuestion);
         
+        // Push correct question to UserChapterLevel immediately
+        try {
+          await UserChapterLevel.findOneAndUpdate(
+            {
+              userId: session.userId,
+              chapterId: session.chapterId,
+              levelId: session.levelId,
+              attemptType: session.attemptType
+            },
+            {
+              $addToSet: { correctQuestions: session.currentQuestion },
+              $pull: { wrongQuestions: session.currentQuestion } // Remove from wrong if it was there
+            },
+            { upsert: true }
+          );
+          console.log(`✅ Added question ${session.currentQuestion} to correctQuestions for user ${session.userId}`);
+        } catch (error) {
+          console.error('Error updating UserChapterLevel with correct question:', error);
+        }
+        
         // Handle streak logic for correct answers
         session.streak = (session.streak || 0) + 1;
         
@@ -410,6 +430,25 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
         }
       } else {
         session.questionsAnswered.incorrect.push(session.currentQuestion);
+        
+        // Push incorrect question to UserChapterLevel immediately
+        try {
+          await UserChapterLevel.findOneAndUpdate(
+            {
+              userId: session.userId,
+              chapterId: session.chapterId,
+              levelId: session.levelId,
+              attemptType: session.attemptType
+            },
+            {
+              $addToSet: { wrongQuestions: session.currentQuestion }
+            },
+            { upsert: true }
+          );
+          console.log(`❌ Added question ${session.currentQuestion} to wrongQuestions for user ${session.userId}`);
+        } catch (error) {
+          console.error('Error updating UserChapterLevel with wrong question:', error);
+        }
         
         // Reset streak on incorrect answer
         session.streak = 0;

@@ -199,7 +199,7 @@ const AccuracySnackbars = ({ topics, isVisible, onClose, bottomOffset = 20 }) =>
                 justifyContent: 'center',
                 backgroundColor: theme => theme.palette.mode === 'dark'
                   ? 'rgba(0,0,0,0.4)'
-                  : 'rgba(255,255,255,0.4)',
+                  : 'rgba(255,255,255)',
                 backdropFilter: 'blur(6px)',
                 
               }}>
