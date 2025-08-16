@@ -39,6 +39,7 @@ import {
   useGetTopicsQuery,
   useGetUnitsQuery
 } from '../../features/api/adminAPI';
+import { useUploadQuestionImageMutation } from '../../features/api/adminAPI';
 import { saveAs } from 'file-saver';
 
 const Questions = () => {
@@ -106,6 +107,49 @@ const Questions = () => {
   const [multiAddQuestions] = useMultiAddQuestionsMutation();
   const [updateQuestion] = useUpdateQuestionMutation();
   const [deleteQuestion] = useDeleteQuestionMutation();
+  const [uploadQuestionImage] = useUploadQuestionImageMutation();
+
+  // Image upload dialog state
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [imageDialogTarget, setImageDialogTarget] = useState(null);
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [selectedImagePreview, setSelectedImagePreview] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const openImageDialog = (row) => {
+    setImageDialogTarget(row);
+    setImageDialogOpen(true);
+    setSelectedImageFile(null);
+    setSelectedImagePreview('');
+  };
+
+  const closeImageDialog = () => {
+    setImageDialogOpen(false);
+    setImageDialogTarget(null);
+    setSelectedImageFile(null);
+    setSelectedImagePreview('');
+  };
+
+  const onPickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImageFile(file);
+    setSelectedImagePreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  const attachImage = async () => {
+    if (!imageDialogTarget?._id || !selectedImageFile) return;
+    try {
+      setIsUploadingImage(true);
+      await uploadQuestionImage({ id: imageDialogTarget._id, file: selectedImageFile }).unwrap();
+      closeImageDialog();
+    } catch (err) {
+      console.error('Upload failed', err);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     ques: '',
@@ -395,6 +439,43 @@ const Questions = () => {
         </Box>
       )
     },
+    {
+      field: 'quesImage',
+      headerName: 'Image',
+      width: 120,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {params.value ? (
+            <img src={params.value} alt="question" style={{ width: 56, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+          ) : (
+            <Typography variant="caption" color="text.secondary">None</Typography>
+          )}
+        </Box>
+      )
+    },
+    {
+      field: 'quesImageUrl',
+      headerName: 'Image URL',
+      flex: 1,
+      minWidth: 260,
+      renderCell: (params) => (
+        params.row.quesImage ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+            <a href={params.row.quesImage} target="_blank" rel="noreferrer" style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
+              maxWidth: '100%'
+            }}>
+              {params.row.quesImage}
+            </a>
+          </Box>
+        ) : (
+          <Typography variant="caption" color="text.secondary">N/A</Typography>
+        )
+      )
+    },
     { 
       field: 'chapterId', 
       headerName: 'Chapter', 
@@ -476,7 +557,7 @@ const Questions = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
+      width: 220,
       renderCell: (params) => (
         <Box>
           <IconButton onClick={() => handleOpenDialog(params.row)} size="small">
@@ -484,6 +565,9 @@ const Questions = () => {
           </IconButton>
           <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error">
             <DeleteIcon />
+          </IconButton>
+          <IconButton onClick={() => openImageDialog(params.row)} size="small" title="Attach Image">
+            <UploadIcon />
           </IconButton>
         </Box>
       )
@@ -914,6 +998,58 @@ const Questions = () => {
           <Button onClick={() => setOpenMultiAddDialog(false)}>Cancel</Button>
           <Button onClick={handleMultiAdd} variant="contained">
             Add Questions
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Image Attach Dialog */}
+      <Dialog open={imageDialogOpen} onClose={closeImageDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Attach Image</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {imageDialogTarget?.ques}
+            </Typography>
+            <Divider />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>Current</Typography>
+                {imageDialogTarget?.quesImage ? (
+                  <img
+                    src={imageDialogTarget.quesImage}
+                    alt="current"
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 6, border: '1px solid #eee' }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.secondary">No image</Typography>
+                )}
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>Preview</Typography>
+                {selectedImagePreview ? (
+                  <img
+                    src={selectedImagePreview}
+                    alt="preview"
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 6, border: '1px solid #eee' }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.secondary">Pick an image to preview</Typography>
+                )}
+              </Box>
+            </Box>
+
+            <Box>
+              <Button variant="outlined" component="label" startIcon={<UploadIcon />}>
+                Choose Image
+                <input type="file" accept="image/*" hidden onChange={onPickImage} />
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeImageDialog} disabled={isUploadingImage}>Cancel</Button>
+          <Button onClick={attachImage} variant="contained" disabled={!selectedImageFile || isUploadingImage}>
+            {isUploadingImage ? 'Uploading...' : 'Attach'}
           </Button>
         </DialogActions>
       </Dialog>

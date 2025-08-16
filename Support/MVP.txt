@@ -1,15 +1,24 @@
 MVP Commmit ✅:-
-Time Rush 
-Precision Path 
+1 Chapter (Rotation Motion)
 Health
-Question Streaks gives extra xp 
-Daily Quiz Streak (Under dev: add icon on top)
+XPs
+Questions with images
+Levels (Time Rush and Precision Path)
+Streaks
 Sound 
-UX
-Histogram
+Performance
+Highscore/Mintime
+Questions selection algorithm
+Variety of questions and topics
+Leaderboard or Histogram
+Solutions
+AI Feedback
+Accuracy over topics
 
+Under dev:-
+Questions with Images 
+Questions formating with Latex
 
-Stage:- 
-Badges?(Top 3 badges I should keep(DailyQuizStreakBadge aalready implemented))
-Stats?
-XPs?(What types Xps to have)
+Ops:-
+Storing questions, options, solution as latex
+Collect user data

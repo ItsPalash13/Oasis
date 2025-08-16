@@ -10,6 +10,7 @@ node_modules/
 # Production
 /build
 dist/
+secret/
 **/dist/
 
 Start.txt

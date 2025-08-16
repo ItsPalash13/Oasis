@@ -884,6 +884,16 @@ const Quiz = ({ socket }) => {
                 >
                   {currentQuestion.question}
                 </Typography>
+                {/* Optional question image */}
+                {currentQuestion?.questionImage && (
+                  <Box sx={{ mt: 1 }}>
+                    <img
+                      src={currentQuestion.questionImage}
+                      alt="question"
+                      style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8 }}
+                    />
+                  </Box>
+                )}
               </CardContent>
             </QuestionCard>
 

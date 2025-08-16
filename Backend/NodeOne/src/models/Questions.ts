@@ -4,6 +4,7 @@ interface IQuestion extends Document {
   ques: string;
   options: string[];
   correct: number;
+  quesImage: string;
   solution: string;
   chapterId: mongoose.Types.ObjectId; 
   unitId?: mongoose.Types.ObjectId;
@@ -24,6 +25,10 @@ const QuestionSchema = new Schema<IQuestion>({
     required: true,
     min: 0,
     max: 3  // Since options are 0-based index
+  },
+  quesImage: {
+    type: String,
+    required: false
   },
   solution: {
     type: String

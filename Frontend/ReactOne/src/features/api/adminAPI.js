@@ -114,6 +114,18 @@ export const adminApi = createApi({
       query: (id) => ({ url: `/api/admin/questions/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Question'],
     }),
+    uploadQuestionImage: builder.mutation({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/api/admin/questions/${id}/image`,
+          method: 'POST',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Question'],
+    }),
     getQuestionsMuByTopics: builder.mutation({
       query: (topics) => ({
         url: '/api/admin/questions/mu-by-topics',
@@ -283,6 +295,7 @@ export const {
   useMultiAddQuestionsMutation,
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
+  useUploadQuestionImageMutation,
   useGetQuestionsMuByTopicsMutation,
   useGetLevelsQuery,
   useGetLevelsByChapterQuery,

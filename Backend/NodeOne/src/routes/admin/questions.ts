@@ -5,9 +5,15 @@ import { Chapter } from '../../models/Chapter';
 import { Topic } from '../../models/Topic';
 import { Unit } from '../../models/Units';
 import mongoose from 'mongoose';
-import { Request, Response } from 'express';
+import { Request, Response, Express } from 'express';
+import multer from 'multer';
+import { uploadBufferToBucket } from '../../utils/gcp';
 
 const router = express.Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: Number(process.env.MAX_UPLOAD_BYTES) || 10 * 1024 * 1024 }
+});
 
 // Create question
 router.post('/', async (req: Request, res: Response) => {
@@ -199,6 +205,60 @@ router.post('/multi-add', async (req: Request, res: Response) => {
   }
 });
 
+// Upload and attach image to a specific question
+router.post('/:id/image', upload.single('file'), async (req: Request & { file?: Express.Multer.File }, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid question ID' });
+    }
+
+    const question = await Question.findById(id);
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded. Use form field name "file"' });
+    }
+
+    const file = req.file as Express.Multer.File;
+
+    const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+    const mimeToExt: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+      'image/gif': '.gif'
+    };
+    const mimeExt = mimeToExt[file.mimetype] || '';
+    const finalExt = originalExt || mimeExt || '.png';
+    // Fixed destination so uploads overwrite the same object for this question
+    const destination = `questions-images/${id}/question${finalExt}`;
+
+    const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+      makePublic: true,
+      contentType: file.mimetype,
+      bucketName: process.env.GCP_BUCKET_NAME,
+    });
+
+    question.quesImage = publicUrl;
+    await question.save();
+
+    return res.status(200).json({
+      message: 'Image uploaded and attached successfully',
+      quesImage: publicUrl,
+      questionId: id,
+    });
+  } catch (error: any) {
+    console.error('Error uploading question image:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all questions
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -233,7 +293,7 @@ router.get('/', async (req: Request, res: Response) => {
       return acc;
     }, {} as Record<string, any>);
 
-    // Attach QuestionTs data to questions
+    // Attach QuestionTs data to questions (no URL rewriting)
     const questionsWithTs = questions.map(question => ({
       ...question.toObject(),
       questionTs: questionTsMap[String(question._id)]

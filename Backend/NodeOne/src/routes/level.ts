@@ -965,7 +965,6 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
         // Get topics for this chapter
         const chapterTopics = await Topic.find({ chapterId: chapterId }).select('topic').lean();
-        const chapterTopicNames = chapterTopics.map((topic: any) => topic.topic);
         
         // Get latest accuracy for chapter topics
         const userTopicPerformance = await UserTopicPerformance.findOne({ userId: new mongoose.Types.ObjectId(userId) });

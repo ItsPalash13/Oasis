@@ -275,6 +275,7 @@ export const quizQuestionHandlers = (socket: Socket) => {
         options: question?.options,
         correctAnswer: question?.correct,
         topics: question?.topics?.map(t => t.name) || [],
+        questionImage: question?.quesImage,
         currentQuestionIndex: session.currentQuestionIndex,
         totalQuestions: session.questionBank.length,
         currentStreak: session.streak || 0
