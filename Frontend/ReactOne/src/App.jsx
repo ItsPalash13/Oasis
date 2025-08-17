@@ -22,6 +22,7 @@ import './App.css';
 import Admin from './Layouts/Admin/Admin';
 import Profile from './Layouts/Profile/Profile';
 import TempResults from './Layouts/Temp/TempResults';
+import TempMath from './Layouts/Temp/TempMath';
 
 // Create socket instance outside component
 export const socket = io(import.meta.env.VITE_BACKEND_URL, {
@@ -355,6 +356,7 @@ function AppContent() {
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/temp/result" element={<TempResults />} />
+              <Route path="/temp/math" element={<TempMath />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Box>
