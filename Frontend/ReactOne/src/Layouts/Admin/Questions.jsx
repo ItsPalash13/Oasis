@@ -57,7 +57,9 @@ const Questions = () => {
     unitId: '',
     topicIds: [],
     xpCorrect: 2,
-    xpIncorrect: 0
+    xpIncorrect: 0,
+    mu: 0,
+    sigma: 1
   });
 
   const { data: chaptersData } = useGetChaptersQuery();
@@ -157,7 +159,8 @@ const Questions = () => {
     correct: 0,
     chapterId: '',
     unitId: '',
-    topics: []
+    topics: [],
+    solution: ''
   });
 
   const handleOpenDialog = (question = null) => {
@@ -169,7 +172,8 @@ const Questions = () => {
         correct: question.correct,
         chapterId: question.chapterId?._id || question.chapterId,
         unitId: question.unitId?._id || question.unitId || '',
-        topics: question.topics || []
+        topics: question.topics || [],
+        solution: question.solution || ''
       });
     } else {
       setEditingQuestion(null);
@@ -179,7 +183,8 @@ const Questions = () => {
         correct: 0,
         chapterId: selectedChapter,
         unitId: selectedUnit,
-        topics: []
+        topics: [],
+        solution: ''
       });
     }
     setOpenDialog(true);
@@ -194,7 +199,8 @@ const Questions = () => {
       correct: 0,
       chapterId: '',
       unitId: '',
-      topics: []
+      topics: [],
+      solution: ''
     });
   };
 
@@ -316,9 +322,8 @@ const Questions = () => {
         option3: parts[3] || '',
         option4: parts[4] || '',
         correctIndex: parts[5] || '',
-        mu: parts[6] || '',
-        sigma: parts[7] || '',
-        isValid: parts.length >= 8 && parts[0] && parts[1] && parts[2] && parts[3] && parts[4]
+        solution: parts[6] || '',
+        isValid: parts.length >= 6 && parts[0] && parts[1] && parts[2] && parts[3] && parts[4]
       };
     });
   };
@@ -333,13 +338,14 @@ const Questions = () => {
       
       const parsedQuestions = lines.map(line => {
         const parts = parseCSVLine(line);
-        if (parts.length < 8) {
-          throw new Error(`Invalid format. Each line should have: /\"question\"/,/\"option1\"/,/\"option2\"/,/\"option3\"/,/\"option4\"/,correctIndex,mu,sigma`);
+        if (parts.length < 6) {
+          throw new Error(`Invalid format. Each line should have: /\"question\"/,/\"option1\"/,/\"option2\"/,/\"option3\"/,/\"option4\"/,correctIndex,/\"solution\"/`);
         }
         
-        let [question, option1, option2, option3, option4, correctIndex, mu, sigma] = parts;
+        let [question, option1, option2, option3, option4, correctIndex, solution] = parts;
         // Extract content from /"text"/ format
         const extractContent = (str) => {
+          if (!str) return '';
           str = str.trim();
           // Remove /" from start and "/ from end
           return str.replace(/^\/"/, '').replace(/"\/$/, '');
@@ -349,7 +355,8 @@ const Questions = () => {
         option2 = extractContent(option2);
         option3 = extractContent(option3);
         option4 = extractContent(option4);
-        return [question, option1, option2, option3, option4, parseInt(correctIndex), parseFloat(mu), parseFloat(sigma)];
+        solution = solution ? extractContent(solution) : '';
+        return [question, option1, option2, option3, option4, parseInt(correctIndex), solution];
       });
 
       await multiAddQuestions({
@@ -358,7 +365,9 @@ const Questions = () => {
         unitId: multiAddData.unitId || undefined,
         topicIds: multiAddData.topicIds,
         xpCorrect: multiAddData.xpCorrect,
-        xpIncorrect: multiAddData.xpIncorrect
+        xpIncorrect: multiAddData.xpIncorrect,
+        mu: multiAddData.mu,
+        sigma: multiAddData.sigma
       }).unwrap();
 
       setOpenMultiAddDialog(false);
@@ -368,7 +377,9 @@ const Questions = () => {
         unitId: '',
         topicIds: [],
         xpCorrect: 2,
-        xpIncorrect: 0
+        xpIncorrect: 0,
+        mu: 0,
+        sigma: 1
       });
     } catch (error) {
       console.error('Error multi-adding questions:', error);
@@ -403,14 +414,16 @@ const Questions = () => {
       // Mu and Sigma
       const mu = escapeCSV(q.questionTs?.difficulty?.mu ?? '');
       const sigma = escapeCSV(q.questionTs?.difficulty?.sigma ?? '');
+      // Solution
+      const solution = escapeCSV(`/"${q.solution || ''}"/`);
       // Topics as JSON array of topic names
       const topicsArr = (q.topics || []).map(t => t.name || t.topic || '').filter(Boolean);
       const topicsJson = escapeCSV(JSON.stringify(topicsArr));
       // Join all fields
-      return [question, ...options, correctIndex, mu, sigma, topicsJson].join(',');
+      return [question, ...options, correctIndex, mu, sigma, solution, topicsJson].join(',');
     });
     // Add header
-    const header = '/question/,option1,option2,option3,option4,correctIndex,mu,sigma,topics';
+    const header = '/question/,option1,option2,option3,option4,correctIndex,mu,sigma,solution,topics';
     const csvContent = [header, ...csvRows].join('\n');
     // Download as file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -551,6 +564,22 @@ const Questions = () => {
       renderCell: (params) => (
         <Typography variant="body2">
           {params.row.questionTs?.difficulty?.sigma || 'N/A'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'solution', 
+      headerName: 'Solution', 
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis', 
+          whiteSpace: 'nowrap',
+          maxWidth: '100%'
+        }}>
+          {params.value || 'No solution'}
         </Typography>
       )
     },
@@ -815,6 +844,18 @@ const Questions = () => {
                 </Select>
               </FormControl>
             </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Solution (Optional)"
+                multiline
+                rows={3}
+                value={formData.solution}
+                onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
+                placeholder="Provide detailed explanation for the correct answer..."
+              />
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -830,7 +871,8 @@ const Questions = () => {
         <DialogTitle>Multi Add Questions</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,mu,sigma (one per line)
+            Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/ (one per line)<br/>
+            Note: Solution is optional. You can omit it or leave it empty by using /""/. Mu and Sigma values are set below for all questions.
           </Alert>
           
           <Grid container spacing={2}>
@@ -842,7 +884,7 @@ const Questions = () => {
                 rows={10}
                 value={multiAddData.questions}
                 onChange={(e) => setMultiAddData({ ...multiAddData, questions: e.target.value })}
-                placeholder={'Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,mu,sigma'}
+                placeholder={'Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/'}
               />
             </Grid>
 
@@ -863,8 +905,7 @@ const Questions = () => {
                         <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Option 3</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Option 4</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Correct</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Mu</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Sigma</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Solution</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
@@ -900,8 +941,9 @@ const Questions = () => {
                               color={row.correctIndex >= 0 && row.correctIndex <= 3 ? "success" : "error"}
                             />
                           </TableCell>
-                          <TableCell>{row.mu}</TableCell>
-                          <TableCell>{row.sigma}</TableCell>
+                          <TableCell sx={{ maxWidth: 150, wordBreak: 'break-word' }}>
+                            {row.solution || 'No solution'}
+                          </TableCell>
                           <TableCell>
                             <Chip 
                               label={row.isValid ? "Valid" : "Invalid"} 
@@ -916,7 +958,7 @@ const Questions = () => {
                 </TableContainer>
                 {csvPreviewData.some(row => !row.isValid) && (
                   <Alert severity="warning" sx={{ mt: 1 }}>
-                    Some rows have invalid format. Each row should have: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,mu,sigma
+                    Some rows have invalid format. Each row should have: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/
                   </Alert>
                 )}
               </Grid>
@@ -990,6 +1032,28 @@ const Questions = () => {
                 type="number"
                 value={multiAddData.xpIncorrect}
                 onChange={(e) => setMultiAddData({ ...multiAddData, xpIncorrect: parseInt(e.target.value) })}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Mu (Difficulty)"
+                type="number"
+                step="0.1"
+                value={multiAddData.mu}
+                onChange={(e) => setMultiAddData({ ...multiAddData, mu: parseFloat(e.target.value) })}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Sigma (Variance)"
+                type="number"
+                step="0.1"
+                value={multiAddData.sigma}
+                onChange={(e) => setMultiAddData({ ...multiAddData, sigma: parseFloat(e.target.value) })}
               />
             </Grid>
           </Grid>

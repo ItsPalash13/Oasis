@@ -5,7 +5,7 @@ import { Chapter } from '../../models/Chapter';
 import { Topic } from '../../models/Topic';
 import { Unit } from '../../models/Units';
 import mongoose from 'mongoose';
-import { Request, Response, Express } from 'express';
+import { Request, Response } from 'express';
 import multer from 'multer';
 import { uploadBufferToBucket } from '../../utils/gcp';
 
@@ -18,7 +18,7 @@ const upload = multer({
 // Create question
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma } = req.body;
+    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution } = req.body;
 
     // Validate required fields
     if (!ques || !options || correct === undefined || !chapterId) {
@@ -54,7 +54,8 @@ router.post('/', async (req: Request, res: Response) => {
       correct,
       chapterId: new mongoose.Types.ObjectId(chapterId),
       unitId: unitId ? new mongoose.Types.ObjectId(unitId) : undefined,
-      topics: topics || []
+      topics: topics || [],
+      solution: solution || ''
     });
 
     const savedQuestion = await question.save();
@@ -86,7 +87,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Multi-add questions endpoint
 router.post('/multi-add', async (req: Request, res: Response) => {
   try {
-    const { questions, chapterId, unitId, topicIds, xpCorrect, xpIncorrect } = req.body;
+    const { questions, chapterId, unitId, topicIds, xpCorrect, xpIncorrect, mu, sigma } = req.body;
 
     // Validate required fields
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -103,6 +104,10 @@ router.post('/multi-add', async (req: Request, res: Response) => {
 
     if (typeof xpCorrect !== 'number' || typeof xpIncorrect !== 'number') {
       return res.status(400).json({ error: 'XP values must be numbers' });
+    }
+
+    if (typeof mu !== 'number' || typeof sigma !== 'number') {
+      return res.status(400).json({ error: 'Mu and sigma values must be numbers' });
     }
 
     // Validate chapter exists
@@ -135,13 +140,13 @@ router.post('/multi-add', async (req: Request, res: Response) => {
 
     // Process each question
     for (const questionData of questions) {
-      if (!Array.isArray(questionData) || questionData.length < 8) {
+      if (!Array.isArray(questionData) || questionData.length < 6) {
         return res.status(400).json({ 
-          error: `Invalid question format. Expected array with at least 8 elements: [question, option1, option2, option3, option4, correctIndex, mu, sigma]` 
+          error: `Invalid question format. Expected array with at least 6 elements: [question, option1, option2, option3, option4, correctIndex] or 7 elements with solution: [question, option1, option2, option3, option4, correctIndex, solution]` 
         });
       }
 
-      const [questionText, option1, option2, option3, option4, correctIndex, mu, sigma] = questionData;
+      const [questionText, option1, option2, option3, option4, correctIndex, solution] = questionData;
 
       // Validate question data
       if (typeof questionText !== 'string' || questionText.trim() === '') {
@@ -156,10 +161,6 @@ router.post('/multi-add', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Correct index must be 0, 1, 2, or 3' });
       }
 
-      if (typeof mu !== 'number' || typeof sigma !== 'number') {
-        return res.status(400).json({ error: 'Mu and sigma must be numbers' });
-      }
-
       // Create question
       const question = new Question({
         ques: questionText.trim(),
@@ -170,7 +171,8 @@ router.post('/multi-add', async (req: Request, res: Response) => {
         topics: topicIds.map(id => ({
           id: new mongoose.Types.ObjectId(id),
           name: topicMap[id]
-        }))
+        })),
+        solution: solution ? solution.trim() : ''
       });
 
       const savedQuestion = await question.save();
@@ -332,7 +334,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Update question
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma } = req.body;
+    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution } = req.body;
 
     const question = await Question.findById(req.params.id);
     if (!question) {
@@ -346,6 +348,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (chapterId) question.chapterId = chapterId;
     if (unitId !== undefined) question.unitId = unitId || null;
     if (topics) question.topics = topics;
+    if (solution !== undefined) question.solution = solution;
 
     await question.save();
 

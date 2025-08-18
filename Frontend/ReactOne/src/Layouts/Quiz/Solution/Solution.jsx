@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import { BlockMath } from 'react-katex';
 
 const Solution = ({ open, onClose, questionsHistory = [] }) => {
   return (
@@ -96,7 +97,19 @@ const Solution = ({ open, onClose, questionsHistory = [] }) => {
                 {entry.solution && (
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Solution</Typography>
-                    <Typography variant="body2" color="text.secondary">{entry.solution}</Typography>
+                    {/* <Typography variant="body2" color="text.secondary">{entry.solution}</Typography> */}
+                    <Box sx={{ 
+                      '& .katex-display': {
+                        textAlign: 'left !important'
+                      },
+                      '& .katex-display > .katex': {
+                        textAlign: 'left !important'
+                      }
+                    }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <BlockMath math={entry.solution} />
+                      </Typography>
+                    </Box>
                   </Box>
                 )}
                 <Divider sx={{ mt: 2 }} />
