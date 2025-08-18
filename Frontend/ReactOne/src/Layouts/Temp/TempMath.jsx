@@ -1,233 +1,164 @@
-import React from 'react';
-import { Box, Typography, Paper, Grid, Card, CardContent, Divider } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Paper, Grid, Card, CardContent, Divider, TextField, Button } from '@mui/material';
 import { BlockMath, InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import { colors } from '../../theme/colors';
 
 const TempMath = () => {
+  const [latexInput, setLatexInput] = useState('x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}');
+  const [displayMode, setDisplayMode] = useState('block'); // 'block' or 'inline'
+
+  const handleLatexChange = (event) => {
+    setLatexInput(event.target.value);
+  };
+
+  const toggleDisplayMode = () => {
+    setDisplayMode(displayMode === 'block' ? 'inline' : 'block');
+  };
+
+  const renderLatex = () => {
+    try {
+      if (displayMode === 'block') {
+        return <BlockMath math={latexInput} />;
+      } else {
+        return <InlineMath math={latexInput} />;
+      }
+    } catch (error) {
+      return (
+        <Typography color="error" variant="body2">
+          LaTeX Error: {error.message}
+        </Typography>
+      );
+    }
+  };
+
+  const exampleFormulas = [
+    { name: 'Quadratic Formula', latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}' },
+    { name: 'Pythagorean Theorem', latex: 'a^2 + b^2 = c^2' },
+    { name: 'Euler\'s Identity', latex: 'e^{i\\pi} + 1 = 0' },
+    { name: 'Derivative', latex: 'f\'(x) = \\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}' },
+    { name: 'Integration', latex: '\\int u \\, dv = uv - \\int v \\, du' },
+    { name: 'Chemical Equation', latex: '2H_2 + O_2 \\rightarrow 2H_2O' },
+    { name: 'Ideal Gas Law', latex: 'PV = nRT' },
+    { name: 'Kinetic Energy', latex: 'KE = \\frac{1}{2}mv^2' },
+    { name: 'Gravitational Force', latex: 'F = G\\frac{m_1m_2}{r^2}' },
+    { name: 'Wave Equation', latex: 'v = f\\lambda' }
+  ];
+
+  const loadExample = (latex) => {
+    setLatexInput(latex);
+  };
+
   return (
     <Box sx={{ 
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
       minHeight: '100vh',
-      p: 3,
-      backgroundColor: 'background.default'
+      backgroundColor: 'background.default',
+      p: 2
     }}>
-      <Typography variant="h4" component="h1" align="center" gutterBottom sx={{ mb: 4 }}>
-        Math & Chemistry Formulas Demo
+      <Typography variant="h4" component="h1" align="center" gutterBottom sx={{ mb: 3 }}>
+        LaTeX Editor
       </Typography>
 
-      <Grid container spacing={3} maxWidth="1200px">
-        
-        {/* Chemistry Section */}
+      <Grid container spacing={3} sx={{ flex: 1 }}>
+        {/* Left Panel - Input */}
         <Grid item xs={12} md={6}>
-          <Card elevation={3} sx={{ height: '100%' }}>
-            <CardContent>
+          <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h5" gutterBottom sx={{ color: colors.app.light.accent }}>
-                Chemistry Formulas
+                LaTeX Input
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Chemical Equations</Typography>
-                <BlockMath math="2H_2 + O_2 \rightarrow 2H_2O" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Hydrogen + Oxygen → Water
-                </Typography>
+              <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+                <Button 
+                  variant={displayMode === 'block' ? 'contained' : 'outlined'}
+                  onClick={toggleDisplayMode}
+                  size="small"
+                >
+                  Block Mode
+                </Button>
+                <Button 
+                  variant={displayMode === 'inline' ? 'contained' : 'outlined'}
+                  onClick={toggleDisplayMode}
+                  size="small"
+                >
+                  Inline Mode
+                </Button>
               </Box>
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Ideal Gas Law</Typography>
-                <BlockMath math="PV = nRT" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Where P = pressure, V = volume, n = moles, R = gas constant, T = temperature
-                </Typography>
-              </Box>
+              <TextField
+                multiline
+                rows={8}
+                fullWidth
+                value={latexInput}
+                onChange={handleLatexChange}
+                placeholder="Enter LaTeX code here..."
+                variant="outlined"
+                sx={{ 
+                  flex: 1,
+                  '& .MuiInputBase-root': {
+                    fontFamily: 'monospace',
+                    fontSize: '14px'
+                  }
+                }}
+              />
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>pH Calculation</Typography>
-                <BlockMath math=" pH = -\log[H^+]" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  pH is the negative logarithm of hydrogen ion concentration
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Quick Examples
                 </Typography>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Molarity Formula</Typography>
-                <BlockMath math="M = \frac{n}{V}" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Molarity = moles of solute / volume of solution in liters
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="h6" gutterBottom>Balanced Equation</Typography>
-                <BlockMath math="C_6H_{12}O_6 + 6O_2 \rightarrow 6CO_2 + 6H_2O" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Glucose + Oxygen → Carbon Dioxide + Water (Cellular Respiration)
-                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {exampleFormulas.map((example, index) => (
+                    <Button
+                      key={index}
+                      variant="outlined"
+                      size="small"
+                      onClick={() => loadExample(example.latex)}
+                      sx={{ fontSize: '12px' }}
+                    >
+                      {example.name}
+                    </Button>
+                  ))}
+                </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Mathematics Section */}
+        {/* Right Panel - Output */}
         <Grid item xs={12} md={6}>
-          <Card elevation={3} sx={{ height: '100%' }}>
-            <CardContent>
+          <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h5" gutterBottom sx={{ color: colors.app.light.accent }}>
-                Mathematics Equations
+                Rendered Output
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Quadratic Formula</Typography>
-                <BlockMath math="x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" />
-                <Typography variant="h6" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Solution to <InlineMath math="ax^2 + bx + c = 0" /> 
-                  <br />
-                  <InlineMath math="\text{Hi this is text } I = \sum m r^{2} \to \text{unit} = \mathrm{kg \cdot m^{2}}" />
-                </Typography>
+              <Box sx={{ 
+                flex: 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                minHeight: '200px',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                backgroundColor: 'background.paper'
+              }}>
+                {renderLatex()}
               </Box>
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Pythagorean Theorem</Typography>
-                <BlockMath math="a^2 + b^2 = c^2" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  For a right triangle with sides a, b and hypotenuse c
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Display Mode:</strong> {displayMode === 'block' ? 'Block (centered, larger)' : 'Inline (text flow)'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  <strong>Tip:</strong> Use \\ for line breaks, \\frac{}{} for fractions, \\sqrt{} for square roots
                 </Typography>
               </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Euler's Identity</Typography>
-                <BlockMath math="e^{i\pi} + 1 = 0" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  Considered the most beautiful equation in mathematics
-                </Typography>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Derivative Definition</Typography>
-                <BlockMath math="f'(x) = \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  The limit definition of the derivative
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="h6" gutterBottom>Integration by Parts</Typography>
-                <BlockMath math="\int u \, dv = uv - \int v \, du" />
-                <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                  A technique for integrating products of functions
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Physics Section */}
-        <Grid item xs={12}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom sx={{ color: colors.app.light.accent }}>
-                Physics Equations
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Newton's Second Law</Typography>
-                    <BlockMath math="F = ma" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Force equals mass times acceleration
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Einstein's Mass-Energy</Typography>
-                    <BlockMath math="E = mc^2" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Energy equals mass times speed of light squared
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Kinetic Energy</Typography>
-                    <BlockMath math="KE = \frac{1}{2}mv^2" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Kinetic energy of a moving object
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Gravitational Force</Typography>
-                    <BlockMath math="F = G\frac{m_1m_2}{r^2}" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Newton's law of universal gravitation
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Wave Equation</Typography>
-                    <BlockMath math="v = f\lambda" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Wave speed equals frequency times wavelength
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" gutterBottom>Ohm's Law</Typography>
-                    <BlockMath math="V = IR" />
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                      Voltage equals current times resistance
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Inline Math Examples */}
-        <Grid item xs={12}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom sx={{ color: colors.app.light.accent }}>
-                Inline Math Examples
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Typography variant="body1" paragraph>
-                The quadratic equation <InlineMath math="ax^2 + bx + c = 0" /> has solutions given by the quadratic formula.
-              </Typography>
-              
-              <Typography variant="body1" paragraph>
-                In chemistry, the reaction <InlineMath math="2H_2 + O_2 \rightarrow 2H_2O" /> produces water from hydrogen and oxygen.
-              </Typography>
-              
-              <Typography variant="body1" paragraph>
-                The area of a circle is <InlineMath math="A = \pi r^2" /> where <InlineMath math="r" /> is the radius.
-              </Typography>
-              
-              <Typography variant="body1" paragraph>
-                The derivative of <InlineMath math="x^2" /> is <InlineMath math="2x" />, and the integral of <InlineMath math="2x" /> is <InlineMath math="x^2 + C" />.
-              </Typography>
-              
-              <Typography variant="body1" paragraph>
-                In physics, when an object moves with velocity <InlineMath math="v" /> and has mass <InlineMath math="m" />, its kinetic energy is <InlineMath math="KE = \frac{1}{2}mv^2" />.
-              </Typography>
             </CardContent>
           </Card>
         </Grid>

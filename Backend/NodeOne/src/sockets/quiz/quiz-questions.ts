@@ -4,6 +4,7 @@ import { UserLevelSession } from '../../models/UserLevelSession';
 import { Question } from '../../models/Questions';
 import { QuestionTs } from '../../models/QuestionTs';
 import { UserChapterLevel } from '../../models/UserChapterLevel';
+import { UserChapterUnit } from '../../models/UserChapterUnit';
 import { Level } from '../../models/Level';
 // Removed: UserLevelSessionTopicsLogs model
 import { getSkewNormalRandom } from '../../utils/math';
@@ -382,24 +383,28 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       if (isCorrect) {
         session.questionsAnswered.correct.push(session.currentQuestion);
         
-        // Push correct question to UserChapterLevel immediately
+        // Push correct question to UserChapterUnit immediately
         try {
-          await UserChapterLevel.findOneAndUpdate(
-            {
-              userId: session.userId,
-              chapterId: session.chapterId,
-              levelId: session.levelId,
-              attemptType: session.attemptType
-            },
-            {
-              $addToSet: { correctQuestions: session.currentQuestion },
-              $pull: { wrongQuestions: session.currentQuestion } // Remove from wrong if it was there
-            },
-            { upsert: true }
-          );
-          console.log(`✅ Added question ${session.currentQuestion} to correctQuestions for user ${session.userId}`);
+          const levelDoc = await Level.findById(session.levelId).select('_id unitId');
+          if (levelDoc) {
+            await UserChapterUnit.findOneAndUpdate(
+              {
+                userId: session.userId,
+                chapterId: session.chapterId,
+                unitId: levelDoc.unitId
+              },
+              {
+                $addToSet: { correctQuestions: session.currentQuestion },
+                $pull: { wrongQuestions: session.currentQuestion }
+              },
+              { upsert: true }
+            );
+            console.log(`✅ Added question ${session.currentQuestion} to correctQuestions (Unit) for user ${session.userId}`);
+          } else {
+            console.warn('Level not found while updating UserChapterUnit correctQuestions');
+          }
         } catch (error) {
-          console.error('Error updating UserChapterLevel with correct question:', error);
+          console.error('Error updating UserChapterUnit with correct question:', error);
         }
         
         // Handle streak logic for correct answers
@@ -432,23 +437,27 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       } else {
         session.questionsAnswered.incorrect.push(session.currentQuestion);
         
-        // Push incorrect question to UserChapterLevel immediately
+        // Push incorrect question to UserChapterUnit immediately
         try {
-          await UserChapterLevel.findOneAndUpdate(
-            {
-              userId: session.userId,
-              chapterId: session.chapterId,
-              levelId: session.levelId,
-              attemptType: session.attemptType
-            },
-            {
-              $addToSet: { wrongQuestions: session.currentQuestion }
-            },
-            { upsert: true }
-          );
-          console.log(`❌ Added question ${session.currentQuestion} to wrongQuestions for user ${session.userId}`);
+          const levelDoc = await Level.findById(session.levelId).select('_id unitId');
+          if (levelDoc) {
+            await UserChapterUnit.findOneAndUpdate(
+              {
+                userId: session.userId,
+                chapterId: session.chapterId,
+                unitId: levelDoc.unitId
+              },
+              {
+                $addToSet: { wrongQuestions: session.currentQuestion }
+              },
+              { upsert: true }
+            );
+            console.log(`❌ Added question ${session.currentQuestion} to wrongQuestions (Unit) for user ${session.userId}`);
+          } else {
+            console.warn('Level not found while updating UserChapterUnit wrongQuestions');
+          }
         } catch (error) {
-          console.error('Error updating UserChapterLevel with wrong question:', error);
+          console.error('Error updating UserChapterUnit with wrong question:', error);
         }
         
         // Reset streak on incorrect answer

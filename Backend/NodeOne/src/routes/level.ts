@@ -42,6 +42,13 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         console.log(`Level ID: ${session.levelId}`);
         console.log(`Attempt Type: ${session.attemptType}`);
         
+        // Resolve unitId from levelId for UserChapterUnit updates
+        const levelDoc = await Level.findById(session.levelId).select('_id unitId');
+        if (!levelDoc) {
+          console.log('Level not found while updating question history');
+          return;
+        }
+
         if (!session.questionsAnswered) {
           console.log('No questionsAnswered data found in session');
           return;
@@ -59,7 +66,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         console.log(`Correct question IDs: [${correctQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${correctQuestionIds.length > 3 ? '...' : ''}]`);
         console.log(`Incorrect question IDs: [${incorrectQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${incorrectQuestionIds.length > 3 ? '...' : ''}]`);
 
-        // Update UserChapterLevel with question history
+        // Update UserChapterUnit with question history
         const updateOperation: any = {};
 
         // Add correct questions to correctQuestions array (avoid duplicates)
@@ -90,12 +97,11 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           console.log(`\n--- Database Update Operation ---`);
           console.log(`Update operation:`, JSON.stringify(updateOperation, null, 2));
           
-          await UserChapterLevel.findOneAndUpdate(
+          await UserChapterUnit.findOneAndUpdate(
             {
               userId: new mongoose.Types.ObjectId(userId),
               chapterId: session.chapterId,
-              levelId: session.levelId,
-              attemptType: session.attemptType
+              unitId: levelDoc.unitId
             },
             updateOperation,
             { upsert: true }
@@ -417,30 +423,29 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         }
         console.log(`Required questions: ${numQuestions}`);
 
-        // Get user's performance history for this level
-        let userChapterLevel = null;
+        // Get user's question history for this unit
+        let userChapterUnit = null;
         let correctQuestions: string[] = [];
         let wrongQuestions: string[] = [];
-        
+
         if (userId) {
-          console.log(`\n--- Fetching user performance history ---`);
-          userChapterLevel = await UserChapterLevel.findOne({
+          console.log(`\n--- Fetching user question history (Unit) ---`);
+          userChapterUnit = await UserChapterUnit.findOne({
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: level.chapterId,
-            levelId: level._id,
-            attemptType
+            unitId: level.unitId
           });
-          
-          if (userChapterLevel) {
-            correctQuestions = (userChapterLevel.correctQuestions || []).map(id => id.toString());
-            wrongQuestions = (userChapterLevel.wrongQuestions || []).map(id => id.toString());
-            console.log(`Found user chapter level: ${userChapterLevel._id}`);
+
+          if (userChapterUnit) {
+            correctQuestions = (userChapterUnit.correctQuestions || []).map(id => id.toString());
+            wrongQuestions = (userChapterUnit.wrongQuestions || []).map(id => id.toString());
+            console.log(`Found user chapter unit: ${userChapterUnit._id}`);
             console.log(`Previous correct questions: ${correctQuestions.length}`);
             console.log(`Previous wrong questions: ${wrongQuestions.length}`);
             console.log(`Correct question IDs: [${correctQuestions.slice(0, 5).join(', ')}${correctQuestions.length > 5 ? '...' : ''}]`);
             console.log(`Wrong question IDs: [${wrongQuestions.slice(0, 5).join(', ')}${wrongQuestions.length > 5 ? '...' : ''}]`);
           } else {
-            console.log(`No previous user chapter level found for this user/level/type combination`);
+            console.log(`No previous user chapter unit found for this user/chapter/unit combination`);
           }
         } else {
           console.log(`No user ID provided - proceeding without user history`);
@@ -530,11 +535,11 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         console.log(`- Correct questions used: ${correctQuestionsUsed} (${((correctQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
         console.log(`- Random questions used: ${randomQuestionsUsed} (${((randomQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
         
-        // Update UserChapterLevel to remove used questions from arrays
+        // Update UserChapterUnit to remove used questions from arrays
         if (userId && (wrongQuestionsToRemove.length > 0 || correctQuestionsToRemove.length > 0)) {
-          console.log(`\n--- Updating UserChapterLevel (Removing Used Questions) ---`);
+          console.log(`\n--- Updating UserChapterUnit (Removing Used Questions) ---`);
           const updateOperation: any = {};
-          
+
           if (wrongQuestionsToRemove.length > 0) {
             updateOperation.$pull = {
               ...(updateOperation.$pull || {}),
@@ -542,7 +547,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             };
             console.log(`Removing ${wrongQuestionsToRemove.length} questions from wrongQuestions array`);
           }
-          
+
           if (correctQuestionsToRemove.length > 0) {
             updateOperation.$pull = {
               ...(updateOperation.$pull || {}),
@@ -550,19 +555,18 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             };
             console.log(`Removing ${correctQuestionsToRemove.length} questions from correctQuestions array`);
           }
-          
+
           if (Object.keys(updateOperation).length > 0) {
-            await UserChapterLevel.findOneAndUpdate(
+            await UserChapterUnit.findOneAndUpdate(
               {
                 userId: new mongoose.Types.ObjectId(userId),
                 chapterId: level.chapterId,
-                levelId: level._id,
-                attemptType
+                unitId: level.unitId
               },
               updateOperation,
-              { upsert: false } // Don't create if it doesn't exist
+              { upsert: false }
             );
-            console.log(`✅ Successfully removed used questions from UserChapterLevel arrays`);
+            console.log(`✅ Successfully removed used questions from UserChapterUnit arrays`);
           }
         }
 

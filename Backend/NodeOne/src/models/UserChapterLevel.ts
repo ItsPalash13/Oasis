@@ -11,8 +11,6 @@ export interface IUserChapterLevel extends Document {
   completedAt?: Date;
   lastAttemptedAt: Date;
   progress: number;
-  correctQuestions: [mongoose.Types.ObjectId];
-  wrongQuestions: [mongoose.Types.ObjectId];
 
   // Time Rush specific fields (only present when attemptType is 'time_rush')
   timeRush?: {
@@ -78,16 +76,6 @@ export const UserChapterLevelSchema = new Schema<IUserChapterLevel>({
     default: 0,
     min: 0,
     max: 100
-  },
-  correctQuestions: {
-    type: [Schema.Types.ObjectId],
-    ref: 'Question',
-    default: []
-  },
-  wrongQuestions: {
-    type: [Schema.Types.ObjectId],
-    ref: 'Question',
-    default: []
   },
 
   // Time Rush specific fields (conditional based on attemptType)
