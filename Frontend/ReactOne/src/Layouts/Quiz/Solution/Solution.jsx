@@ -97,19 +97,24 @@ const Solution = ({ open, onClose, questionsHistory = [] }) => {
                 {entry.solution && (
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Solution</Typography>
-                    {/* <Typography variant="body2" color="text.secondary">{entry.solution}</Typography> */}
-                    <Box sx={{ 
-                      '& .katex-display': {
-                        textAlign: 'left !important'
-                      },
-                      '& .katex-display > .katex': {
-                        textAlign: 'left !important'
-                      }
-                    }}>
+                    {entry.solutionType === 'latex' ? (
+                      <Box sx={{ 
+                        '& .katex-display': {
+                          textAlign: 'left !important'
+                        },
+                        '& .katex-display > .katex': {
+                          textAlign: 'left !important'
+                        }
+                      }}>
+                        <Typography variant="body2" color="text.secondary">
+                          <BlockMath math={entry.solution} />
+                        </Typography>
+                      </Box>
+                    ) : (
                       <Typography variant="body2" color="text.secondary">
-                        <BlockMath math={entry.solution} />
+                        {entry.solution}
                       </Typography>
-                    </Box>
+                    )}
                   </Box>
                 )}
                 <Divider sx={{ mt: 2 }} />

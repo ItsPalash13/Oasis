@@ -18,7 +18,7 @@ const upload = multer({
 // Create question
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution } = req.body;
+    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
 
     // Validate required fields
     if (!ques || !options || correct === undefined || !chapterId) {
@@ -55,7 +55,8 @@ router.post('/', async (req: Request, res: Response) => {
       chapterId: new mongoose.Types.ObjectId(chapterId),
       unitId: unitId ? new mongoose.Types.ObjectId(unitId) : undefined,
       topics: topics || [],
-      solution: solution || ''
+      solution: solution || '',
+      solutionType: solutionType || 'text'
     });
 
     const savedQuestion = await question.save();
@@ -87,7 +88,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Multi-add questions endpoint
 router.post('/multi-add', async (req: Request, res: Response) => {
   try {
-    const { questions, chapterId, unitId, topicIds, xpCorrect, xpIncorrect, mu, sigma } = req.body;
+    const { questions, chapterId, unitId, topicIds, xpCorrect, xpIncorrect, mu, sigma, solutionType } = req.body;
 
     // Validate required fields
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -108,6 +109,10 @@ router.post('/multi-add', async (req: Request, res: Response) => {
 
     if (typeof mu !== 'number' || typeof sigma !== 'number') {
       return res.status(400).json({ error: 'Mu and sigma values must be numbers' });
+    }
+
+    if (!solutionType || !['text', 'latex'].includes(solutionType)) {
+      return res.status(400).json({ error: 'Solution type must be either "text" or "latex"' });
     }
 
     // Validate chapter exists
@@ -172,7 +177,8 @@ router.post('/multi-add', async (req: Request, res: Response) => {
           id: new mongoose.Types.ObjectId(id),
           name: topicMap[id]
         })),
-        solution: solution ? solution.trim() : ''
+        solution: solution ? solution.trim() : '',
+        solutionType: solutionType
       });
 
       const savedQuestion = await question.save();
@@ -334,7 +340,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Update question
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution } = req.body;
+    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
 
     const question = await Question.findById(req.params.id);
     if (!question) {
@@ -349,6 +355,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (unitId !== undefined) question.unitId = unitId || null;
     if (topics) question.topics = topics;
     if (solution !== undefined) question.solution = solution;
+    if (solutionType !== undefined) question.solutionType = solutionType;
 
     await question.save();
 

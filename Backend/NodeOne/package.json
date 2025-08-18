@@ -13,6 +13,7 @@
   "dependencies": {
     "@google-cloud/storage": "^7.16.0",
     "@redis/client": "^5.1.0",
+    "@types/axios": "^0.9.36",
     "@types/multer": "^2.0.0",
     "@types/redis": "^4.0.10",
     "@types/socket.io": "^3.0.1",

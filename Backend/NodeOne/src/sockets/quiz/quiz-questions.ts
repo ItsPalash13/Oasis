@@ -47,7 +47,8 @@ const pushQuestionHistoryEntry = async (
           topicName: (t.name ?? t.topic ?? '')
         }))
       : [],
-    solution: (questionDoc as any).solution
+    solution: (questionDoc as any).solution,
+    solutionType: (questionDoc as any).solutionType || 'text'
   });
 
   await session.save();
@@ -573,39 +574,39 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
 
         // Send final results to client for both modes
         socket.emit('quizFinished', { 
-          message: response.data.message,
+          message: (response.data as any).message,
           attemptType: session.attemptType,
           questionsHistory: session.questionsHistory || [],
                      ...(session.attemptType === 'time_rush' ? {
              timeRush: {
-               currentXp: response.data.data.currentXp,
-               requiredXp: response.data.data.requiredXp,
-               minTime: response.data.data.minTime,
-               timeTaken: response.data.data.timeTaken,
-               percentile: response.data.data.percentile,
-               rank: response.data.data.rank,
-               leaderboard: response.data.data.leaderboard
+               currentXp: (response.data as any).data.currentXp,
+               requiredXp: (response.data as any).data.requiredXp,
+               minTime: (response.data as any).data.minTime,
+               timeTaken: (response.data as any).data.timeTaken,
+               percentile: (response.data as any).data.percentile,
+               rank: (response.data as any).data.rank,
+               leaderboard: (response.data as any).data.leaderboard
              }
            } : {
             precisionPath: {
-              currentXp: response.data.data.currentXp,
-              requiredXp: response.data.data.requiredXp,
-              timeTaken: response.data.data.timeTaken,
-              bestTime: response.data.data.bestTime,  
-              percentile: response.data.data.percentile,
-              rank: response.data.data.rank,
-              leaderboard: response.data.data.leaderboard
+              currentXp: (response.data as any).data.currentXp,
+              requiredXp: (response.data as any).data.requiredXp,
+              timeTaken: (response.data as any).data.timeTaken,
+              bestTime: (response.data as any).data.bestTime,  
+              percentile: (response.data as any).data.percentile,
+              rank: (response.data as any).data.rank,
+              leaderboard: (response.data as any).data.leaderboard
             }
           }),
-          hasNextLevel: response.data.data.hasNextLevel,
-          nextLevelNumber: response.data.data.nextLevelNumber,
-          nextLevelId: response.data.data.nextLevelId,
-          nextLevelAttemptType: response.data.data.nextLevelAttemptType,
-          xpNeeded: response.data.data.xpNeeded,
+          hasNextLevel: (response.data as any).data.hasNextLevel,
+          nextLevelNumber: (response.data as any).data.nextLevelNumber,
+          nextLevelId: (response.data as any).data.nextLevelId,
+          nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
+          xpNeeded: (response.data as any).data.xpNeeded,
           earnedBadges,
-          isNewHighScore: response.data.data.isNewHighScore,
-          aiFeedback: response.data.data.aiFeedback,
-          topics: response.data.data.topics || []
+          isNewHighScore: (response.data as any).data.isNewHighScore,
+          aiFeedback: (response.data as any).data.aiFeedback,
+          topics: (response.data as any).data.topics || []
         });
         socket.disconnect();
       } else if (session.currentQuestionIndex >= session.questionBank.length && currentXp < requiredXp) {
@@ -649,39 +650,39 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
 
         // Send final results to client for both modes
         socket.emit('quizFinished', { 
-          message: response.data.message,
+          message: (response.data as any).message,
           attemptType: session.attemptType,
           questionsHistory: session.questionsHistory || [],
           ...(session.attemptType === 'time_rush' ? {
             timeRush: {
-              currentXp: response.data.data.currentXp,
-              requiredXp: response.data.data.requiredXp,
-              minTime: response.data.data.minTime,
-              timeTaken: response.data.data.timeTaken,
-              percentile: response.data.data.percentile,
-              rank: response.data.data.rank,
-              leaderboard: response.data.data.leaderboard
+              currentXp: (response.data as any).data.currentXp,
+              requiredXp: (response.data as any).data.requiredXp,
+              minTime: (response.data as any).data.minTime,
+              timeTaken: (response.data as any).data.timeTaken,
+              percentile: (response.data as any).data.percentile,
+              rank: (response.data as any).data.rank,
+              leaderboard: (response.data as any).data.leaderboard
             }
           } : {
             precisionPath: {
-              currentXp: response.data.data.currentXp,
-              requiredXp: response.data.data.requiredXp,
-              timeTaken: response.data.data.timeTaken,
-              bestTime: response.data.data.bestTime,
-              percentile: response.data.data.percentile,
-              rank: response.data.data.rank,
-              leaderboard: response.data.data.leaderboard
+              currentXp: (response.data as any).data.currentXp,
+              requiredXp: (response.data as any).data.requiredXp,
+              timeTaken: (response.data as any).data.timeTaken,
+              bestTime: (response.data as any).data.bestTime,
+              percentile: (response.data as any).data.percentile,
+              rank: (response.data as any).data.rank,
+              leaderboard: (response.data as any).data.leaderboard
             }
           }),
-          hasNextLevel: response.data.data.hasNextLevel,
-          nextLevelNumber: response.data.data.nextLevelNumber,
-          nextLevelId: response.data.data.nextLevelId,
-          nextLevelAttemptType: response.data.data.nextLevelAttemptType,
-          xpNeeded: response.data.data.xpNeeded,
+          hasNextLevel: (response.data as any).data.hasNextLevel,
+          nextLevelNumber: (response.data as any).data.nextLevelNumber,
+          nextLevelId: (response.data as any).data.nextLevelId,
+          nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
+          xpNeeded: (response.data as any).data.xpNeeded,
           earnedBadges,
-          isNewHighScore: response.data.data.isNewHighScore,
-          aiFeedback: response.data.data.aiFeedback,
-          topics: response.data.data.topics || []
+          isNewHighScore: (response.data as any).data.isNewHighScore,
+          aiFeedback: (response.data as any).data.aiFeedback,
+          topics: (response.data as any).data.topics || []
         });
         socket.disconnect();
       } else{

@@ -59,7 +59,8 @@ const Questions = () => {
     xpCorrect: 2,
     xpIncorrect: 0,
     mu: 0,
-    sigma: 1
+    sigma: 1,
+    solutionType: 'text'
   });
 
   const { data: chaptersData } = useGetChaptersQuery();
@@ -160,7 +161,8 @@ const Questions = () => {
     chapterId: '',
     unitId: '',
     topics: [],
-    solution: ''
+    solution: '',
+    solutionType: 'text'
   });
 
   const handleOpenDialog = (question = null) => {
@@ -173,7 +175,8 @@ const Questions = () => {
         chapterId: question.chapterId?._id || question.chapterId,
         unitId: question.unitId?._id || question.unitId || '',
         topics: question.topics || [],
-        solution: question.solution || ''
+        solution: question.solution || '',
+        solutionType: question.solutionType || 'text'
       });
     } else {
       setEditingQuestion(null);
@@ -184,7 +187,8 @@ const Questions = () => {
         chapterId: selectedChapter,
         unitId: selectedUnit,
         topics: [],
-        solution: ''
+        solution: '',
+        solutionType: 'text'
       });
     }
     setOpenDialog(true);
@@ -200,7 +204,8 @@ const Questions = () => {
       chapterId: '',
       unitId: '',
       topics: [],
-      solution: ''
+      solution: '',
+      solutionType: 'text'
     });
   };
 
@@ -367,7 +372,8 @@ const Questions = () => {
         xpCorrect: multiAddData.xpCorrect,
         xpIncorrect: multiAddData.xpIncorrect,
         mu: multiAddData.mu,
-        sigma: multiAddData.sigma
+        sigma: multiAddData.sigma,
+        solutionType: multiAddData.solutionType
       }).unwrap();
 
       setOpenMultiAddDialog(false);
@@ -379,7 +385,8 @@ const Questions = () => {
         xpCorrect: 2,
         xpIncorrect: 0,
         mu: 0,
-        sigma: 1
+        sigma: 1,
+        solutionType: 'text'
       });
     } catch (error) {
       console.error('Error multi-adding questions:', error);
@@ -416,14 +423,16 @@ const Questions = () => {
       const sigma = escapeCSV(q.questionTs?.difficulty?.sigma ?? '');
       // Solution
       const solution = escapeCSV(`/"${q.solution || ''}"/`);
+      // Solution Type
+      const solutionType = escapeCSV(q.solutionType || 'text');
       // Topics as JSON array of topic names
       const topicsArr = (q.topics || []).map(t => t.name || t.topic || '').filter(Boolean);
       const topicsJson = escapeCSV(JSON.stringify(topicsArr));
       // Join all fields
-      return [question, ...options, correctIndex, mu, sigma, solution, topicsJson].join(',');
+      return [question, ...options, correctIndex, mu, sigma, solution, solutionType, topicsJson].join(',');
     });
     // Add header
-    const header = '/question/,option1,option2,option3,option4,correctIndex,mu,sigma,solution,topics';
+    const header = '/question/,option1,option2,option3,option4,correctIndex,mu,sigma,solution,solutionType,topics';
     const csvContent = [header, ...csvRows].join('\n');
     // Download as file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -581,6 +590,19 @@ const Questions = () => {
         }}>
           {params.value || 'No solution'}
         </Typography>
+      )
+    },
+    { 
+      field: 'solutionType', 
+      headerName: 'Solution Type', 
+      width: 120,
+      renderCell: (params) => (
+        <Chip 
+          label={params.value || 'text'} 
+          size="small" 
+          color={params.value === 'latex' ? 'secondary' : 'default'}
+          variant={params.value === 'latex' ? 'filled' : 'outlined'}
+        />
       )
     },
     {
@@ -856,6 +878,20 @@ const Questions = () => {
                 placeholder="Provide detailed explanation for the correct answer..."
               />
             </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Solution Type</InputLabel>
+                <Select
+                  value={formData.solutionType}
+                  onChange={(e) => setFormData({ ...formData, solutionType: e.target.value })}
+                  label="Solution Type"
+                >
+                  <MenuItem value="text">Text</MenuItem>
+                  <MenuItem value="latex">LaTeX</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -1055,6 +1091,20 @@ const Questions = () => {
                 value={multiAddData.sigma}
                 onChange={(e) => setMultiAddData({ ...multiAddData, sigma: parseFloat(e.target.value) })}
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Solution Type</InputLabel>
+                <Select
+                  value={multiAddData.solutionType}
+                  onChange={(e) => setMultiAddData({ ...multiAddData, solutionType: e.target.value })}
+                  label="Solution Type"
+                >
+                  <MenuItem value="text">Text</MenuItem>
+                  <MenuItem value="latex">LaTeX</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
         </DialogContent>

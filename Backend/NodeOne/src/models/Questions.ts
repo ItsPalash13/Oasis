@@ -6,6 +6,7 @@ interface IQuestion extends Document {
   correct: number;
   quesImage: string;
   solution: string;
+  solutionType: string;
   chapterId: mongoose.Types.ObjectId; 
   unitId?: mongoose.Types.ObjectId;
   topics: Array<{ id: mongoose.Types.ObjectId | string; name: string }>;
@@ -33,7 +34,12 @@ const QuestionSchema = new Schema<IQuestion>({
   solution: {
     type: String
   },
-  chapterId: {
+  solutionType: {
+    type: String,
+    required: true,
+    enum: ['text', 'latex']
+  },
+    chapterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Chapter',
     required: true

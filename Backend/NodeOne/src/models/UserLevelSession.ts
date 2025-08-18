@@ -27,6 +27,7 @@ export interface IUserLevelSession extends Document {
       topicName: string;
     }>;
     solution?: string;
+    solutionType?: string;
   }>;
 
   // Question Bank fields
@@ -148,6 +149,11 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
     solution: {
       type: String,
       required: false
+    },
+    solutionType: {
+      type: String,
+      required: false,
+      enum: ['text', 'latex']
     }
   }],
   streak: {
