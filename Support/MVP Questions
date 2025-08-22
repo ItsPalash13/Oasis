@@ -73,3 +73,18 @@ k,μ
 k
 ​
  ,m,x (Topic: Mixed Mechanics)
+
+
+ =ARRAYFORMULA(
+  IF(
+    Sheet1!A2:A<>"",
+    "/""" & Sheet1!A2:A & """/,/" &
+    """" & Sheet1!B2:B & """/,/" &
+    """" & Sheet1!C2:C & """/,/" &
+    """" & Sheet1!D2:D & """/,/" &
+    """" & Sheet1!E2:E & """/," &
+    (Sheet1!F2:F-1) & ",/""" &
+    Sheet1!G2:G & """/",
+    ""
+  )
+)

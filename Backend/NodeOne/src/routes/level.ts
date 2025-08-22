@@ -124,83 +124,113 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
 
 
-    // Function to initialize first level for a user in a chapter
+    // Function to initialize first level of every unit for a user in a chapter
     const initializeFirstLevel = async (userId: string, chapterId: string): Promise<void> => {
       try {
-        // Find the first level of this chapter (lowest levelNumber)
-        const firstLevel = await Level.findOne({ 
-          chapterId: new mongoose.Types.ObjectId(chapterId) 
-        })
-        .sort({ levelNumber: 1 })
-        .select('_id levelNumber unitId type timeRush precisionPath');
+        console.log(`\n=== Initializing First Levels for Chapter ${chapterId} ===`);
+        
+        // Get all units in this chapter
+        const units = await Unit.find({ 
+          chapterId: new mongoose.Types.ObjectId(chapterId),
+          status: true // Only active units
+        }).select('_id name');
 
-        if (!firstLevel) {
-          console.log(`No levels found for chapter ${chapterId}`);
+        if (!units.length) {
+          console.log(`No active units found for chapter ${chapterId}`);
           return;
         }
 
-        // Check if UserChapterUnit exists for this user/chapter/unit
-        const existingUserChapterUnit = await UserChapterUnit.findOne({
-          userId: new mongoose.Types.ObjectId(userId),
-          chapterId: new mongoose.Types.ObjectId(chapterId),
-          unitId: firstLevel.unitId
-        });
+        console.log(`Found ${units.length} active units in chapter ${chapterId}`);
 
-        // Create UserChapterUnit if it doesn't exist
-        if (!existingUserChapterUnit) {
-          await UserChapterUnit.create({
+        // For each unit, find the first level (lowest levelNumber) and initialize it
+        for (const unit of units) {
+          console.log(`\n--- Processing Unit: ${unit.name} (${unit._id}) ---`);
+          
+          // Find the first level of this unit (lowest levelNumber)
+          const firstLevel = await Level.findOne({ 
+            chapterId: new mongoose.Types.ObjectId(chapterId),
+            unitId: unit._id,
+            status: true // Only active levels
+          })
+          .sort({ levelNumber: 1 })
+          .select('_id levelNumber unitId type timeRush precisionPath');
+
+          if (!firstLevel) {
+            console.log(`No active levels found for unit ${unit.name} (${unit._id})`);
+            continue;
+          }
+
+          console.log(`Found first level: ${firstLevel.name} (Level ${firstLevel.levelNumber}, Type: ${firstLevel.type})`);
+
+          // Check if UserChapterUnit exists for this user/chapter/unit
+          const existingUserChapterUnit = await UserChapterUnit.findOne({
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: new mongoose.Types.ObjectId(chapterId),
-            unitId: firstLevel.unitId,
-            status: 'not_started'
+            unitId: unit._id
           });
-          console.log(`Created UserChapterUnit for user ${userId}, chapter ${chapterId}, unit ${firstLevel.unitId}`);
-        }
 
-        // Check if UserChapterLevel exists for this user/chapter/level/type
-        const existingUserChapterLevel = await UserChapterLevel.findOne({
-          userId: new mongoose.Types.ObjectId(userId),
-          chapterId: new mongoose.Types.ObjectId(chapterId),
-          levelId: firstLevel._id,
-          attemptType: firstLevel.type
-        });
+          // Create UserChapterUnit if it doesn't exist
+          if (!existingUserChapterUnit) {
+            await UserChapterUnit.create({
+              userId: new mongoose.Types.ObjectId(userId),
+              chapterId: new mongoose.Types.ObjectId(chapterId),
+              unitId: unit._id,
+              status: 'not_started'
+            });
+            console.log(`✅ Created UserChapterUnit for user ${userId}, chapter ${chapterId}, unit ${unit._id}`);
+          } else {
+            console.log(`ℹ️ UserChapterUnit already exists for unit ${unit._id}`);
+          }
 
-        // Create UserChapterLevel if it doesn't exist
-        if (!existingUserChapterLevel) {
-          const userChapterLevelData: any = {
+          // Check if UserChapterLevel exists for this user/chapter/level/type
+          const existingUserChapterLevel = await UserChapterLevel.findOne({
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: new mongoose.Types.ObjectId(chapterId),
             levelId: firstLevel._id,
-            levelNumber: firstLevel.levelNumber,
-            status: 'not_started',
-            attemptType: firstLevel.type,
-            lastAttemptedAt: new Date(),
-            progress: 0
-          };
+            attemptType: firstLevel.type
+          });
 
-          // Add type-specific fields based on level type
-          if (firstLevel.type === 'time_rush' && firstLevel.timeRush) {
-            userChapterLevelData.timeRush = {
-              attempts: 0,
-              minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
-              requiredXp: firstLevel.timeRush.requiredXp,
-              timeLimit: firstLevel.timeRush.totalTime,
-              totalQuestions: firstLevel.timeRush.totalQuestions
+          // Create UserChapterLevel if it doesn't exist
+          if (!existingUserChapterLevel) {
+            const userChapterLevelData: any = {
+              userId: new mongoose.Types.ObjectId(userId),
+              chapterId: new mongoose.Types.ObjectId(chapterId),
+              levelId: firstLevel._id,
+              levelNumber: firstLevel.levelNumber,
+              status: 'not_started',
+              attemptType: firstLevel.type,
+              lastAttemptedAt: new Date(),
+              progress: 0
             };
-          } else if (firstLevel.type === 'precision_path' && firstLevel.precisionPath) {
-            userChapterLevelData.precisionPath = {
-              attempts: 0,
-              minTime: null,
-              requiredXp: firstLevel.precisionPath.requiredXp,
-              totalQuestions: firstLevel.precisionPath.totalQuestions
-            };
+
+            // Add type-specific fields based on level type
+            if (firstLevel.type === 'time_rush' && firstLevel.timeRush) {
+              userChapterLevelData.timeRush = {
+                attempts: 0,
+                minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
+                requiredXp: firstLevel.timeRush.requiredXp,
+                timeLimit: firstLevel.timeRush.totalTime,
+                totalQuestions: firstLevel.timeRush.totalQuestions
+              };
+            } else if (firstLevel.type === 'precision_path' && firstLevel.precisionPath) {
+              userChapterLevelData.precisionPath = {
+                attempts: 0,
+                minTime: null,
+                requiredXp: firstLevel.precisionPath.requiredXp,
+                totalQuestions: firstLevel.precisionPath.totalQuestions
+              };
+            }
+
+            await UserChapterLevel.create(userChapterLevelData);
+            console.log(`✅ Created UserChapterLevel for user ${userId}, chapter ${chapterId}, level ${firstLevel._id}, type ${firstLevel.type}`);
+          } else {
+            console.log(`ℹ️ UserChapterLevel already exists for level ${firstLevel._id}, type ${firstLevel.type}`);
           }
-
-          await UserChapterLevel.create(userChapterLevelData);
-          console.log(`Created UserChapterLevel for user ${userId}, chapter ${chapterId}, level ${firstLevel._id}, type ${firstLevel.type}`);
         }
+
+        console.log(`=== End Initializing First Levels for Chapter ${chapterId} ===\n`);
       } catch (error) {
-        console.error('Error initializing first level:', error);
+        console.error('Error initializing first levels:', error);
         // Don't throw error, just log it to avoid breaking the main flow
       }
     };
