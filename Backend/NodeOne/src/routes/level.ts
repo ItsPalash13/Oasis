@@ -147,85 +147,85 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           console.log(`\n--- Processing Unit: ${unit.name} (${unit._id}) ---`);
           
           // Find the first level of this unit (lowest levelNumber)
-          const firstLevel = await Level.findOne({ 
+        const firstLevel = await Level.findOne({ 
             chapterId: new mongoose.Types.ObjectId(chapterId),
             unitId: unit._id,
             status: true // Only active levels
-          })
-          .sort({ levelNumber: 1 })
-          .select('_id levelNumber unitId type timeRush precisionPath');
+        })
+        .sort({ levelNumber: 1 })
+        .select('_id levelNumber unitId type timeRush precisionPath');
 
-          if (!firstLevel) {
+        if (!firstLevel) {
             console.log(`No active levels found for unit ${unit.name} (${unit._id})`);
             continue;
-          }
+        }
 
           console.log(`Found first level: ${firstLevel.name} (Level ${firstLevel.levelNumber}, Type: ${firstLevel.type})`);
 
-          // Check if UserChapterUnit exists for this user/chapter/unit
-          const existingUserChapterUnit = await UserChapterUnit.findOne({
+        // Check if UserChapterUnit exists for this user/chapter/unit
+        const existingUserChapterUnit = await UserChapterUnit.findOne({
+          userId: new mongoose.Types.ObjectId(userId),
+          chapterId: new mongoose.Types.ObjectId(chapterId),
+            unitId: unit._id
+        });
+
+        // Create UserChapterUnit if it doesn't exist
+        if (!existingUserChapterUnit) {
+          await UserChapterUnit.create({
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: new mongoose.Types.ObjectId(chapterId),
-            unitId: unit._id
-          });
-
-          // Create UserChapterUnit if it doesn't exist
-          if (!existingUserChapterUnit) {
-            await UserChapterUnit.create({
-              userId: new mongoose.Types.ObjectId(userId),
-              chapterId: new mongoose.Types.ObjectId(chapterId),
               unitId: unit._id,
-              status: 'not_started'
-            });
+            status: 'not_started'
+          });
             console.log(`✅ Created UserChapterUnit for user ${userId}, chapter ${chapterId}, unit ${unit._id}`);
           } else {
             console.log(`ℹ️ UserChapterUnit already exists for unit ${unit._id}`);
-          }
+        }
 
-          // Check if UserChapterLevel exists for this user/chapter/level/type
-          const existingUserChapterLevel = await UserChapterLevel.findOne({
+        // Check if UserChapterLevel exists for this user/chapter/level/type
+        const existingUserChapterLevel = await UserChapterLevel.findOne({
+          userId: new mongoose.Types.ObjectId(userId),
+          chapterId: new mongoose.Types.ObjectId(chapterId),
+          levelId: firstLevel._id,
+          attemptType: firstLevel.type
+        });
+
+        // Create UserChapterLevel if it doesn't exist
+        if (!existingUserChapterLevel) {
+          const userChapterLevelData: any = {
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: new mongoose.Types.ObjectId(chapterId),
             levelId: firstLevel._id,
-            attemptType: firstLevel.type
-          });
+            levelNumber: firstLevel.levelNumber,
+            status: 'not_started',
+            attemptType: firstLevel.type,
+            lastAttemptedAt: new Date(),
+            progress: 0
+          };
 
-          // Create UserChapterLevel if it doesn't exist
-          if (!existingUserChapterLevel) {
-            const userChapterLevelData: any = {
-              userId: new mongoose.Types.ObjectId(userId),
-              chapterId: new mongoose.Types.ObjectId(chapterId),
-              levelId: firstLevel._id,
-              levelNumber: firstLevel.levelNumber,
-              status: 'not_started',
-              attemptType: firstLevel.type,
-              lastAttemptedAt: new Date(),
-              progress: 0
+          // Add type-specific fields based on level type
+          if (firstLevel.type === 'time_rush' && firstLevel.timeRush) {
+            userChapterLevelData.timeRush = {
+              attempts: 0,
+              minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
+              requiredXp: firstLevel.timeRush.requiredXp,
+              timeLimit: firstLevel.timeRush.totalTime,
+              totalQuestions: firstLevel.timeRush.totalQuestions
             };
+          } else if (firstLevel.type === 'precision_path' && firstLevel.precisionPath) {
+            userChapterLevelData.precisionPath = {
+              attempts: 0,
+              minTime: null,
+              requiredXp: firstLevel.precisionPath.requiredXp,
+              totalQuestions: firstLevel.precisionPath.totalQuestions
+            };
+          }
 
-            // Add type-specific fields based on level type
-            if (firstLevel.type === 'time_rush' && firstLevel.timeRush) {
-              userChapterLevelData.timeRush = {
-                attempts: 0,
-                minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
-                requiredXp: firstLevel.timeRush.requiredXp,
-                timeLimit: firstLevel.timeRush.totalTime,
-                totalQuestions: firstLevel.timeRush.totalQuestions
-              };
-            } else if (firstLevel.type === 'precision_path' && firstLevel.precisionPath) {
-              userChapterLevelData.precisionPath = {
-                attempts: 0,
-                minTime: null,
-                requiredXp: firstLevel.precisionPath.requiredXp,
-                totalQuestions: firstLevel.precisionPath.totalQuestions
-              };
-            }
-
-            await UserChapterLevel.create(userChapterLevelData);
+          await UserChapterLevel.create(userChapterLevelData);
             console.log(`✅ Created UserChapterLevel for user ${userId}, chapter ${chapterId}, level ${firstLevel._id}, type ${firstLevel.type}`);
           } else {
             console.log(`ℹ️ UserChapterLevel already exists for level ${firstLevel._id}, type ${firstLevel.type}`);
-          }
+        }
         }
 
         console.log(`=== End Initializing First Levels for Chapter ${chapterId} ===\n`);
@@ -705,13 +705,34 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         const percentile = otherUsersData.length > 0 ? 
           Math.round((usersWithWorsePerformance / otherUsersData.length) * 100) : 100;
 
-        // Generate leaderboard if user is in top 5
+        // Generate leaderboard: top 5 if user is in top 5, otherwise top 5 + current user
         let leaderboard = null;
+        let leaderboardUserIds = [];
+        let leaderboardEntries = [];
+
         if (userRank <= 5) {
-          // Get top 5 users' profile data
-          const top5UserIds = rankingData.slice(0, 5).map(data => data.userId.toString());
+          // User is in top 5 - just show top 5
+          leaderboardEntries = rankingData.slice(0, 5);
+          leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
+        } else {
+          // User is not in top 5 - show top 5 + current user
+          const top5 = rankingData.slice(0, 5);
+          const currentUserData = rankingData.find(data => data.userId.toString() === userId);
+          
+          if (currentUserData) {
+            leaderboardEntries = [...top5, currentUserData];
+            leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
+          } else {
+            // Fallback to just top 5 if current user data not found
+            leaderboardEntries = top5;
+            leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
+          }
+        }
+
+        if (leaderboardEntries.length > 0) {
+          // Get profile data for all leaderboard users
           const userProfiles = await UserProfile.find({ 
-            userId: { $in: top5UserIds } 
+            userId: { $in: leaderboardUserIds } 
           }).select('userId fullName avatar avatarBgColor');
 
           // Create profile lookup map
@@ -724,18 +745,21 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             });
           });
 
-          // Build leaderboard array
-          leaderboard = rankingData.slice(0, 5).map((data, index) => {
+          // Build leaderboard array with actual ranks
+          leaderboard = leaderboardEntries.map((data) => {
             const profile = profileMap.get(data.userId.toString()) || {};
+            // Find the actual rank in the full ranking data
+            const actualRank = rankingData.findIndex(rd => rd.userId.toString() === data.userId.toString()) + 1;
             return {
               userId: data.userId.toString(),
               fullName: profile.fullName || null,
               avatar: profile.avatar || null,
               avatarBgColor: profile.avatarBgColor || null,
               time: data.time!,
-              rank: index + 1
+              rank: actualRank
             };
           });
+          console.log("leaderboard1",leaderboard);
         }
         
         return { 

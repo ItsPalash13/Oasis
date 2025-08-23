@@ -27,7 +27,7 @@ import {
   Notifications as NotificationsIcon,
   Palette as PaletteIcon,
   Favorite as HealthIcon,
-  MonetizationOn as CoinsIcon,
+  Star as CoinsIcon,
   Whatshot as StreakIcon,
 } from '@mui/icons-material';
 import { authClient } from '../lib/auth-client';
@@ -200,7 +200,7 @@ const Navbar = ({ darkMode, onDarkModeToggle, onSidebarToggle, showSidebarToggle
                 />
                 <Chip
                   icon={<CoinsIcon />}
-                  label={`${userTotalCoins} Coins`}
+                  label={`${userTotalCoins} XP`}
                   size="small"
                   sx={{
                     backgroundColor: '#ff9800',

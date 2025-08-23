@@ -176,17 +176,44 @@ const Onboarding = () => {
   };
 
   const handleFinish = async () => {
-    if (!user?.id) {
+    console.log('handleFinish called, user:', user);
+    console.log('session:', session);
+    
+    // Try different possible user ID properties
+    const userId = user?.id || user?.userId || session?.user?.id || session?.user?.userId;
+    
+    if (!userId) {
+      console.error('No user ID found');
       navigate('/dashboard');
       return;
     }
+    
+    console.log('Using userId:', userId);
+    console.log('Strongest subjects:', strongestSubjects);
+    console.log('Weakest subject:', weakestSubject);
+    
     try {
-      await updateUserInfo({
-        userId: user.id,
-        data: { onboardingCompleted: true }
+      // Prepare update data with onboarding completion and subject preferences
+      const updateData = {
+        onboardingCompleted: true,
+        strongestSubject: strongestSubjects,
+        weakestSubject: weakestSubject,
+        // Update fullName if it was entered and not already set
+        ...(userName.trim() && userName !== user?.name && { fullName: userName.trim() })
+      };
+      
+      console.log('Update data:', updateData);
+      
+      const result = await updateUserInfo({
+        userId: userId,
+        data: updateData
       }).unwrap();
+      console.log('Update result:', result);
+      
       // Refetch session and update Redux
       const refreshed = await refetchSession();
+      console.log('Refreshed session:', refreshed);
+      
       if (refreshed?.data?.session && refreshed?.data?.user) {
         const serializedSession = serializeDates(refreshed.data.session);
         const serializedUser = serializeDates(refreshed.data.user);
@@ -196,7 +223,8 @@ const Onboarding = () => {
         }));
       }
     } catch (e) {
-      console.error('Failed to update onboardingCompleted', e);
+      console.error('Failed to update onboarding data:', e);
+      // Still navigate to dashboard even if update fails
     }
     navigate('/dashboard');
   };
@@ -282,8 +310,42 @@ const Onboarding = () => {
                       label={`${subject.icon} ${subject.name}`}
                       clickable
                       onClick={() => toggleStrongestSubject(subject.key)}
-                      color={strongestSubjects.includes(subject.key) ? 'primary' : 'default'}
-                      sx={{ fontSize: '1.2rem', padding: '24px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                      sx={{ 
+                        fontSize: '1.2rem', 
+                        padding: '24px 16px', 
+                        fontWeight: 'bold', 
+                        cursor: 'pointer',
+                        backgroundColor: (theme) => 
+                          strongestSubjects.includes(subject.key)
+                            ? theme.palette.mode === 'dark' 
+                              ? '#3B82F6' // Neutral gray background for selected in dark mode
+                              : '#3B82F6' // Blue background for selected in light mode
+                            : theme.palette.mode === 'dark'
+                              ? '#1F2937' // Dark background for unselected in dark mode
+                              : '#FFFFFF', // White background for unselected in light mode
+                        color: (theme) => 
+                          strongestSubjects.includes(subject.key)
+                            ? '#FFFFFF' // White text for selected
+                            : theme.palette.mode === 'dark'
+                              ? '#F9FAFB' // Light text for unselected in dark mode
+                              : '#111827', // Dark text for unselected in light mode
+                        border: (theme) => 
+                          strongestSubjects.includes(subject.key)
+                            ? 'none'
+                            : theme.palette.mode === 'dark'
+                              ? '1px solid #374151' // Dark border for unselected in dark mode
+                              : '1px solid #E5E7EB', // Light border for unselected in light mode
+                        '&:hover': {
+                          backgroundColor: (theme) => 
+                            strongestSubjects.includes(subject.key)
+                              ? theme.palette.mode === 'dark' 
+                                ? '#4B5563' // Lighter neutral gray on hover for selected
+                                : '#2563EB'
+                              : theme.palette.mode === 'dark'
+                                ? '#374151' // Lighter dark background on hover
+                                : '#F9FAFB', // Light gray on hover
+                        }
+                      }}
                     />
                   </Grid>
                 ))}
@@ -328,9 +390,43 @@ const Onboarding = () => {
                       label={`${subject.icon} ${subject.name}`}
                       clickable
                       onClick={() => handleWeakestSubjectSelect(subject.key)}
-                      color={weakestSubject === subject.key ? 'primary' : 'default'}
                       disabled={strongestSubjects.includes(subject.key)}
-                      sx={{ fontSize: '1.2rem', padding: '24px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                      sx={{ 
+                        fontSize: '1.2rem', 
+                        padding: '24px 16px', 
+                        fontWeight: 'bold', 
+                        cursor: 'pointer',
+                        backgroundColor: (theme) => 
+                          weakestSubject === subject.key
+                            ? theme.palette.mode === 'dark' 
+                              ? '#3B82F6' // Neutral gray background for selected in dark mode
+                              : '#3B82F6' // Blue background for selected in light mode
+                            : theme.palette.mode === 'dark'
+                              ? '#1F2937' // Dark background for unselected in dark mode
+                              : '#FFFFFF', // White background for unselected in light mode
+                        color: (theme) => 
+                          weakestSubject === subject.key
+                            ? '#FFFFFF' // White text for selected
+                            : theme.palette.mode === 'dark'
+                              ? '#F9FAFB' // Light text for unselected in dark mode
+                              : '#111827', // Dark text for unselected in light mode
+                        border: (theme) => 
+                          weakestSubject === subject.key
+                            ? 'none'
+                            : theme.palette.mode === 'dark'
+                              ? '1px solid #374151' // Dark border for unselected in dark mode
+                              : '1px solid #E5E7EB', // Light border for unselected in light mode
+                        '&:hover': {
+                          backgroundColor: (theme) => 
+                            weakestSubject === subject.key
+                              ? theme.palette.mode === 'dark' 
+                                ? '#4B5563' // Lighter neutral gray on hover for selected
+                                : '#2563EB'
+                              : theme.palette.mode === 'dark'
+                                ? '#374151' // Lighter dark background on hover
+                                : '#F9FAFB', // Light gray on hover
+                        }
+                      }}
                     />
                   </Grid>
                 ))}
@@ -390,9 +486,9 @@ const Onboarding = () => {
               <Box sx={{ mt: 6, mb: 4 }}>
 
                 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent:{xs:'center', md:'initial'}}}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent:"center", gap: 20}}>
                   <Grow in={true} timeout={800}>
-                    <Box sx={{ textAlign: 'center', minWidth: '150px', ml: {md:"13vw"} }}>
+                    <Box sx={{ textAlign: 'center', flex: 1, maxWidth: '200px'}}>
                       <Typography variant="h2" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
                         {countUpValues.questions.toLocaleString()}+
                       </Typography>
@@ -403,7 +499,7 @@ const Onboarding = () => {
                   </Grow>
                   
                   <Grow in={true} timeout={1000}>
-                    <Box sx={{ textAlign: 'center', minWidth: '150px', ml: {md:"9.5vw"} }}>
+                    <Box sx={{ textAlign: 'center', flex: 1, maxWidth: '200px'}}>
                       <Typography variant="h2" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
                         {countUpValues.topics.toLocaleString()}+
                       </Typography>
@@ -414,7 +510,7 @@ const Onboarding = () => {
                   </Grow>
                   
                   <Grow in={true} timeout={1200}>
-                    <Box sx={{ textAlign: 'center', minWidth: '150px' , ml: {md:"9vw"} }}>
+                    <Box sx={{ textAlign: 'center', flex: 1, maxWidth: '200px'}}>
                       <Typography variant="h2" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
                         {countUpValues.chapters}+
                       </Typography>

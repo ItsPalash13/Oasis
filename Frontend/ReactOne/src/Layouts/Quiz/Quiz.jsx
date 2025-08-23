@@ -346,7 +346,8 @@ const Quiz = ({ socket }) => {
         let newTime;
         
         if (attemptType === 'time_rush') {
-          newTime = prev - elapsed;
+          // Make timer count down 1.5x faster
+          newTime = prev - (elapsed * 1.5);
           if (newTime <= 0) {
             socket.emit('sendTimesUp', { userLevelSessionId: levelSession._id });
             clearInterval(timerIntervalRef.current);
@@ -354,14 +355,14 @@ const Quiz = ({ socket }) => {
             return 0;
           }
         } else {
-          // Precision Path: increment time
-          newTime = prev + elapsed;
+          // Precision Path: increment time 1.5x faster
+          newTime = prev + (elapsed);
         }
         
         // Round to 2 decimal places for display
         return Math.round(newTime * 100) / 100;
       });
-    }, 100); // Update every 100ms for smoother display
+    }, 50); // Update every 50ms for faster display
 
     return () => {
       if (timerIntervalRef.current) {
@@ -968,7 +969,7 @@ const Quiz = ({ socket }) => {
         ) : null}
         </Box>
 
-        {currentQuestion && (
+        {currentQuestion && import.meta.env.MODE === 'development' && (
           <FloatingButton
             variant="contained"
             onClick={() => setShowCorrectAnswer(!showCorrectAnswer)}

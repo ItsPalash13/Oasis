@@ -87,6 +87,8 @@ const Profile: React.FC = () => {
     }
   };
 
+
+
   const getCurrentAvatarSrc = () => {
     if (userInfo?.avatar) {
       return getAvatarSrc(userInfo.avatar);
@@ -242,6 +244,8 @@ const Profile: React.FC = () => {
                   />
                 ))}
               </Box>
+
+
             </Box>
 
           </Card>

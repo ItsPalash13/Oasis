@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, Fragment } from 'react';
 import {
   Box,
   Card,
@@ -38,7 +38,7 @@ const QuizLeaderboard = ({
 
   // Find current user in leaderboard and scroll to their position
   useEffect(() => {
-    if (scrollContainerRef.current && currentUserRank && currentUserRank <= 5) {
+    if (scrollContainerRef.current && currentUserRank && leaderboardData.length > 0) {
       // Find the user's position in the leaderboard (0-based index)
       const userIndex = leaderboardData.findIndex(user => user.rank === currentUserRank);
       
@@ -177,7 +177,7 @@ const QuizLeaderboard = ({
             fontWeight: 'bold', 
             color: '#FFA500'
           }}>
-            Top 5 Leaderboard
+            {currentUserRank && currentUserRank <= 5 ? 'Top 5 Leaderboard' : 'Leaderboard'}
           </Typography>
         </Box>
 
@@ -213,36 +213,62 @@ const QuizLeaderboard = ({
           }}>
           {leaderboardData.map((user, index) => {
             const isCurrentUser = user.rank === currentUserRank;
+            const isTop5 = user.rank <= 5;
+            const showSeparator = index === 5 && currentUserRank && currentUserRank > 5; // Show separator before current user if they're outside top 5
             
-            const rowContent = (
-              <Box 
-                key={user.userId}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  p: 1.5,
-                  borderRadius: 2,
-                  backgroundColor: isCurrentUser 
-                    ? 'rgba(255, 165, 0, 0.15)' // Orange glow for current user
-                    : theme => theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.05)' 
-                      : 'rgba(0, 0, 0, 0.05)',
-                  border: isCurrentUser 
-                    ? '1px solid rgba(255, 165, 0, 0.4)' // Orange border for current user
-                    : theme => `1px solid ${theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.1)' 
-                      : 'rgba(0, 0, 0, 0.1)'}`,
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: isCurrentUser 
-                      ? 'rgba(255, 165, 0, 0.2)'
-                      : theme => theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.1)' 
-                        : 'rgba(0, 0, 0, 0.1)'
-                  }
-                }}
-              >
+            return (
+              <Fragment key={user.userId}>
+                {/* Separator for user outside top 5 */}
+                {showSeparator && (
+                  <Box sx={{ my: 1 }}>
+                    <Divider sx={{ 
+                      borderColor: theme => theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 255, 255, 0.2)' 
+                        : 'rgba(0, 0, 0, 0.2)' 
+                    }} />
+                    <Typography variant="caption" sx={{ 
+                      display: 'block', 
+                      textAlign: 'center', 
+                      mt: 1,
+                      color: theme => theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 255, 255, 0.6)' 
+                        : 'rgba(0, 0, 0, 0.6)',
+                      fontStyle: 'italic'
+                    }}>
+                      Your Rank
+                    </Typography>
+                  </Box>
+                )}
+                
+                {(() => {
+                  const rowContent = (
+                    <Box 
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1.5,
+                        borderRadius: 2,
+                        backgroundColor: isCurrentUser 
+                          ? 'rgba(255, 165, 0, 0.15)' // Orange glow for current user
+                          : theme => theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.05)' 
+                            : 'rgba(0, 0, 0, 0.05)',
+                        border: isCurrentUser 
+                          ? '1px solid rgba(255, 165, 0, 0.4)' // Orange border for current user
+                          : theme => `1px solid ${theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.1)' 
+                            : 'rgba(0, 0, 0, 0.1)'}`,
+                        transition: 'all 0.2s ease-in-out',
+                        '&:hover': {
+                          backgroundColor: isCurrentUser 
+                            ? 'rgba(255, 165, 0, 0.2)'
+                            : theme => theme.palette.mode === 'dark' 
+                              ? 'rgba(255, 255, 255, 0.1)' 
+                              : 'rgba(0, 0, 0, 0.1)'
+                        }
+                      }}
+                    >
               {/* Rank Icon - Only show for top 3 */}
               {user.rank <= 3 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 24 }}>
@@ -295,18 +321,21 @@ const QuizLeaderboard = ({
                   }}
                 />
               </Box>
-            </Box>
-            );
+                    </Box>
+                  );
 
-            return isCurrentUser && userPercentile !== null ? (
-              <Tooltip 
-                title={`You are better than ${userPercentile}% of players`}
-                arrow
-                placement="top"
-              >
-                {rowContent}
-              </Tooltip>
-            ) : rowContent;
+                  return isCurrentUser && userPercentile !== null ? (
+                    <Tooltip 
+                      title={`You are better than ${userPercentile}% of players`}
+                      arrow
+                      placement="top"
+                    >
+                      {rowContent}
+                    </Tooltip>
+                  ) : rowContent;
+                })()}
+              </Fragment>
+            );
           })}
         </Box>
       </CardContent>
