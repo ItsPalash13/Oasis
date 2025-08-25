@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   useGetChaptersQuery,
   useGetTopicsQuery,
+  useGetSectionsQuery,
   useCreateUnitMutation,
   useUpdateUnitMutation,
   useDeleteUnitMutation,
@@ -66,13 +67,15 @@ const levelColors = [
 ];
 const getColor = (levelNumber) => levelColors[(levelNumber - 1) % levelColors.length];
 
-const emptyForm = { chapterId: '', name: '', description: '', topics: [] };
+const emptyForm = { chapterId: '', sectionId: '', name: '', description: '', unitNumber: '', topics: [] };
 
 export default function UnitsAdmin() {
   const { data: chaptersData } = useGetChaptersQuery();
   const [selectedChapter, setSelectedChapter] = useState('');
-  const { data: topicsData } = useGetTopicsQuery(selectedChapter, { skip: !selectedChapter });
-  const { data: unitsData } = useGetUnitsQuery(selectedChapter, { skip: !selectedChapter });
+  const { data: sectionsData } = useGetSectionsQuery(selectedChapter, { skip: !selectedChapter });
+  const [selectedSection, setSelectedSection] = useState('');
+  const { data: topicsData } = useGetTopicsQuery(selectedSection || selectedChapter, { skip: !selectedChapter });
+  const { data: unitsData } = useGetUnitsQuery(selectedSection ? { chapterId: selectedChapter, sectionId: selectedSection } : selectedChapter, { skip: !selectedChapter });
   // You may want to fetch units for the selected chapter if you have a list endpoint
   const [createUnit] = useCreateUnitMutation();
   const [updateUnit] = useUpdateUnitMutation();
@@ -87,15 +90,17 @@ export default function UnitsAdmin() {
   const [selectedUnitId, setSelectedUnitId] = useState(null);
 
   const handleOpen = () => {
-    setForm({ chapterId: selectedChapter, name: '', description: '', topics: [] });
+    setForm({ chapterId: selectedChapter, sectionId: selectedSection, name: '', description: '', unitNumber: '', topics: [] });
     setEditMode(false);
     setOpen(true);
   };
   const handleEdit = (row) => {
     setForm({
       chapterId: row.chapterId,
+      sectionId: row.sectionId || '',
       name: row.name,
       description: row.description,
+      unitNumber: row.unitNumber || '',
       topics: row.topics || [],
     });
     setEditId(row._id);
@@ -118,9 +123,9 @@ export default function UnitsAdmin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (editMode) {
-      await updateUnit({ id: editId, ...form });
+      await updateUnit({ id: editId, ...form, unitNumber: parseInt(form.unitNumber) });
     } else {
-      await createUnit(form);
+      await createUnit({ ...form, unitNumber: parseInt(form.unitNumber) });
     }
     handleClose();
   };
@@ -140,8 +145,14 @@ export default function UnitsAdmin() {
   };
 
   const columns = [
+    { field: 'unitNumber', headerName: 'Unit #', width: 100 },
     { field: 'name', headerName: 'Name', flex: 1 },
     { field: 'description', headerName: 'Description', flex: 2 },
+    { field: 'sectionId', headerName: 'Section', flex: 1, renderCell: (params) => {
+        const sectionIdToName = (sectionsData?.data || []).reduce((acc, s) => { acc[s._id] = s.name; return acc; }, {});
+        return sectionIdToName[params.row.sectionId] || params.row.sectionId || '-';
+      }
+    },
     {
       field: 'topics',
       headerName: 'Topics',
@@ -191,6 +202,22 @@ export default function UnitsAdmin() {
             ))}
           </Select>
         </FormControl>
+        {selectedChapter && (
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="section-select-label">Section</InputLabel>
+            <Select
+              labelId="section-select-label"
+              label="Section"
+              value={selectedSection}
+              onChange={e => setSelectedSection(e.target.value)}
+            >
+              <MenuItem value="">All Sections</MenuItem>
+              {sectionsData?.data?.map((section) => (
+                <MenuItem key={section._id} value={section._id}>{section.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
         <Button variant="contained" startIcon={<Add />} onClick={handleOpen} disabled={!selectedChapter}>
           Add Unit
         </Button>
@@ -223,6 +250,31 @@ export default function UnitsAdmin() {
                 ))}
               </Select>
             </FormControl>
+            {form.chapterId && (
+              <FormControl fullWidth required>
+                <InputLabel id="section-select-label-dialog">Section</InputLabel>
+                <Select
+                  labelId="section-select-label-dialog"
+                  label="Section"
+                  name="sectionId"
+                  value={form.sectionId}
+                  onChange={handleChange}
+                >
+                  {sectionsData?.data?.map((section) => (
+                    <MenuItem key={section._id} value={section._id}>{section.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            <TextField 
+              label="Unit Number" 
+              name="unitNumber" 
+              type="number"
+              value={form.unitNumber} 
+              onChange={handleChange} 
+              required 
+              fullWidth 
+            />
             <TextField
               label="Name"
               name="name"

@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import SubjectAdmin from './Subject';
 import ChapterAdmin from './Chapter';
 import TopicsAdmin from './Topics';
+import SectionsAdmin from './Sections';
 import UnitsAdmin from './Units';
 import QuestionsAdmin from './Questions';
 import LevelsAdmin from './Levels';
@@ -83,11 +84,12 @@ export default function Admin() {
         <Tab label="Subjects" id="admin-tab-0" aria-controls="admin-tabpanel-0" />
         <Tab label="Chapters" id="admin-tab-1" aria-controls="admin-tabpanel-1" />
         <Tab label="Topics" id="admin-tab-2" aria-controls="admin-tabpanel-2" />
-        <Tab label="Units" id="admin-tab-3" aria-controls="admin-tabpanel-3" />
-        <Tab label="Questions" id="admin-tab-4" aria-controls="admin-tabpanel-4" />
-        <Tab label="Levels" id="admin-tab-5" aria-controls="admin-tabpanel-5" />
-        <Tab label="Users" id="admin-tab-6" aria-controls="admin-tabpanel-6" />
-        <Tab label="Badges" id="admin-tab-7" aria-controls="admin-tabpanel-7" />
+        <Tab label="Sections" id="admin-tab-3" aria-controls="admin-tabpanel-3" />
+        <Tab label="Units" id="admin-tab-4" aria-controls="admin-tabpanel-4" />
+        <Tab label="Questions" id="admin-tab-5" aria-controls="admin-tabpanel-5" />
+        <Tab label="Levels" id="admin-tab-6" aria-controls="admin-tabpanel-6" />
+        <Tab label="Users" id="admin-tab-7" aria-controls="admin-tabpanel-7" />
+        <Tab label="Badges" id="admin-tab-8" aria-controls="admin-tabpanel-8" />
       </Tabs>
       <TabPanel value={tab} index={0}>
         <SubjectAdmin />
@@ -99,18 +101,21 @@ export default function Admin() {
         <TopicsAdmin />
       </TabPanel>
       <TabPanel value={tab} index={3}>
-        <UnitsAdmin />
+        <SectionsAdmin />
       </TabPanel>
       <TabPanel value={tab} index={4}>
-        <QuestionsAdmin />
+        <UnitsAdmin />
       </TabPanel>
       <TabPanel value={tab} index={5}>
-        <LevelsAdmin />
+        <QuestionsAdmin />
       </TabPanel>
       <TabPanel value={tab} index={6}>
-        <UsersAdmin />
+        <LevelsAdmin />
       </TabPanel>
       <TabPanel value={tab} index={7}>
+        <UsersAdmin />
+      </TabPanel>
+      <TabPanel value={tab} index={8}>
         <BadgeAdmin />
       </TabPanel>
     </Box>

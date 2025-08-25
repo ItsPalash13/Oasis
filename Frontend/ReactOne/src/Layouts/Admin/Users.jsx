@@ -32,6 +32,11 @@ import {
   useCreateUserProfileMutation,
   useUpdateUserProfileMutation,
   useDeleteUserProfileMutation,
+  // User Chapter Section hooks
+  useGetUserChapterSectionsQuery,
+  useCreateUserChapterSectionMutation,
+  useUpdateUserChapterSectionMutation,
+  useDeleteUserChapterSectionMutation,
   // User Chapter Unit hooks
   useGetUserChapterUnitsQuery,
   useCreateUserChapterUnitMutation,
@@ -47,6 +52,7 @@ import {
   useGetUserLevelSessionByIdQuery,
   // Other hooks
   useGetChaptersQuery,
+  useGetSectionsQuery,
   useGetAllUnitsQuery,
   useGetLevelsQuery,
   useGetLevelsByChapterQuery,
@@ -83,23 +89,279 @@ export default function UsersAdmin() {
       <Typography variant="h4" sx={{ mb: 2 }}>Users Management</Typography>
       <Tabs value={tab} onChange={handleChange} aria-label="users tabs">
         <Tab label="User Profiles" id="users-tab-0" aria-controls="users-tabpanel-0" />
-        <Tab label="User Chapter Units" id="users-tab-1" aria-controls="users-tabpanel-1" />
-        <Tab label="User Chapter Levels" id="users-tab-2" aria-controls="users-tabpanel-2" />
-        <Tab label="User Level Sessions" id="users-tab-3" aria-controls="users-tabpanel-3" />
+        <Tab label="User Chapter Sections" id="users-tab-1" aria-controls="users-tabpanel-1" />
+        <Tab label="User Chapter Units" id="users-tab-2" aria-controls="users-tabpanel-2" />
+        <Tab label="User Chapter Levels" id="users-tab-3" aria-controls="users-tabpanel-3" />
+        <Tab label="User Level Sessions" id="users-tab-4" aria-controls="users-tabpanel-4" />
       </Tabs>
 
       <TabPanel value={tab} index={0}>
         <UserProfilesTab />
       </TabPanel>
       <TabPanel value={tab} index={1}>
-        <UserChapterUnitsTab />
+        <UserChapterSectionsTab />
       </TabPanel>
       <TabPanel value={tab} index={2}>
-        <UserChapterLevelsTab />
+        <UserChapterUnitsTab />
       </TabPanel>
       <TabPanel value={tab} index={3}>
+        <UserChapterLevelsTab />
+      </TabPanel>
+      <TabPanel value={tab} index={4}>
         <UserLevelSessionsTab />
       </TabPanel>
+    </Box>
+  );
+}
+
+// ==================== USER CHAPTER SECTIONS TAB ====================
+function UserChapterSectionsTab() {
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const { data: itemsData, isLoading } = useGetUserChapterSectionsQuery();
+  const { data: chaptersData } = useGetChaptersQuery();
+  const [selectedChapter, setSelectedChapter] = useState('');
+  const { data: sectionsData } = useGetSectionsQuery(selectedChapter, { skip: !selectedChapter });
+  const { data: userProfilesData } = useGetUserProfilesQuery();
+  const [createItem] = useCreateUserChapterSectionMutation();
+  const [updateItem] = useUpdateUserChapterSectionMutation();
+  const [deleteItem] = useDeleteUserChapterSectionMutation();
+
+  const [formData, setFormData] = useState({
+    userId: '',
+    selectedUser: '',
+    chapterId: '',
+    sectionId: '',
+    status: 'not_started',
+  });
+
+  const handleOpenDialog = (item = null) => {
+    if (item) {
+      setEditingItem(item);
+      setSelectedChapter(item.chapterId?._id || item.chapterId || '');
+      setFormData({
+        userId: item.userId || '',
+        selectedUser: item.userId || '',
+        chapterId: item.chapterId?._id || item.chapterId || '',
+        sectionId: item.sectionId?._id || item.sectionId || '',
+        status: item.status || 'not_started',
+      });
+    } else {
+      setEditingItem(null);
+      setSelectedChapter('');
+      setFormData({ userId: '', selectedUser: '', chapterId: '', sectionId: '', status: 'not_started' });
+    }
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditingItem(null);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const submitData = {
+        ...formData,
+        userId: formData.selectedUser || formData.userId,
+      };
+      delete submitData.selectedUser;
+
+      if (editingItem) {
+        await updateItem({ id: editingItem._id, ...submitData }).unwrap();
+      } else {
+        await createItem(submitData).unwrap();
+      }
+      handleCloseDialog();
+    } catch (error) {
+      console.error('Error saving user chapter section:', error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this user chapter section?')) {
+      try {
+        await deleteItem(id).unwrap();
+      } catch (error) {
+        console.error('Error deleting user chapter section:', error);
+      }
+    }
+  };
+
+  const columns = [
+    {
+      field: 'userProfile',
+      headerName: 'User',
+      width: 250,
+      renderCell: (params) => {
+        if (params.value) {
+          return `${params.value.username} (${params.value.email})`;
+        }
+        return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'chapterId',
+      headerName: 'Chapter',
+      width: 150,
+      renderCell: (params) => params.value?.name || params.value || 'N/A',
+    },
+    {
+      field: 'sectionId',
+      headerName: 'Section',
+      width: 150,
+      renderCell: (params) => params.value?.name || params.value || 'N/A',
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          color={
+            params.value === 'completed' ? 'success' : 
+            params.value === 'in_progress' ? 'warning' : 'default'
+          }
+          size="small"
+        />
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 150,
+      renderCell: (params) => (
+        <Box>
+          <Tooltip title="Edit">
+            <IconButton onClick={() => handleOpenDialog(params.row)} size="small">
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error">
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h6">User Chapter Sections</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add User Chapter Section
+        </Button>
+      </Box>
+
+      <DataGrid
+        rows={itemsData?.data || []}
+        columns={columns}
+        loading={isLoading}
+        getRowId={(row) => row._id}
+        pageSizeOptions={[10, 25, 50]}
+        initialState={{
+          pagination: {
+            paginationModel: { page: 0, pageSize: 10 },
+          },
+        }}
+        getRowHeight={() => 'auto'}
+        sx={{ height: 500 }}
+      />
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingItem ? 'Edit User Chapter Section' : 'Add New User Chapter Section'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>User</InputLabel>
+                <Select
+                  value={formData.selectedUser}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    selectedUser: e.target.value,
+                    userId: e.target.value 
+                  })}
+                  label="User"
+                >
+                  {userProfilesData?.data?.map((user) => (
+                    <MenuItem key={user._id} value={user.userId}>
+                      {user.username} ({user.email})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Chapter</InputLabel>
+                <Select
+                  value={formData.chapterId}
+                  onChange={(e) => { 
+                    setFormData({ ...formData, chapterId: e.target.value, sectionId: '' });
+                    setSelectedChapter(e.target.value);
+                  }}
+                  label="Chapter"
+                >
+                  {chaptersData?.data?.map((chapter) => (
+                    <MenuItem key={chapter._id} value={chapter._id}>
+                      {chapter.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Section</InputLabel>
+                <Select
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                  label="Section"
+                  disabled={!formData.chapterId}
+                >
+                  {sectionsData?.data?.map((section) => (
+                    <MenuItem key={section._id} value={section._id}>
+                      {section.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  label="Status"
+                >
+                  <MenuItem value="not_started">Not Started</MenuItem>
+                  <MenuItem value="in_progress">In Progress</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            {editingItem ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

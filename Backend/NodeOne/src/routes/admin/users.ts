@@ -1,9 +1,11 @@
 import express from 'express';
 import { UserProfile } from '../../models/UserProfile';
 import { UserChapterUnit } from '../../models/UserChapterUnit';
+import { UserChapterSection } from '../../models/UserChapterSection';
 import { UserChapterLevel } from '../../models/UserChapterLevel';
 import { UserLevelSession } from '../../models/UserLevelSession';
 import { Chapter } from '../../models/Chapter';
+import { Section } from '../../models/Section';
 import { Unit } from '../../models/Units';
 import { Level } from '../../models/Level';
 import { Request, Response } from 'express';
@@ -15,8 +17,7 @@ const router = express.Router();
 // GET all user profiles
 router.get('/profiles', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, search } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { search } = req.query;
     
     let filter = {};
     if (search) {
@@ -31,21 +32,14 @@ router.get('/profiles', async (req: Request, res: Response) => {
 
     const [profiles, total] = await Promise.all([
       UserProfile.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserProfile.countDocuments(filter)
     ]);
 
     return res.json({
       success: true,
       data: profiles,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
+      total
     });
   } catch (error) {
     console.error('Error fetching user profiles:', error);
@@ -537,6 +531,191 @@ router.delete('/chapter-units/:id', async (req: Request, res: Response) => {
       message: 'Failed to delete user chapter unit',
       error: error.message
     });
+  }
+});
+
+// ==================== USER CHAPTER SECTIONS ====================
+
+// GET all user chapter sections
+router.get('/chapter-sections', async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 10, userId, chapterId, sectionId, status } = req.query as any;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter: any = {};
+    if (userId) filter.userId = userId;
+    if (chapterId) filter.chapterId = chapterId;
+    if (sectionId) filter.sectionId = sectionId;
+    if (status) filter.status = status;
+
+    const [userChapterSections, total] = await Promise.all([
+      UserChapterSection.find(filter)
+        .populate('chapterId', 'name')
+        .populate('sectionId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      UserChapterSection.countDocuments(filter)
+    ]);
+
+    // Populate user profile data for each
+    const userChapterSectionsWithProfiles = await Promise.all(
+      userChapterSections.map(async (ucs) => {
+        const userProfile = await UserProfile.findOne({ userId: ucs.userId });
+        return {
+          ...ucs.toObject(),
+          userProfile: userProfile ? {
+            _id: userProfile._id,
+            username: userProfile.username,
+            email: userProfile.email,
+            fullName: userProfile.fullName
+          } : null
+        };
+      })
+    );
+
+    return res.json({
+      success: true,
+      data: userChapterSectionsWithProfiles,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching user chapter sections:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch user chapter sections', error: error.message });
+  }
+});
+
+// GET user chapter section by ID
+router.get('/chapter-sections/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userChapterSection: any = await UserChapterSection.findById(id)
+      .populate('chapterId', 'name')
+      .populate('sectionId', 'name');
+
+    if (!userChapterSection) {
+      return res.status(404).json({ success: false, message: 'User chapter section not found' });
+    }
+
+    const userProfile = await UserProfile.findOne({ userId: userChapterSection.userId });
+    const withProfile = {
+      ...userChapterSection.toObject(),
+      userProfile: userProfile ? {
+        _id: userProfile._id,
+        username: userProfile.username,
+        email: userProfile.email,
+        fullName: userProfile.fullName
+      } : null
+    };
+
+    return res.json({ success: true, data: withProfile });
+  } catch (error: any) {
+    console.error('Error fetching user chapter section:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch user chapter section', error: error.message });
+  }
+});
+
+// POST create user chapter section
+router.post('/chapter-sections', async (req: Request, res: Response) => {
+  try {
+    const { userId, chapterId, sectionId, status = 'not_started' } = req.body;
+
+    if (!userId || !chapterId || !sectionId) {
+      return res.status(400).json({ success: false, message: 'userId, chapterId, and sectionId are required' });
+    }
+
+    if (!['not_started', 'in_progress', 'completed'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status must be not_started, in_progress, or completed' });
+    }
+
+    const chapter = await Chapter.findById(chapterId);
+    if (!chapter) return res.status(400).json({ success: false, message: 'Chapter not found' });
+
+    const section = await Section.findById(sectionId);
+    if (!section) return res.status(400).json({ success: false, message: 'Section not found' });
+
+    const exists = await UserChapterSection.findOne({ userId, chapterId, sectionId });
+    if (exists) return res.status(400).json({ success: false, message: 'User chapter section already exists' });
+
+    const ucs = new UserChapterSection({ userId, chapterId, sectionId, status });
+    await ucs.save();
+
+    const populated = await UserChapterSection.findById(ucs._id)
+      .populate('chapterId', 'name')
+      .populate('sectionId', 'name');
+
+    const userProfile = await UserProfile.findOne({ userId: populated!.userId });
+    const withProfile = {
+      ...populated!.toObject(),
+      userProfile: userProfile ? {
+        _id: userProfile._id,
+        username: userProfile.username,
+        email: userProfile.email,
+        fullName: userProfile.fullName
+      } : null
+    };
+
+    return res.status(201).json({ success: true, message: 'User chapter section created successfully', data: withProfile });
+  } catch (error: any) {
+    console.error('Error creating user chapter section:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create user chapter section', error: error.message });
+  }
+});
+
+// PUT update user chapter section
+router.put('/chapter-sections/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const ucs = await UserChapterSection.findById(id);
+    if (!ucs) return res.status(404).json({ success: false, message: 'User chapter section not found' });
+
+    if (status && !['not_started', 'in_progress', 'completed'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status must be not_started, in_progress, or completed' });
+    }
+
+    const updated = await UserChapterSection.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    ).populate('chapterId', 'name').populate('sectionId', 'name');
+
+    const userProfile = await UserProfile.findOne({ userId: updated!.userId });
+    const withProfile = {
+      ...updated!.toObject(),
+      userProfile: userProfile ? {
+        _id: userProfile._id,
+        username: userProfile.username,
+        email: userProfile.email,
+        fullName: userProfile.fullName
+      } : null
+    };
+
+    return res.json({ success: true, message: 'User chapter section updated successfully', data: withProfile });
+  } catch (error: any) {
+    console.error('Error updating user chapter section:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update user chapter section', error: error.message });
+  }
+});
+
+// DELETE user chapter section
+router.delete('/chapter-sections/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const ucs = await UserChapterSection.findById(id);
+    if (!ucs) return res.status(404).json({ success: false, message: 'User chapter section not found' });
+
+    await UserChapterSection.findByIdAndDelete(id);
+    return res.json({ success: true, message: 'User chapter section deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting user chapter section:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete user chapter section', error: error.message });
   }
 });
 

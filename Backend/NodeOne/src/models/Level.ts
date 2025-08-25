@@ -8,6 +8,7 @@ export interface ILevel extends Document {
   status: boolean;
   chapterId: mongoose.Types.ObjectId;
   unitId: mongoose.Types.ObjectId;
+  sectionId: mongoose.Types.ObjectId;
   type: 'time_rush' | 'precision_path';
   
   // Time Rush specific fields (only present when type is 'time_rush')
@@ -58,6 +59,11 @@ export const LevelSchema = new Schema<ILevel>({
   unitId: {
     type: Schema.Types.ObjectId,
     ref: 'Unit',
+    required: true
+  },
+  sectionId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
     required: true
   },
   type: {

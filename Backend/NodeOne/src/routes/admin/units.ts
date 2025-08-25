@@ -8,11 +8,11 @@ const router = express.Router();
 // Create a unit
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { chapterId, name, description, topics, status } = req.body;
-    if (!chapterId || !name || !description || !Array.isArray(topics)) {
-      return res.status(400).json({ success: false, error: 'chapterId, name, description, and topics (array) are required' });
+    const { chapterId, sectionId, name, description, unitNumber, topics, status } = req.body;
+    if (!chapterId || !sectionId || !name || !description || !unitNumber || !Array.isArray(topics)) {
+      return res.status(400).json({ success: false, error: 'chapterId, sectionId, name, description, unitNumber and topics (array) are required' });
     }
-    const unit = new Unit({ chapterId, name, description, topics, status: status ?? true });
+    const unit = new Unit({ chapterId, sectionId, name, description, unitNumber, topics, status: status ?? true });
     await unit.save();
     return res.status(201).json({ success: true, data: unit });
   } catch (error) {
@@ -24,10 +24,10 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, topics, status } = req.body;
+    const { name, description, topics, status, sectionId, unitNumber } = req.body;
     const unit = await Unit.findByIdAndUpdate(
       id,
-      { name, description, topics, status },
+      { name, description, topics, status, ...(sectionId && { sectionId }), ...(unitNumber && { unitNumber }) },
       { new: true, runValidators: true }
     );
     if (!unit) return res.status(404).json({ success: false, error: 'Unit not found' });
@@ -52,9 +52,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // List units (optionally filter by chapterId)
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { chapterId } = req.query;
-    const filter = chapterId ? { chapterId } : {};
-    const units = await Unit.find(filter);
+    const { chapterId, sectionId } = req.query as { chapterId?: string; sectionId?: string };
+    const filter: any = {};
+    if (chapterId) filter.chapterId = chapterId;
+    if (sectionId) filter.sectionId = sectionId;
+    const units = await Unit.find(filter).sort({ unitNumber: 1 });
     return res.status(200).json({ success: true, data: units });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });

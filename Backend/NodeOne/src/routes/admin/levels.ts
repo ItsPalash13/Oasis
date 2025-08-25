@@ -2,6 +2,7 @@ import express from 'express';
 import { Level } from '../../models/Level';
 import { Chapter } from '../../models/Chapter';
 import { Unit } from '../../models/Units';
+import { Section } from '../../models/Section';
 import { Topic } from '../../models/Topic';
 import { Request, Response } from 'express';
 
@@ -10,11 +11,15 @@ const router = express.Router();
 // GET all levels with populated chapter and unit data
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { chapterId, unitId } = req.query;
+    const { chapterId, unitId, sectionId } = req.query;
     
     let filter = {};
-    if (chapterId && unitId) {
+    if (chapterId && unitId && sectionId) {
+      filter = { chapterId, unitId, sectionId };
+    } else if (chapterId && unitId) {
       filter = { chapterId, unitId };
+    } else if (chapterId && sectionId) {
+      filter = { chapterId, sectionId };
     } else if (chapterId) {
       filter = { chapterId };
     } else {
@@ -27,6 +32,7 @@ router.get('/', async (req: Request, res: Response) => {
     const levels = await Level.find(filter)
       .populate('chapterId', 'name')
       .populate('unitId', 'name')
+      .populate('sectionId', 'name')
       .populate('topics', 'topic') // Populate topics with their names
       .sort({ levelNumber: 1 });
 
@@ -61,6 +67,7 @@ router.get('/by-chapter/:chapterId', async (req: Request, res: Response) => {
     const levels = await Level.find({ chapterId })
       .populate('chapterId', 'name')
       .populate('unitId', 'name')
+      .populate('sectionId', 'name')
       .populate('topics', 'topic') // Populate topics with their names
       .sort({ levelNumber: 1 });
 
@@ -89,6 +96,7 @@ router.post('/', async (req: Request, res: Response) => {
       status = false,
       chapterId,
       unitId,
+      sectionId,
       type,
       timeRush,
       precisionPath,
@@ -96,7 +104,7 @@ router.post('/', async (req: Request, res: Response) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !levelNumber || !description || !topics || !chapterId || !unitId || !type) {
+    if (!name || !levelNumber || !description || !topics || !chapterId || !unitId || !sectionId || !type) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields'
@@ -126,6 +134,15 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: 'Unit not found'
+      });
+    }
+
+    // Validate section exists
+    const section = await Section.findById(sectionId);
+    if (!section) {
+      return res.status(400).json({
+        success: false,
+        message: 'Section not found'
       });
     }
 
@@ -178,6 +195,7 @@ router.post('/', async (req: Request, res: Response) => {
       status,
       chapterId,
       unitId,
+      sectionId,
       type,
       difficultyParams: difficultyParams || {
         mean: 750,
@@ -199,7 +217,8 @@ router.post('/', async (req: Request, res: Response) => {
     // Populate and return the created level
     const populatedLevel = await Level.findById(level._id)
       .populate('chapterId', 'name')
-      .populate('unitId', 'name');
+      .populate('unitId', 'name')
+      .populate('sectionId', 'name');
 
     return res.status(201).json({
       success: true,
@@ -228,6 +247,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       status,
       chapterId,
       unitId,
+      sectionId,
       type,
       timeRush,
       precisionPath,
@@ -269,6 +289,17 @@ router.put('/:id', async (req: Request, res: Response) => {
         return res.status(400).json({
           success: false,
           message: 'Unit not found'
+        });
+      }
+    }
+
+    // Validate section exists if changing
+    if (sectionId) {
+      const section = await Section.findById(sectionId);
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message: 'Section not found'
         });
       }
     }
@@ -325,6 +356,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (status !== undefined) updateData.status = status;
     if (chapterId !== undefined) updateData.chapterId = chapterId;
     if (unitId !== undefined) updateData.unitId = unitId;
+    if (sectionId !== undefined) updateData.sectionId = sectionId;
     if (type !== undefined) updateData.type = type;
     if (difficultyParams !== undefined) updateData.difficultyParams = difficultyParams;
 
@@ -341,7 +373,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       id,
       updateData,
       { new: true, runValidators: true }
-    ).populate('chapterId', 'name').populate('unitId', 'name').populate('topics', 'topic');
+    ).populate('chapterId', 'name').populate('unitId', 'name').populate('sectionId', 'name').populate('topics', 'topic');
 
     return res.json({
       success: true,
@@ -395,6 +427,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const level = await Level.findById(id)
       .populate('chapterId', 'name')
       .populate('unitId', 'name')
+      .populate('sectionId', 'name')
       .populate('topics', 'topic');
 
     if (!level) {

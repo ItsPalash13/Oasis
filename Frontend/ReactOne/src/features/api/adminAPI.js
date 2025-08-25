@@ -4,7 +4,7 @@ import { baseQueryWithAuth } from './baseQuery';
 export const adminApi = createApi({
   reducerPath: 'adminApi',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Subject', 'Chapter', 'Topic', 'Question', 'Level', 'User', 'Badge'],
+  tagTypes: ['Subject', 'Chapter', 'Topic', 'Section', 'Question', 'Level', 'User', 'Badge'],
   endpoints: (builder) => ({
     // Subject endpoints
     getSubjects: builder.query({
@@ -57,6 +57,32 @@ export const adminApi = createApi({
       query: (id) => ({ url: `/api/admin/topics/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Topic'],
     }),
+    // Section endpoints
+    getSections: builder.query({
+      query: (chapterId) => chapterId ? ({ url: `/api/admin/sections?chapterId=${chapterId}`, method: 'GET' }) : ({ url: '/api/admin/sections', method: 'GET' }),
+      providesTags: ['Section'],
+    }),
+    getSectionById: builder.query({
+      query: (id) => ({ url: `/api/admin/sections/${id}`, method: 'GET' }),
+      providesTags: ['Section'],
+    }),
+    getSectionTopics: builder.query({
+      query: (id) => ({ url: `/api/admin/sections/${id}/topics`, method: 'GET' }),
+      providesTags: ['Section'],
+    }),
+    createSection: builder.mutation({
+      query: (body) => ({ url: '/api/admin/sections', method: 'POST', body }),
+      invalidatesTags: ['Section'],
+    }),
+    updateSection: builder.mutation({
+      query: ({ id, ...body }) => ({ url: `/api/admin/sections/${id}`, method: 'PUT', body }),
+      invalidatesTags: ['Section'],
+    }),
+    deleteSection: builder.mutation({
+      query: (id) => ({ url: `/api/admin/sections/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Section'],
+    }),
+
     // Unit endpoints
     createUnit: builder.mutation({
       query: (body) => ({ url: '/api/admin/units', method: 'POST', body }),
@@ -71,7 +97,11 @@ export const adminApi = createApi({
       invalidatesTags: ['Chapter'],
     }),
     getUnits: builder.query({
-      query: (chapterId) => ({ url: `/api/admin/units?chapterId=${chapterId}`, method: 'GET' }),
+      query: (params) => ({ 
+        url: `/api/admin/units`, 
+        method: 'GET',
+        params: typeof params === 'string' ? { chapterId: params } : (params || {})
+      }),
       providesTags: ['Chapter'],
     }),
     getAllUnits: builder.query({
@@ -196,6 +226,31 @@ export const adminApi = createApi({
       }),
       providesTags: ['User'],
     }),
+    // User Chapter Section endpoints
+    getUserChapterSections: builder.query({
+      query: (params) => ({ 
+        url: '/api/admin/users/chapter-sections', 
+        method: 'GET',
+        params: params || {}
+      }),
+      providesTags: ['User'],
+    }),
+    getUserChapterSectionById: builder.query({
+      query: (id) => ({ url: `/api/admin/users/chapter-sections/${id}`, method: 'GET' }),
+      providesTags: ['User'],
+    }),
+    createUserChapterSection: builder.mutation({
+      query: (body) => ({ url: '/api/admin/users/chapter-sections', method: 'POST', body }),
+      invalidatesTags: ['User'],
+    }),
+    updateUserChapterSection: builder.mutation({
+      query: ({ id, ...body }) => ({ url: `/api/admin/users/chapter-sections/${id}`, method: 'PUT', body }),
+      invalidatesTags: ['User'],
+    }),
+    deleteUserChapterSection: builder.mutation({
+      query: (id) => ({ url: `/api/admin/users/chapter-sections/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['User'],
+    }),
     getUserChapterUnitById: builder.query({
       query: (id) => ({ url: `/api/admin/users/chapter-units/${id}`, method: 'GET' }),
       providesTags: ['User'],
@@ -283,6 +338,13 @@ export const {
   useCreateTopicMutation,
   useUpdateTopicMutation,
   useDeleteTopicMutation,
+  // Section hooks
+  useGetSectionsQuery,
+  useGetSectionByIdQuery,
+  useGetSectionTopicsQuery,
+  useCreateSectionMutation,
+  useUpdateSectionMutation,
+  useDeleteSectionMutation,
   useCreateUnitMutation,
   useUpdateUnitMutation,
   useDeleteUnitMutation,
@@ -315,6 +377,12 @@ export const {
   useCreateUserChapterUnitMutation,
   useUpdateUserChapterUnitMutation,
   useDeleteUserChapterUnitMutation,
+  // User Chapter Section hooks
+  useGetUserChapterSectionsQuery,
+  useGetUserChapterSectionByIdQuery,
+  useCreateUserChapterSectionMutation,
+  useUpdateUserChapterSectionMutation,
+  useDeleteUserChapterSectionMutation,
   // User Chapter Level hooks
   useGetUserChapterLevelsQuery,
   useGetUserChapterLevelByIdQuery,

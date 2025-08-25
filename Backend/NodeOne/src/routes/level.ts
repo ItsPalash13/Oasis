@@ -2,8 +2,10 @@
     import { Level } from '../models/Level';
     import { Chapter } from '../models/Chapter';
     import { Unit } from '../models/Units';
+    import { Section } from '../models/Section';
     import { UserChapterLevel } from '../models/UserChapterLevel';
     import { UserChapterUnit } from '../models/UserChapterUnit';
+    import { UserChapterSection } from '../models/UserChapterSection';
     import { UserLevelSession } from '../models/UserLevelSession';
     import { QuestionTs } from '../models/QuestionTs';
     import { Question } from '../models/Questions';
@@ -125,22 +127,16 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
 
     // Function to initialize first level of every unit for a user in a chapter
-    const initializeFirstLevel = async (userId: string, chapterId: string): Promise<void> => {
+    const initializeFirstLevel = async (userId: string, chapterId: string, units: any[]): Promise<void> => {
       try {
         console.log(`\n=== Initializing First Levels for Chapter ${chapterId} ===`);
         
-        // Get all units in this chapter
-        const units = await Unit.find({ 
-          chapterId: new mongoose.Types.ObjectId(chapterId),
-          status: true // Only active units
-        }).select('_id name');
-
         if (!units.length) {
-          console.log(`No active units found for chapter ${chapterId}`);
+          console.log(`No units provided for chapter ${chapterId}`);
           return;
         }
 
-        console.log(`Found ${units.length} active units in chapter ${chapterId}`);
+        console.log(`Processing ${units.length} units for chapter ${chapterId}`);
 
         // For each unit, find the first level (lowest levelNumber) and initialize it
         for (const unit of units) {
@@ -759,7 +755,6 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               rank: actualRank
             };
           });
-          console.log("leaderboard1",leaderboard);
         }
         
         return { 
@@ -1007,9 +1002,6 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         const { chapterId } = req.params;
         const userId = req.user.id;
         
-        // Initialize first level for the user if it's their first time accessing this chapter
-        await initializeFirstLevel(userId, chapterId);
-
         // Fetch chapter
         const chapter = await Chapter.findById(chapterId)
           .select('name description gameName status thumbnailUrl');
@@ -1049,15 +1041,70 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           accuracy: topicAccuracyMap.get(topic._id.toString()) || null
         }));
 
-        // Get all units for this chapter (not just those the user has access to)
-        const chapterUnits = await Unit.find({
+        // Get user's sections for this chapter, then fetch units within those sections
+        let userSections = await UserChapterSection.find({
+          userId: new mongoose.Types.ObjectId(userId),
           chapterId: new mongoose.Types.ObjectId(chapterId)
-        }).select('_id name description status topics');
+        }).select('sectionId');
 
-        // Fetch all topic names for these units in one go
-        const allTopicIds = Array.from(new Set(chapterUnits.flatMap(unit => unit.topics.map(tid => tid.toString()))));
-        const unitTopics = await Topic.find({ _id: { $in: allTopicIds } }).select('_id topic');
-        const topicIdToName = new Map(unitTopics.map((t: any) => [t._id.toString(), t.topic]));
+       if(userSections.length === 0){
+        console.log("Creating new UCS");
+        const section = await Section.findOne({
+          chapterId: new mongoose.Types.ObjectId(chapterId),
+          sectionNumber: 1
+        });
+        console.log("Section",section);
+        
+        if (!section) {
+          console.log("No section found with sectionNumber 1, skipping UserChapterSection creation");
+          userSections = [];
+        } else {
+          // Check if UserChapterSection already exists
+          const existingUserSection = await UserChapterSection.findOne({
+            userId: new mongoose.Types.ObjectId(userId),
+            chapterId: new mongoose.Types.ObjectId(chapterId),
+            sectionId: section._id
+          });
+          
+          if (existingUserSection) {
+            console.log("UserChapterSection already exists:", existingUserSection._id);
+            userSections = [existingUserSection];
+          } else {
+            // Create new UserChapterSection
+            const newUserSection = await UserChapterSection.create({
+              userId: new mongoose.Types.ObjectId(userId),
+              chapterId: new mongoose.Types.ObjectId(chapterId),
+              sectionId: section._id,
+              status: 'not_started'
+            });
+            console.log("New User Section created:", newUserSection._id);
+            userSections = [newUserSection];
+          }
+        }
+       }
+
+        const sectionIds = userSections.map((s: any) => s.sectionId);
+
+        const chapterUnits = await Unit.find({
+          chapterId: new mongoose.Types.ObjectId(chapterId),
+          ...(sectionIds.length ? { sectionId: { $in: sectionIds } } : { _id: { $in: [] } })
+        }).select('_id name description status unitNumber topics');
+
+        // Initialize first level for the user if it's their first time accessing this chapter
+        await initializeFirstLevel(userId, chapterId, chapterUnits);
+
+        // Prepare topics for units and sections
+        const unitTopicIds = Array.from(new Set(chapterUnits.flatMap(unit => unit.topics.map(tid => tid.toString()))));
+
+        // Fetch sections docs for user
+        const sectionDocs = sectionIds.length
+          ? await Section.find({ _id: { $in: sectionIds } }).select('_id name description sectionNumber topics')
+          : [];
+        const sectionTopicIds = Array.from(new Set(sectionDocs.flatMap(sec => (sec.topics || []).map((tid: any) => tid.toString()))));
+
+        const allTopicIds = Array.from(new Set([...unitTopicIds, ...sectionTopicIds]));
+        const topicDocs = allTopicIds.length ? await Topic.find({ _id: { $in: allTopicIds } }).select('_id topic') : [];
+        const topicIdToName = new Map(topicDocs.map((t: any) => [t._id.toString(), t.topic]));
 
         // Get all UserChapterUnit for this user/chapter
         const userChapterUnits = await UserChapterUnit.find({
@@ -1066,12 +1113,22 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         });
         const userUnitIds = new Set(userChapterUnits.map(ucu => ucu.unitId.toString()));
 
+        // Build sections with topic names for meta
+        const sectionsWithTopicNames = sectionDocs.map((sec: any) => ({
+          _id: sec._id,
+          name: sec.name,
+          description: sec.description,
+          sectionNumber: sec.sectionNumber,
+          topics: (sec.topics || []).map((tid: any) => topicIdToName.get(tid.toString()) || tid.toString())
+        }));
+
         // Map units to include topic names and locked property
         const unitsWithTopicNames = chapterUnits.map(unit => ({
           _id: unit._id,
           name: unit.name,
           description: unit.description,
           status: unit.status,
+          unitNumber: unit.unitNumber,
           topics: unit.topics.map(tid => topicIdToName.get(tid.toString()) || tid.toString()),
           locked: !userUnitIds.has((unit._id as any).toString())
         }));
@@ -1181,7 +1238,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               ...chapter.toObject(),
               topics: chapterTopicsWithAccuracy
             },
-            units: unitsWithTopicNames
+            units: unitsWithTopicNames,
+            sections: sectionsWithTopicNames
           },
           data: mixedLevels
         });
@@ -1271,7 +1329,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           // Check if user has enough XP
           if (currentXp >= (session.timeRush?.requiredXp || 0)) {
             // Find the current level
-            const currentLevel = await Level.findById(session.levelId);
+            const currentLevel = await Level.findById(session.levelId).select('_id levelNumber type sectionId');
             if (!currentLevel) {
               throw new Error('Level not found');
             }
@@ -1281,7 +1339,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               chapterId: session.chapterId,
               levelNumber: currentLevel.levelNumber + 1,
               status: true
-            }).select('_id levelNumber type');
+            }).select('_id levelNumber type sectionId');
 
             // Calculate progress: min(required score, current level scored) / required score * 100
             const requiredXp = session.timeRush?.requiredXp || 0;
@@ -1329,6 +1387,25 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
             // If next level exists, check if UserChapterLevel already exists for it
             if (nextLevel && typeof nextLevel.levelNumber === 'number' && !isNaN(nextLevel.levelNumber)) {
+              // Check if next level belongs to a different section and create UserChapterSection if needed
+              if (nextLevel.sectionId && nextLevel.sectionId.toString() !== currentLevel.sectionId.toString()) {
+                const existingUserChapterSection = await UserChapterSection.findOne({
+                  userId: new mongoose.Types.ObjectId(userId),
+                  chapterId: new mongoose.Types.ObjectId(session.chapterId),
+                  sectionId: nextLevel.sectionId
+                });
+
+                if (!existingUserChapterSection) {
+                  await UserChapterSection.create({
+                    userId: new mongoose.Types.ObjectId(userId),
+                    chapterId: new mongoose.Types.ObjectId(session.chapterId),
+                    sectionId: nextLevel.sectionId,
+                    status: 'not_started'
+                  });
+                  console.log(`✅ Created UserChapterSection for user ${userId}, chapter ${session.chapterId}, section ${nextLevel.sectionId}`);
+                }
+              }
+
               const existingNextLevel = await UserChapterLevel.findOne({
                 userId,
                 chapterId: session.chapterId,
@@ -1562,7 +1639,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             }
 
             // Find the current level
-            const currentLevel = await Level.findById(session.levelId);
+            const currentLevel = await Level.findById(session.levelId).select('_id levelNumber type sectionId');
             if (!currentLevel) {
               throw new Error('Level not found');
             }
@@ -1572,7 +1649,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               chapterId: session.chapterId,
               levelNumber: currentLevel.levelNumber + 1,
               status: true
-            }).select('_id levelNumber type');
+            }).select('_id levelNumber type sectionId');
 
             // Calculate progress: min(required score, current level scored) / required score * 100
             const requiredXp = session.precisionPath?.requiredXp || 0;
@@ -1623,6 +1700,25 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
             // If next level exists, check if UserChapterLevel already exists for it
             if (nextLevel && typeof nextLevel.levelNumber === 'number' && !isNaN(nextLevel.levelNumber)) {
+              // Check if next level belongs to a different section and create UserChapterSection if needed
+              if (nextLevel.sectionId && nextLevel.sectionId.toString() !== currentLevel.sectionId.toString()) {
+                const existingUserChapterSection = await UserChapterSection.findOne({
+                  userId: new mongoose.Types.ObjectId(userId),
+                  chapterId: new mongoose.Types.ObjectId(session.chapterId),
+                  sectionId: nextLevel.sectionId
+                });
+
+                if (!existingUserChapterSection) {
+                  await UserChapterSection.create({
+                    userId: new mongoose.Types.ObjectId(userId),
+                    chapterId: new mongoose.Types.ObjectId(session.chapterId),
+                    sectionId: nextLevel.sectionId,
+                    status: 'not_started'
+                  });
+                  console.log(`✅ Created UserChapterSection for user ${userId}, chapter ${session.chapterId}, section ${nextLevel.sectionId}`);
+                }
+              }
+
               const existingNextLevel = await UserChapterLevel.findOne({
                 userId,
                 chapterId: session.chapterId,

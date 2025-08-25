@@ -1,16 +1,16 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-interface IUnit extends Document {
+// Section Schema
+interface ISection extends Document {
     name: string;
     description: string;
     status: boolean;
     chapterId: mongoose.Types.ObjectId;
-    sectionId: mongoose.Types.ObjectId;
-    unitNumber: number;
+    sectionNumber: number;
     topics: mongoose.Types.ObjectId[];
 }
 
-const UnitSchema = new Schema<IUnit>({
+const SectionSchema = new Schema<ISection>({    
     name: {
         type: String,
         required: true,
@@ -23,21 +23,16 @@ const UnitSchema = new Schema<IUnit>({
     },
     status: {
         type: Boolean,
-        default: false
+        default: true
     },
-    unitNumber: {
+    sectionNumber: {
         type: Number,
         required: true,
         min: 1
     },
     chapterId: {
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'Chapter',
-        required: true
-    },
-    sectionId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Section',
         required: true
     },
     topics: {
@@ -47,4 +42,4 @@ const UnitSchema = new Schema<IUnit>({
     }
 });
 
-export const Unit = mongoose.model<IUnit>('Unit', UnitSchema);
+export const Section = mongoose.model<ISection>('Section', SectionSchema);

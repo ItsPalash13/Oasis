@@ -128,6 +128,7 @@ const Levels: React.FC = () => {
   });
   const [startLevel] = useStartLevelMutation();
   const [units, setUnits] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [runTour, setRunTour] = useState(false);
   const [tourSteps] = useState<Step[]>([
     {
@@ -267,6 +268,9 @@ const Levels: React.FC = () => {
     }
     if (chapterData?.meta?.units) {
       setUnits(chapterData.meta.units);
+    }
+    if (chapterData?.meta?.sections) {
+      setSections(chapterData.meta.sections);
     }
   }, [chapterData]);
 
@@ -681,6 +685,41 @@ const Levels: React.FC = () => {
             </Box>
           </Box>
         )}
+        {/* Sections Display */}
+        {sections.length > 0 && (
+          <Box sx={{ mb: 4 }}>
+            {sections.map((section) => (
+              <Box key={section._id} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Section {section.sectionNumber}: {section.name}
+                </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {(section.topics || []).map((topic: any, idx: number) => (
+                    <Box
+                      key={idx}
+                      sx={{
+                        px: 1,
+                        py: 0.25,
+                        backgroundColor: '#FFD54F',
+                        color: '#111',
+                        borderRadius: 0.75,
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                      }}
+                    >
+                      {typeof topic === 'string' ? topic : topic.topic}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        )}
+
         {/* All Units Display */}
         {units.length > 0 && (
           <Box sx={{ mb: 4 }}>
@@ -699,7 +738,7 @@ const Levels: React.FC = () => {
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {unit.name}
+                      Unit {unit.unitNumber}: {unit.name}
                   </Typography>
                 </Box>
                 <Typography variant="body2" sx={{ mb: 1 }}>

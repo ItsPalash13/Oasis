@@ -31,6 +31,7 @@ import {
   useDeleteLevelMutation,
   useGetChaptersQuery,
   useGetAllUnitsQuery,
+  useGetSectionsQuery,
   useGetTopicsQuery,
   useGetQuestionsMuByTopicsMutation,
 } from '../../features/api/adminAPI';
@@ -78,6 +79,7 @@ export default function LevelsAdmin() {
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [selectedChapterFilter, setSelectedChapterFilter] = useState('');
   const [selectedUnitFilter, setSelectedUnitFilter] = useState('');
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState('');
 
   // For question mu scatter
   const [selectedTopics, setSelectedTopics] = useState([]);
@@ -89,12 +91,14 @@ export default function LevelsAdmin() {
   const { data: levelsData, isLoading: levelsLoading } = useGetLevelsQuery(
     selectedChapterFilter ? { 
       chapterId: selectedChapterFilter, 
-      ...(selectedUnitFilter && selectedUnitFilter !== '' && { unitId: selectedUnitFilter })
+      ...(selectedUnitFilter && selectedUnitFilter !== '' && { unitId: selectedUnitFilter }),
+      ...(selectedSectionFilter && selectedSectionFilter !== '' && { sectionId: selectedSectionFilter })
     } : undefined,
     { skip: !selectedChapterFilter }
   );
   const { data: chaptersData } = useGetChaptersQuery();
   const { data: unitsData } = useGetAllUnitsQuery(); // Get all units
+  const { data: sectionsData } = useGetSectionsQuery(selectedChapterFilter, { skip: !selectedChapterFilter });
   const { data: topicsData } = useGetTopicsQuery();
   const [createLevel] = useCreateLevelMutation();
   const [updateLevel] = useUpdateLevelMutation();
@@ -130,6 +134,7 @@ export default function LevelsAdmin() {
     status: false,
     chapterId: '',
     unitId: '',
+    sectionId: '',
     type: 'time_rush',
     timeRush: {
       requiredXp: '',
@@ -158,6 +163,7 @@ export default function LevelsAdmin() {
         status: level.status || false,
         chapterId: level.chapterId?._id || level.chapterId || '',
         unitId: level.unitId?._id || level.unitId || '',
+        sectionId: level.sectionId?._id || level.sectionId || '',
         type: level.type || 'time_rush',
         timeRush: level.timeRush || { requiredXp: '', totalTime: '', totalQuestions: '' },
         precisionPath: level.precisionPath || { requiredXp: '', totalQuestions: '' },
@@ -173,6 +179,7 @@ export default function LevelsAdmin() {
         status: false,
         chapterId: '',
         unitId: '',
+        sectionId: '',
         type: 'time_rush',
         timeRush: { requiredXp: '', totalTime: '', totalQuestions: '' },
         precisionPath: { requiredXp: '', totalQuestions: '' },
@@ -279,6 +286,12 @@ export default function LevelsAdmin() {
       renderCell: (params) => params.value?.name || 'N/A',
     },
     {
+      field: 'sectionId',
+      headerName: 'Section',
+      width: 150,
+      renderCell: (params) => params.value?.name || 'N/A',
+    },
+    {
       field: 'topics',
       headerName: 'Topics',
       width: 200,
@@ -328,10 +341,20 @@ export default function LevelsAdmin() {
     return unitsData.data.filter(unit => unit.chapterId === formData.chapterId);
   }, [formData.chapterId, unitsData]);
 
+  const filteredSections = useMemo(() => {
+    if (!formData.chapterId || !sectionsData?.data) return [];
+    return sectionsData.data.filter(section => section.chapterId === formData.chapterId);
+  }, [formData.chapterId, sectionsData]);
+
   const filteredUnitsForFilter = useMemo(() => {
     if (!selectedChapterFilter || !unitsData?.data) return [];
     return unitsData.data.filter(unit => unit.chapterId === selectedChapterFilter);
   }, [selectedChapterFilter, unitsData]);
+
+  const filteredSectionsForFilter = useMemo(() => {
+    if (!selectedChapterFilter || !sectionsData?.data) return [];
+    return sectionsData.data.filter(section => section.chapterId === selectedChapterFilter);
+  }, [selectedChapterFilter, sectionsData]);
 
   // Get topics for the selected unit
   const filteredTopics = useMemo(() => {
@@ -374,6 +397,7 @@ export default function LevelsAdmin() {
             onChange={(e) => {
               setSelectedChapterFilter(e.target.value);
               setSelectedUnitFilter(''); // Reset unit filter when chapter changes
+              setSelectedSectionFilter(''); // Reset section filter when chapter changes
             }}
           >
             {chaptersData?.data?.map((chapter) => (
@@ -401,11 +425,29 @@ export default function LevelsAdmin() {
             ))}
           </Select>
         </FormControl>
+
+        <FormControl sx={{ minWidth: 200 }}>
+          <InputLabel id="section-filter-label">Filter by Section (Optional)</InputLabel>
+          <Select
+            labelId="section-filter-label"
+            label="Filter by Section (Optional)"
+            value={selectedSectionFilter}
+            onChange={(e) => setSelectedSectionFilter(e.target.value)}
+            disabled={!selectedChapterFilter}
+          >
+            <MenuItem value="">All Sections in Chapter</MenuItem>
+            {filteredSectionsForFilter.map((section) => (
+              <MenuItem key={section._id} value={section._id}>
+                {section.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       {!selectedChapterFilter && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Please select a chapter to view levels. You can optionally filter by unit as well.
+          Please select a chapter to view levels. You can optionally filter by unit and section as well.
         </Alert>
       )}
 
@@ -474,12 +516,12 @@ export default function LevelsAdmin() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Chapter</InputLabel>
                 <Select
                   value={formData.chapterId}
-                  onChange={(e) => setFormData({ ...formData, chapterId: e.target.value, unitId: '' })}
+                  onChange={(e) => setFormData({ ...formData, chapterId: e.target.value, unitId: '', sectionId: '' })}
                   label="Chapter"
                 >
                   {chaptersData?.data?.map((chapter) => (
@@ -490,7 +532,7 @@ export default function LevelsAdmin() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Unit</InputLabel>
                 <Select
@@ -502,6 +544,23 @@ export default function LevelsAdmin() {
                   {filteredUnits.map((unit) => (
                     <MenuItem key={unit._id} value={unit._id}>
                       {unit.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Section</InputLabel>
+                <Select
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                  label="Section"
+                  disabled={!formData.chapterId}
+                >
+                  {filteredSections.map((section) => (
+                    <MenuItem key={section._id} value={section._id}>
+                      {section.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -711,13 +770,17 @@ export default function LevelsAdmin() {
                   Level {selectedLevel.levelNumber} - {selectedLevel.description}
                 </Typography>
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <Typography variant="subtitle1">Chapter</Typography>
                 <Typography>{selectedLevel.chapterId?.name}</Typography>
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <Typography variant="subtitle1">Unit</Typography>
                 <Typography>{selectedLevel.unitId?.name}</Typography>
+              </Grid>
+              <Grid item xs={4}>
+                <Typography variant="subtitle1">Section</Typography>
+                <Typography>{selectedLevel.sectionId?.name}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="subtitle1">Type</Typography>
