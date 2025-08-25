@@ -16,7 +16,7 @@ import {
   Chip,
   Grid
 } from '@mui/material';
-import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, MonetizationOn as CoinsIcon, Favorite as HealthIcon, Whatshot as StreakIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, Star as CoinsIcon, Favorite as HealthIcon, Whatshot as StreakIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 // @ts-ignore
 import { selectCurrentUser } from '../../features/auth/authSlice';
@@ -103,7 +103,7 @@ const Profile: React.FC = () => {
   // --- Stats for coins, health, streak with specific colors ---
   const stats = [
     {
-      label: 'Coins',
+      label: 'XP',
       value: userInfo?.totalCoins ?? 0,
       icon: <CoinsIcon sx={{ color: '#FFD700' }} />, // gold
       color: 'warning',
