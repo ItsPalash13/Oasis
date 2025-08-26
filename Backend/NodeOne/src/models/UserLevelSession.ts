@@ -39,7 +39,7 @@ export interface IUserLevelSession extends Document {
 
   // Time Rush specific fields
   timeRush: {
-    requiredXp: number;
+    requiredCorrectQuestions: number;
     currentXp: number;
     minTime: number;
     timeLimit: number;
@@ -49,11 +49,12 @@ export interface IUserLevelSession extends Document {
 
   // Precision Path specific fields
   precisionPath: {
-    requiredXp: number;
+    requiredCorrectQuestions: number;
     currentXp: number;
     currentTime: number;
     minTime: number;
     totalQuestions: number;
+    expectedTime: number;
     };
 }
 
@@ -174,7 +175,7 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
 
   // Time Rush specific fields
   timeRush: {
-    requiredXp: {
+    requiredCorrectQuestions: {
       type: Number,
       min: 0,
     },
@@ -202,7 +203,7 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
 
   // Precision Path specific fields
   precisionPath: {
-    requiredXp: {
+    requiredCorrectQuestions: {
       type: Number,
       min: 0,
     },
@@ -221,6 +222,10 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
     totalQuestions: {
       type: Number,
       min: 0
+    },
+    expectedTime: {
+      type: Number,
+      min: 0
     }
   }
 }, {
@@ -233,16 +238,11 @@ UserLevelSessionSchema.index({ userChapterLevelId: 1 });
 // Pre-save middleware to validate session type constraints
 UserLevelSessionSchema.pre('save', function(next) {
   if (this.attemptType === 'time_rush') {
-    // Time Rush: must have timeLimit > 0, can exceed requiredXp
+    // Time Rush: must have timeLimit > 0, can exceed requiredCorrectQuestions
     if (this.timeRush.timeLimit <= 0) {
       return next(new Error('Time Rush mode must have a positive time limit'));
     }
-  } else {
-    // Precision Path: currentXp cannot exceed requiredXp
-    if (this.precisionPath.currentXp > this.precisionPath.requiredXp) {
-      this.precisionPath.currentXp = this.precisionPath.requiredXp;
-    }
-  }
+  } 
   next();
 });
 

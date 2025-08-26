@@ -16,7 +16,7 @@ export interface IUserChapterLevel extends Document {
   timeRush?: {
     attempts?: number;
     minTime?: number | null;
-    requiredXp?: number;
+    requiredCorrectQuestions?: number;
     timeLimit?: number;  // Time limit for Time Rush mode
     totalQuestions?: number;
   };
@@ -25,8 +25,9 @@ export interface IUserChapterLevel extends Document {
   precisionPath?: {
     attempts?: number;
     minTime?: number | null;
-    requiredXp?: number;
+    requiredCorrectQuestions?: number;
     totalQuestions?: number;
+    expectedTime?: number;
   };
 }
 
@@ -87,7 +88,7 @@ export const UserChapterLevelSchema = new Schema<IUserChapterLevel>({
     minTime: {
       type: Number
     },
-    requiredXp: {
+    requiredCorrectQuestions: {
       type: Number,
       min: 0
     },
@@ -111,11 +112,15 @@ export const UserChapterLevelSchema = new Schema<IUserChapterLevel>({
     minTime: {
       type: Number
     },
-    requiredXp: {
+    requiredCorrectQuestions: {
       type: Number,
       min: 0
     },
     totalQuestions: {
+      type: Number,
+      min: 0
+    },
+    expectedTime: {
       type: Number,
       min: 0
     }

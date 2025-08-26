@@ -68,8 +68,8 @@ async function createAIChatCompletion(params: {
 interface LevelFeedbackParams {
   levelName: string;
   levelTopics: string[];
-  studentXP: number;
-  requiredXP: number;
+  studentCorrectQuestions: number;
+  requiredCorrectQuestions: number;
   accuracy: number;
   timeTaken: string;
   levelResult: string;
@@ -78,15 +78,15 @@ interface LevelFeedbackParams {
   newHighScore?: boolean;
 }
 
-async function getShortLevelFeedback({ levelName, levelTopics, studentXP, requiredXP, accuracy, timeTaken, levelResult, nextLevel, firstName, newHighScore = false }: LevelFeedbackParams): Promise<string> {
+async function getShortLevelFeedback({ levelName, levelTopics, studentCorrectQuestions, requiredCorrectQuestions, accuracy, timeTaken, levelResult, nextLevel, firstName, newHighScore = false }: LevelFeedbackParams): Promise<string> {
   const userPrompt = `
 You're a motivational AI tutor. Give a personalized end-of-level message in under 30 words based on the following:
 
 Student: ${firstName}
 Level: ${levelName}
 Topics: ${levelTopics.join(", ")}
-XP Earned: ${studentXP}
-Required XP: ${requiredXP}
+Correct Questions: ${studentCorrectQuestions}
+Required Correct: ${requiredCorrectQuestions}
 Accuracy: ${accuracy}%
 Time: ${timeTaken}
 Result: ${levelResult}

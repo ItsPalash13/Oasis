@@ -171,17 +171,17 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Validate type-specific fields
     if (type === 'time_rush') {
-      if (!timeRush || !timeRush.requiredXp || !timeRush.totalTime) {
+      if (!timeRush || !timeRush.requiredCorrectQuestions || !timeRush.totalTime) {
         return res.status(400).json({
           success: false,
-          message: 'Time Rush levels require requiredXp and totalTime'
+          message: 'Time Rush levels require requiredCorrectQuestions and totalTime'
         });
       }
     } else if (type === 'precision_path') {
-      if (!precisionPath || !precisionPath.requiredXp || !precisionPath.totalQuestions) {
+      if (!precisionPath || !precisionPath.requiredCorrectQuestions || !precisionPath.totalQuestions) {
         return res.status(400).json({
           success: false,
-          message: 'Precision Path levels require requiredXp and totalQuestions'
+          message: 'Precision Path levels require requiredCorrectQuestions and totalQuestions'
         });
       }
     }
@@ -332,17 +332,17 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     // Validate type-specific fields
     if (type === 'time_rush') {
-      if (!timeRush || !timeRush.requiredXp || !timeRush.totalTime) {
+      if (!timeRush || !timeRush.requiredCorrectQuestions || !timeRush.totalTime) {
         return res.status(400).json({
           success: false,
-          message: 'Time Rush levels require requiredXp and totalTime'
+          message: 'Time Rush levels require requiredCorrectQuestions and totalTime'
         });
       }
     } else if (type === 'precision_path') {
-      if (!precisionPath || !precisionPath.requiredXp || !precisionPath.totalQuestions) {
+      if (!precisionPath || !precisionPath.requiredCorrectQuestions || !precisionPath.totalQuestions) {
         return res.status(400).json({
           success: false,
-          message: 'Precision Path levels require requiredXp and totalQuestions'
+          message: 'Precision Path levels require requiredCorrectQuestions and totalQuestions'
         });
       }
     }

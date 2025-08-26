@@ -303,10 +303,40 @@ const LevelDetailsDialog = ({ open, onClose, level, chapter, onLevelClick }) => 
                     <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
                       <Typography sx={{ fontSize: '1.5rem', mb: 0.5 }}>❓</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
-                        {isTimeRush ? level.timeRush.totalQuestions : level.precisionPath.totalQuestions}
+                        {isTimeRush ? level.timeRush.requiredCorrectQuestions : level.precisionPath.requiredCorrectQuestions}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                         Questions
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {/* Hearts (Remaining Health) - Both Modes */}
+              {(isTimeRush ? level?.timeRush?.totalQuestions : level?.precisionPath?.totalQuestions) && 
+               (isTimeRush ? level?.timeRush?.requiredCorrectQuestions : level?.precisionPath?.requiredCorrectQuestions) && (
+                <Grid item size={{xs:12,sm:3}}>
+                  <Card sx={{ 
+                    height: '100%',
+                    backgroundColor: theme.palette.mode === 'dark' ? '#444' : 'background.paper',
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark' ? "#444" : 'divider',
+                    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+                    }
+                  }}>
+                    <CardContent sx={{ p: 1.5, textAlign: 'center' }}>
+                      <Typography sx={{ fontSize: '1.5rem', mb: 0.5, color: '#F0242D' }}>❤️</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25}}>
+                        {(isTimeRush ? level.timeRush.totalQuestions : level.precisionPath.totalQuestions) - 
+                         (isTimeRush ? level.timeRush.requiredCorrectQuestions : level.precisionPath.requiredCorrectQuestions)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        Hearts
                       </Typography>
                     </CardContent>
                   </Card>

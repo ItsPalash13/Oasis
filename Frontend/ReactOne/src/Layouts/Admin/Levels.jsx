@@ -137,13 +137,14 @@ export default function LevelsAdmin() {
     sectionId: '',
     type: 'time_rush',
     timeRush: {
-      requiredXp: '',
+      requiredCorrectQuestions: '',
       totalTime: '',
       totalQuestions: '',
     },
     precisionPath: {
-      requiredXp: '',
+      requiredCorrectQuestions: '',
       totalQuestions: '',
+      expectedTime: '',
     },
     difficultyParams: {
       mean: 750,
@@ -165,8 +166,8 @@ export default function LevelsAdmin() {
         unitId: level.unitId?._id || level.unitId || '',
         sectionId: level.sectionId?._id || level.sectionId || '',
         type: level.type || 'time_rush',
-        timeRush: level.timeRush || { requiredXp: '', totalTime: '', totalQuestions: '' },
-        precisionPath: level.precisionPath || { requiredXp: '', totalQuestions: '' },
+        timeRush: level.timeRush || { requiredCorrectQuestions: '', totalTime: '', totalQuestions: '' },
+        precisionPath: level.precisionPath || { requiredCorrectQuestions: '', totalQuestions: '', expectedTime: '' },
         difficultyParams: level.difficultyParams || { mean: 750, sd: 150, alpha: 5 },
       });
     } else {
@@ -181,8 +182,8 @@ export default function LevelsAdmin() {
         unitId: '',
         sectionId: '',
         type: 'time_rush',
-        timeRush: { requiredXp: '', totalTime: '', totalQuestions: '' },
-        precisionPath: { requiredXp: '', totalQuestions: '' },
+        timeRush: { requiredCorrectQuestions: '', totalTime: '', totalQuestions: '' },
+        precisionPath: { requiredCorrectQuestions: '', totalQuestions: '', expectedTime: '' },
         difficultyParams: { mean: 750, sd: 150, alpha: 5 },
       });
     }
@@ -209,13 +210,14 @@ export default function LevelsAdmin() {
         levelNumber: parseInt(formData.levelNumber),
         topics: formData.topics,
         timeRush: formData.type === 'time_rush' ? {
-          requiredXp: parseInt(formData.timeRush.requiredXp),
+          requiredCorrectQuestions: parseInt(formData.timeRush.requiredCorrectQuestions),
           totalTime: parseInt(formData.timeRush.totalTime),
           totalQuestions: parseInt(formData.timeRush.totalQuestions),
         } : undefined,
         precisionPath: formData.type === 'precision_path' ? {
-          requiredXp: parseInt(formData.precisionPath.requiredXp),
+          requiredCorrectQuestions: parseInt(formData.precisionPath.requiredCorrectQuestions),
           totalQuestions: parseInt(formData.precisionPath.totalQuestions),
+          expectedTime: parseInt(formData.precisionPath.expectedTime),
         } : undefined,
       };
 
@@ -627,12 +629,12 @@ export default function LevelsAdmin() {
                       <Grid item xs={4}>
                         <TextField
                           fullWidth
-                          label="Required XP"
+                          label="Required Correct Questions"
                           type="number"
-                          value={formData.timeRush.requiredXp}
+                          value={formData.timeRush.requiredCorrectQuestions}
                           onChange={(e) => setFormData({
                             ...formData,
-                            timeRush: { ...formData.timeRush, requiredXp: e.target.value }
+                            timeRush: { ...formData.timeRush, requiredCorrectQuestions: e.target.value }
                           })}
                         />
                       </Grid>
@@ -672,19 +674,19 @@ export default function LevelsAdmin() {
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Precision Path Settings</Typography>
                     <Grid container spacing={2}>
-                      <Grid item xs={6}>
+                      <Grid item xs={4}>
                         <TextField
                           fullWidth
-                          label="Required XP"
+                          label="Required Correct Questions"
                           type="number"
-                          value={formData.precisionPath.requiredXp}
+                          value={formData.precisionPath.requiredCorrectQuestions}
                           onChange={(e) => setFormData({
                             ...formData,
-                            precisionPath: { ...formData.precisionPath, requiredXp: e.target.value }
+                            precisionPath: { ...formData.precisionPath, requiredCorrectQuestions: e.target.value }
                           })}
                         />
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid item xs={4}>
                         <TextField
                           fullWidth
                           label="Total Questions"
@@ -693,6 +695,18 @@ export default function LevelsAdmin() {
                           onChange={(e) => setFormData({
                             ...formData,
                             precisionPath: { ...formData.precisionPath, totalQuestions: e.target.value }
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          fullWidth
+                          label="Expected Time (seconds)"
+                          type="number"
+                          value={formData.precisionPath.expectedTime}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            precisionPath: { ...formData.precisionPath, expectedTime: e.target.value }
                           })}
                         />
                       </Grid>
@@ -809,7 +823,7 @@ export default function LevelsAdmin() {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6">Time Rush Settings</Typography>
-                      <Typography>Required XP: {selectedLevel.timeRush.requiredXp}</Typography>
+                      <Typography>Required Correct Questions: {selectedLevel.timeRush.requiredCorrectQuestions}</Typography>
                       <Typography>Total Time: {selectedLevel.timeRush.totalTime} seconds</Typography>
                       <Typography>Total Questions: {selectedLevel.timeRush.totalQuestions}</Typography>
                     </CardContent>
@@ -821,8 +835,9 @@ export default function LevelsAdmin() {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6">Precision Path Settings</Typography>
-                      <Typography>Required XP: {selectedLevel.precisionPath.requiredXp}</Typography>
+                      <Typography>Required Correct Questions: {selectedLevel.precisionPath.requiredCorrectQuestions}</Typography>
                       <Typography>Total Questions: {selectedLevel.precisionPath.totalQuestions}</Typography>
+                      <Typography>Expected Time: {selectedLevel.precisionPath.expectedTime} seconds</Typography>
                     </CardContent>
                   </Card>
                 </Grid>

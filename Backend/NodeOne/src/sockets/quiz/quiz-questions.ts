@@ -320,7 +320,7 @@ export const quizQuestionHandlers = (socket: Socket) => {
 
   // Handle answer submission
   // Processes user's answer and updates XP
-socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLevelSessionId: string; answer: number; currentTime: number }) => {
+socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent }: { userLevelSessionId: string; answer: number; currentTime: number; timeSpent: number }) => {
     try {
       const session = await UserLevelSession.findById(userLevelSessionId);
       if (!session) {
@@ -366,15 +366,53 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       if (!questionTs) {
         throw new Error('QuestionTs not found');
       }
-
-      // Calculate XP earned
-      const xpEarned = isCorrect ? questionTs.xp.correct : questionTs.xp.incorrect;
+      let bonuses: any[] = [];
+      // Calculate XP earned (keeping for badge/streak system, but not used for level completion)
+      let xpEarned = isCorrect ? questionTs.xp.correct : questionTs.xp.incorrect;
+      
+      // Check for speed bonus (only for correct answers)
+      let speedBonus = 0;
+      let speedBonusMsg = '';
+      
+              if (isCorrect && timeSpent) {
+          console.log('Time Spent (ms):', timeSpent);
+          let totalTime, requiredCorrectQuestions;
+          
+          if (session.attemptType === 'time_rush') {
+            totalTime = session.timeRush.timeLimit;
+            requiredCorrectQuestions = session.timeRush.requiredCorrectQuestions;
+          } else if (session.attemptType === 'precision_path') {
+            totalTime = session.precisionPath.expectedTime; // Use expectedTime for precision path
+            requiredCorrectQuestions = session.precisionPath.requiredCorrectQuestions;
+          }
+          
+          if (totalTime && requiredCorrectQuestions) {
+            console.log('Total Time (s):', totalTime, 'Required Correct Questions:', requiredCorrectQuestions);
+            const averageTimePerQuestion = totalTime / requiredCorrectQuestions;
+            const timeSpentInSeconds = timeSpent / 1000; // Convert ms to seconds
+            
+            console.log('Average Time Per Question (s):', averageTimePerQuestion, 'Time Spent (s):', timeSpentInSeconds);
+            
+            if (timeSpentInSeconds < averageTimePerQuestion) {
+              speedBonus = Math.floor(questionTs.xp.correct * 0.5); // 50% of correct XP as bonus
+              xpEarned += speedBonus;
+              speedBonusMsg = `Speed bonus! +${speedBonus} XP`;
+              bonuses.push({
+                type: 'bonus',
+                msg: speedBonusMsg,
+                currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp
+              });
+            }
+          }
+        }
       
       // Update XP based on game mode
       if (session.attemptType === 'time_rush') {
         session.timeRush.currentXp = (session.timeRush.currentXp || 0) + Number(xpEarned);
+        console.log('Time Rush XP:', session.timeRush.currentXp, 'XP Earned:', xpEarned, 'Speed Bonus:', speedBonus);
       } else {
         session.precisionPath.currentXp = (session.precisionPath.currentXp || 0) + Number(xpEarned);
+        console.log('Precision Path XP:', session.precisionPath.currentXp, 'XP Earned:', xpEarned, 'Speed Bonus:', speedBonus);
       }
       
       // Track answered questions
@@ -419,18 +457,22 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           // Update XP based on game mode
           if (session.attemptType === 'time_rush') {
             session.timeRush.currentXp += bonusXp;
+            console.log('Time Rush XP:', session.timeRush.currentXp, 'XP Earned:', bonusXp);
           } else {
             session.precisionPath.currentXp += bonusXp;
+            console.log('Precision Path XP:', session.precisionPath.currentXp, 'XP Earned:', bonusXp);
           }
           
-          socket.emit('streak', {
-            streakCount: session.streak,
-            milestone: session.streak,
-            bonusXp: bonusXp,
-            message: `Amazing! ${session.streak} correct answers in a row! +${bonusXp} bonus XP!`
+          // Create bonuses array
+          bonuses.push({
+            type: 'streak',
+            msg: `Amazing! ${session.streak} correct answers in a row! +${bonusXp} bonus XP!`,
+            currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp
           });
         }
         
+        console.log('Bonuses:', bonuses);
+        socket.emit('bonuses', bonuses);
         // Reset streak after reaching 9
         if (session.streak > 9) {
           session.streak = 0;
@@ -468,6 +510,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       // Clear current question and increment index
       session.currentQuestion = null;
       session.currentQuestionIndex = (session.currentQuestionIndex || 0) + 1;
+      console.log('Current XP:', session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp);
       await session.save();
 
       // Random phrases for answer feedback
@@ -504,16 +547,21 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
       
       const message = `${randomPhrase}`;
       // Check for level completion
-      const currentXp = session.attemptType === 'time_rush' ? 
-        session.timeRush.currentXp : 
-        session.precisionPath.currentXp;
-      const requiredXp = session.attemptType === 'time_rush' ? 
-        session.timeRush.requiredXp : 
-        session.precisionPath.requiredXp;
+      const correctQuestions = session.questionsAnswered?.correct?.length || 0;
+      const incorrectQuestions = session.questionsAnswered?.incorrect?.length || 0;
+      const requiredCorrectQuestions = session.attemptType === 'time_rush' ? 
+        session.timeRush.requiredCorrectQuestions : 
+        session.precisionPath.requiredCorrectQuestions;
+      const totalQuestions = session.attemptType === 'time_rush' ?
+        session.timeRush.totalQuestions :
+        session.precisionPath.totalQuestions;
 
+      // Calculate maximum allowed incorrect answers
+      const maxAllowedIncorrect = totalQuestions - requiredCorrectQuestions;
+      const remainingHealth = Math.max(0, maxAllowedIncorrect - incorrectQuestions);
 
-      // If level is completed (XP requirement met)
-      if (session.status === 0 && currentXp >= requiredXp) {
+      // If level is completed (correct questions requirement met)
+      if (session.status === 0 && correctQuestions >= requiredCorrectQuestions) {
         // Update user's chapter level status
         const userChapterLevel = await UserChapterLevel.findOneAndUpdate(
           {
@@ -564,11 +612,12 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           isCorrect,
           correctAnswer: question.correct,
           xpEarned: Number(xpEarned),
-          currentXp: session.attemptType === 'time_rush' ? 
-            session.timeRush.currentXp : 
-            session.precisionPath.currentXp,
+          currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
+          currentCorrectQuestions: correctQuestions,
+          requiredCorrectQuestions: requiredCorrectQuestions,
           totalQuestions: session.questionBank.length,
           currentStreak: session.streak,
+          remainingHealth: remainingHealth,
           message: message
         });
 
@@ -579,8 +628,9 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           questionsHistory: session.questionsHistory || [],
                      ...(session.attemptType === 'time_rush' ? {
              timeRush: {
-               currentXp: (response.data as any).data.currentXp,
-               requiredXp: (response.data as any).data.requiredXp,
+               currentXp: session.timeRush.currentXp,
+               currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+               requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
                minTime: (response.data as any).data.minTime,
                timeTaken: (response.data as any).data.timeTaken,
                percentile: (response.data as any).data.percentile,
@@ -589,8 +639,9 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
              }
            } : {
             precisionPath: {
-              currentXp: (response.data as any).data.currentXp,
-              requiredXp: (response.data as any).data.requiredXp,
+              currentXp: session.precisionPath.currentXp,
+              currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+              requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               timeTaken: (response.data as any).data.timeTaken,
               bestTime: (response.data as any).data.bestTime,  
               percentile: (response.data as any).data.percentile,
@@ -602,14 +653,14 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           nextLevelNumber: (response.data as any).data.nextLevelNumber,
           nextLevelId: (response.data as any).data.nextLevelId,
           nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
-          xpNeeded: (response.data as any).data.xpNeeded,
+          questionsNeeded: (response.data as any).data.questionsNeeded,
           earnedBadges,
           isNewHighScore: (response.data as any).data.isNewHighScore,
           aiFeedback: (response.data as any).data.aiFeedback,
           topics: (response.data as any).data.topics || []
         });
         socket.disconnect();
-      } else if (session.currentQuestionIndex >= session.questionBank.length && currentXp < requiredXp) {
+      } else if (session.currentQuestionIndex >= session.questionBank.length && correctQuestions < requiredCorrectQuestions) {
         // For both modes: if this was the last question and level not completed, end the quiz
         const response = await axios.post(`${process.env.BACKEND_URL}/api/levels/end`, {
           userLevelSessionId,
@@ -640,11 +691,12 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           isCorrect,
           correctAnswer: question.correct,
           xpEarned: Number(xpEarned),
-          currentXp: session.attemptType === 'time_rush' ? 
-            session.timeRush.currentXp : 
-            session.precisionPath.currentXp,
+          currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
+          currentCorrectQuestions: correctQuestions,
+          requiredCorrectQuestions: requiredCorrectQuestions,
           totalQuestions: session.questionBank.length,
           currentStreak: session.streak,
+          remainingHealth: remainingHealth,
           message: message
         });
 
@@ -655,8 +707,9 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           questionsHistory: session.questionsHistory || [],
           ...(session.attemptType === 'time_rush' ? {
             timeRush: {
-              currentXp: (response.data as any).data.currentXp,
-              requiredXp: (response.data as any).data.requiredXp,
+              currentXp: session.timeRush.currentXp,
+              currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+              requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               minTime: (response.data as any).data.minTime,
               timeTaken: (response.data as any).data.timeTaken,
               percentile: (response.data as any).data.percentile,
@@ -665,8 +718,9 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
             }
           } : {
             precisionPath: {
-              currentXp: (response.data as any).data.currentXp,
-              requiredXp: (response.data as any).data.requiredXp,
+              currentXp: session.precisionPath.currentXp,
+              currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+              requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               timeTaken: (response.data as any).data.timeTaken,
               bestTime: (response.data as any).data.bestTime,
               percentile: (response.data as any).data.percentile,
@@ -678,23 +732,105 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime }: { userLe
           nextLevelNumber: (response.data as any).data.nextLevelNumber,
           nextLevelId: (response.data as any).data.nextLevelId,
           nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
-          xpNeeded: (response.data as any).data.xpNeeded,
+          questionsNeeded: (response.data as any).data.questionsNeeded,
           earnedBadges,
           isNewHighScore: (response.data as any).data.isNewHighScore,
           aiFeedback: (response.data as any).data.aiFeedback,
           topics: (response.data as any).data.topics || []
         });
         socket.disconnect();
-      } else{
+      } else if (incorrectQuestions > maxAllowedIncorrect) {
+        // Early termination: too many incorrect answers, impossible to reach required correct count
+        const response = await axios.post(`${process.env.BACKEND_URL}/api/levels/end`, {
+          userLevelSessionId,
+          userId: session.userId,
+          currentTime: currentTime
+        });
+        
+        // Process badges and fetch earned badges
+        const userProfile = await UserProfile.findOne({ userId: session.userId });
+        let earnedBadges: Array<{ badgeId: string, level: number, badgeName: string, badgeImage: string, badgeDescription: string }> = [];
+        if (userProfile && userProfile.badges) {
+          const sessionBadges = userProfile.badges.filter(b => b.userLevelSessionId === userLevelSessionId);
+          for (const badge of sessionBadges) {
+            const badgeDoc = await Badge.findById(badge.badgeId);
+            if (badgeDoc) {
+              earnedBadges.push({ 
+                badgeId: badge.badgeId.toString(), 
+                level: badge.level, 
+                badgeName: badgeDoc.badgeName,
+                badgeImage: badgeDoc.badgelevel?.[badge.level]?.badgeImage || '',
+                badgeDescription: badgeDoc.badgeDescription || ''
+              });
+            }
+          }
+        }
+
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,
           xpEarned: Number(xpEarned),
-          currentXp: session.attemptType === 'time_rush' ? 
-            session.timeRush.currentXp : 
-            session.precisionPath.currentXp,
+          currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
+          currentCorrectQuestions: correctQuestions,
+          requiredCorrectQuestions: requiredCorrectQuestions,
           totalQuestions: session.questionBank.length,
           currentStreak: session.streak,
+          remainingHealth: remainingHealth,
+          message: message
+        });
+
+        // Send final results to client - early termination
+        socket.emit('quizFinished', { 
+          message: `Level ended early - too many incorrect answers. You needed ${requiredCorrectQuestions} correct answers but got ${incorrectQuestions} wrong out of ${maxAllowedIncorrect} allowed.`,
+          attemptType: session.attemptType,
+          questionsHistory: session.questionsHistory || [],
+          ...(session.attemptType === 'time_rush' ? {
+            timeRush: {
+              currentXp: session.timeRush.currentXp,
+              currentCorrectQuestions: correctQuestions,
+              requiredCorrectQuestions: requiredCorrectQuestions,
+              minTime: (response.data as any).data.minTime,
+              timeTaken: (response.data as any).data.timeTaken,
+              percentile: (response.data as any).data.percentile,
+              rank: (response.data as any).data.rank,
+              leaderboard: (response.data as any).data.leaderboard
+            }
+          } : {
+            precisionPath: {
+              currentXp: session.precisionPath.currentXp,
+              currentCorrectQuestions: correctQuestions,
+              requiredCorrectQuestions: requiredCorrectQuestions,
+              timeTaken: (response.data as any).data.timeTaken,
+              bestTime: (response.data as any).data.bestTime,
+              percentile: (response.data as any).data.percentile,
+              rank: (response.data as any).data.rank,
+              leaderboard: (response.data as any).data.leaderboard
+            }
+          }),
+          hasNextLevel: false,
+          nextLevelNumber: null,
+          nextLevelId: null,
+          nextLevelAttemptType: null,
+          questionsNeeded: requiredCorrectQuestions - correctQuestions,
+          earnedBadges,
+          isNewHighScore: false,
+          aiFeedback: (response.data as any).data.aiFeedback,
+          topics: (response.data as any).data.topics || [],
+          earlyTermination: true
+        });
+        socket.disconnect();
+      } else{
+        console.log('Current XP1:', session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp);
+        socket.emit('answerResult', {
+          isCorrect,
+          correctAnswer: question.correct,
+          xpEarned: Number(xpEarned),
+          currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
+          currentCorrectQuestions: correctQuestions,
+          requiredCorrectQuestions: requiredCorrectQuestions,
+          totalQuestions: session.questionBank.length,
+          currentStreak: session.streak,
+          remainingHealth: remainingHealth,
           message: message
         });
       }

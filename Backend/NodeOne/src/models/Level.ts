@@ -13,15 +13,16 @@ export interface ILevel extends Document {
   
   // Time Rush specific fields (only present when type is 'time_rush')
   timeRush?: {
-    requiredXp: number;
+    requiredCorrectQuestions: number;
     totalTime: number;
     totalQuestions: number;
   };
 
   // Precision Path specific fields (only present when type is 'precision_path')
   precisionPath?: {
-    requiredXp: number;
+    requiredCorrectQuestions: number;
     totalQuestions: number;
+    expectedTime: number;
   };
 
   difficultyParams: {
@@ -80,7 +81,7 @@ export const LevelSchema = new Schema<ILevel>({
   // Time Rush specific fields (conditional)
   timeRush: {
     type: {
-      requiredXp: {
+      requiredCorrectQuestions: {
         type: Number,
         min: 0
       },
@@ -99,11 +100,15 @@ export const LevelSchema = new Schema<ILevel>({
   // Precision Path specific fields (conditional)
   precisionPath: {
     type: {
-      requiredXp: {
+      requiredCorrectQuestions: {
         type: Number,
         min: 0
       },
       totalQuestions: {
+        type: Number,
+        min: 0
+      },
+      expectedTime: {
         type: Number,
         min: 0
       }

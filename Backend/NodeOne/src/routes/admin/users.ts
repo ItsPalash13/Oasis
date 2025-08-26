@@ -887,7 +887,7 @@ router.post('/chapter-levels', async (req: Request, res: Response) => {
       userChapterLevelData.timeRush = {
         attempts: 0,
         minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
-        requiredXp: level.timeRush.requiredXp,
+        requiredCorrectQuestions: level.timeRush.requiredCorrectQuestions,
         timeLimit: level.timeRush.totalTime,
         totalQuestions: level.timeRush.totalQuestions || 10
       };
@@ -895,7 +895,7 @@ router.post('/chapter-levels', async (req: Request, res: Response) => {
       userChapterLevelData.precisionPath = {
         attempts: 0,
         minTime: null,
-        requiredXp: level.precisionPath.requiredXp,
+        requiredCorrectQuestions: level.precisionPath.requiredCorrectQuestions,
         totalQuestions: level.precisionPath.totalQuestions
       };
     }

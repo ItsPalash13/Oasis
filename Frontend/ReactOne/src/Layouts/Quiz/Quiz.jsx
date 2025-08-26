@@ -38,6 +38,8 @@ import {
   StyledButton,
   TimeDisplay,
   XpDisplay,
+  HeartDisplay,
+  CorrectQuestionsDisplay,
   CongratsDialog,
   EmojiDisplay,
   FloatingButton,
@@ -48,7 +50,7 @@ import { setSession } from '../../features/auth/authSlice';
 import { setLevelSession } from '../../features/auth/levelSessionSlice';
 import { useStartLevelMutation } from '../../features/api/levelAPI';
 import SOUND_FILES from '../../assets/sound/soundFiles';
-import { StreakNotification } from './Achievements';
+import { StreakNotification, BonusNotifications } from './Achievements';
 import ConfettiFireworks from '../../components/magicui/ConfettiFireworks';
 import Results from './Results/Results';
 import AIFeedback from '../../components/AI Feedback/AIFeedback';
@@ -123,6 +125,11 @@ const Quiz = ({ socket }) => {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [showStreakNotification, setShowStreakNotification] = useState(false);
   const [streakData, setStreakData] = useState(null);
+  const [showBonusNotifications, setShowBonusNotifications] = useState(false);
+  const [bonusData, setBonusData] = useState([]);
+  const [remainingHealth, setRemainingHealth] = useState(0);
+  const [currentCorrectQuestions, setCurrentCorrectQuestions] = useState(0);
+  const [requiredCorrectQuestions, setRequiredCorrectQuestions] = useState(0);
   const [showHighScoreFireworks, setShowHighScoreFireworks] = useState(false);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [showAIFeedback, setShowAIFeedback] = useState(false);
@@ -253,6 +260,10 @@ const Quiz = ({ socket }) => {
     // Play next question sound
     const audio = new Audio(SOUND_FILES.NEXT_QUESTION);
     audio.play();
+    
+    // Close bonus notifications when moving to next question
+    setShowBonusNotifications(false);
+    setBonusData([]);
     
     setShowAnswerDrawer(false);
     // Reset answerResult after drawer closes with a small delay
@@ -393,6 +404,9 @@ const Quiz = ({ socket }) => {
       
       setAttemptType(data.attemptType);
       setCurrentStreak(data.currentStreak || 0);
+      setRemainingHealth(data.remainingHealth || 0);
+      setCurrentCorrectQuestions(data.currentCorrectQuestions || 0);
+      setRequiredCorrectQuestions(data.requiredCorrectQuestions || 0);
       
       if (data.currentQuestion) {
         console.log("Received current question from level session:", data.currentQuestion);
@@ -438,11 +452,14 @@ const Quiz = ({ socket }) => {
       setIsTimerPaused(false);
     });
 
-    socket.on('answerResult', ({ isCorrect, correctAnswer, currentXp, currentStreak, message }) => {
-      console.log("Received answer result:", { isCorrect, correctAnswer, currentXp, currentStreak, message });
+    socket.on('answerResult', ({ isCorrect, correctAnswer, currentXp, currentStreak, remainingHealth, currentCorrectQuestions, requiredCorrectQuestions, message }) => {
+      console.log("Received answer result:", { isCorrect, correctAnswer, currentXp, currentStreak, remainingHealth, currentCorrectQuestions, requiredCorrectQuestions, message });
       setAnswerResult({ isCorrect, correctAnswer, message });
       setCurrentXp(currentXp);
       if (currentStreak !== undefined) setCurrentStreak(currentStreak);
+      if (remainingHealth !== undefined) setRemainingHealth(remainingHealth);
+      if (currentCorrectQuestions !== undefined) setCurrentCorrectQuestions(currentCorrectQuestions);
+      if (requiredCorrectQuestions !== undefined) setRequiredCorrectQuestions(requiredCorrectQuestions);
       setShowAnswerDrawer(true);
       setIsTimerPaused(true);
       setAnswerSubmitted(false); // Reset answer submitted state
@@ -460,25 +477,16 @@ const Quiz = ({ socket }) => {
       }
     });
 
-    socket.on('streak', (data) => {
-      console.log("Streak milestone reached:", data);
-      setStreakData(data);
-      setShowStreakNotification(true);
+    socket.on('bonuses', (bonuses) => {
+      console.log("Bonuses received:", bonuses);
+      setBonusData(bonuses);
+      setShowBonusNotifications(true);
       
-      // Update current XP with bonus
-      if (data.bonusXp) {
-        setCurrentXp(prev => prev + data.bonusXp);
+      // Update current XP with the last bonus's currentXp
+      if (bonuses.length > 0) {
+        const lastBonus = bonuses[bonuses.length - 1];
+        setCurrentXp(lastBonus.currentXp);
       }
-      
-      // Play achievement sound
-      const audio = new Audio(SOUND_FILES.ACHIEVEMENT);
-      audio.play();
-      
-      // Auto-hide streak notification after 3 seconds
-      setTimeout(() => {
-        setShowStreakNotification(false);
-        setStreakData(null);
-      }, 3000);
     });
 
     socket.on('quizFinished', (data) => {
@@ -560,6 +568,7 @@ const Quiz = ({ socket }) => {
       socket.off('levelSession');
       socket.off('sessionDeleted');
       socket.off('streak');
+      socket.off('bonuses');
       socketInitializedRef.current = false;
       initializedRef.current = false;
     };
@@ -645,6 +654,9 @@ const Quiz = ({ socket }) => {
         setCurrentTime(0);
         setCurrentXp(0);
         setRequiredXp(0);
+        setRemainingHealth(0);
+        setCurrentCorrectQuestions(0);
+        setRequiredCorrectQuestions(0);
         setQuizFinished(false);
         setEarnedBadges([]);
         setCurrentQuestionIndex(0);
@@ -665,6 +677,10 @@ const Quiz = ({ socket }) => {
         // Hide topic accuracy snackbars
         setTopicAccVisible(false);
         setTopicAccItems([]);
+        
+        // Hide bonus notifications
+        setShowBonusNotifications(false);
+        setBonusData([]);
         
         // Reset socket initialization flags
         initializedRef.current = false;
@@ -710,43 +726,47 @@ const Quiz = ({ socket }) => {
       // Set the attempt type for the current level retry
       setAttemptType(attemptType);
       
-      // Reset all quiz state for retry
-      setCurrentQuestion(null);
-      setSelectedAnswer('');
-      setShowAnswerDrawer(false);
-      // Reset answerResult after drawer closes with a small delay
-      setTimeout(() => {
-       setAnswerResult(null);
-      }, 300);
-      setIsLoading(true);
-      setCurrentTime(0);
-      setCurrentXp(0);
-      setRequiredXp(0);
-      setQuizFinished(false);
-      setEarnedBadges([]);
-      setCurrentQuestionIndex(0);
-      setTotalQuestions(0);
-      setCurrentStreak(0);
-      setQuestionStartTime(null);
-      setAnswerSubmitted(false);
-      setShowCorrectAnswer(false);
-      setShowCongrats(false);
-      setShowError(false);
-      setErrorMessage('');
-      setQuizMessage('');
-      setIsTimerPaused(false);
-      
-      // Hide AI feedback
-      setShowAIFeedback(false);
-      setAIFeedback('');
+              // Reset all quiz state for retry
+        setCurrentQuestion(null);
+        setSelectedAnswer('');
+        setShowAnswerDrawer(false);
+        // Reset answerResult after drawer closes with a small delay
+        setTimeout(() => {
+         setAnswerResult(null);
+        }, 300);
+        setIsLoading(true);
+        setCurrentTime(0);
+        setCurrentXp(0);
+        setRequiredXp(0);
+        setQuizFinished(false);
+        setEarnedBadges([]);
+        setCurrentQuestionIndex(0);
+        setTotalQuestions(0);
+        setCurrentStreak(0);
+        setQuestionStartTime(null);
+        setAnswerSubmitted(false);
+        setShowCorrectAnswer(false);
+        setShowCongrats(false);
+        setShowError(false);
+        setErrorMessage('');
+        setQuizMessage('');
+        setIsTimerPaused(false);
+        
+        // Hide AI feedback
+        setShowAIFeedback(false);
+        setAIFeedback('');
 
-      // Hide topic accuracy snackbars
-      setTopicAccVisible(false);
-      setTopicAccItems([]);
-      
-      // Reset socket initialization flags
-      initializedRef.current = false;
-      socketInitializedRef.current = false;
+        // Hide topic accuracy snackbars
+        setTopicAccVisible(false);
+        setTopicAccItems([]);
+        
+        // Hide bonus notifications
+        setShowBonusNotifications(false);
+        setBonusData([]);
+        
+        // Reset socket initialization flags
+        initializedRef.current = false;
+        socketInitializedRef.current = false;
       
     } catch (error) {
       console.error('Failed to retry level:', error);
@@ -803,12 +823,26 @@ const Quiz = ({ socket }) => {
             </IconButton>
             */}
           </Box>
-          <XpDisplay>
-            <StarIcon />
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              {currentXp} / {requiredXp} XP
-            </Typography>
-          </XpDisplay>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CorrectQuestionsDisplay>
+              <CheckCircleIcon />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {currentCorrectQuestions}/{requiredCorrectQuestions} <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>Qs</Typography>
+              </Typography>
+            </CorrectQuestionsDisplay>
+            <XpDisplay>
+              <StarIcon />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {currentXp} XP
+              </Typography>
+            </XpDisplay>
+            <HeartDisplay>
+              <HealthIcon />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {remainingHealth}
+              </Typography>
+            </HeartDisplay>
+          </Box>
         </QuizHeader>
 
         <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
@@ -851,12 +885,13 @@ const Quiz = ({ socket }) => {
                     size="small" 
                     sx={quizStyles.questionChip}
                   />
-                  {/* Show question number for both modes */}
+                  {/* Show question number for both modes 
                   {totalQuestions > 0 && (
                     <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
                       Question {currentQuestionIndex + 1} of {totalQuestions}
                     </Typography>
                   )}
+                    */}
                 </Box>
                 {/* Show question topics as chips */}
                 {Array.isArray(currentQuestion?.topics) && currentQuestion.topics.length > 0 && (
@@ -1298,6 +1333,17 @@ const Quiz = ({ socket }) => {
           show={showStreakNotification}
           streakData={streakData}
           onClose={() => setShowStreakNotification(false)}
+        />
+        
+        {/* Bonus Notifications Component */}
+        <BonusNotifications 
+          bonuses={bonusData}
+          isVisible={showBonusNotifications}
+          onClose={() => {
+            console.log('Closing bonus notifications');
+            setShowBonusNotifications(false);
+            setBonusData([]);
+          }}
         />
         
         {/* Next Level Countdown Overlay */}

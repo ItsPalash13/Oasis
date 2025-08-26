@@ -52,17 +52,33 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         }
       }
 
+      // Calculate health data for both modes
+      const correctQuestions = session.questionsAnswered?.correct?.length || 0;
+      const incorrectQuestions = session.questionsAnswered?.incorrect?.length || 0;
+      const requiredCorrectQuestions = session.attemptType === 'time_rush' ? 
+        session.timeRush.requiredCorrectQuestions : 
+        session.precisionPath.requiredCorrectQuestions;
+      const totalQuestions = session.attemptType === 'time_rush' ?
+        session.timeRush.totalQuestions :
+        session.precisionPath.totalQuestions;
+      const maxAllowedIncorrect = totalQuestions - requiredCorrectQuestions;
+      const remainingHealth = Math.max(0, maxAllowedIncorrect - incorrectQuestions);
+
       // Send session data back to client
       // Include mode-specific data (timeRush or precisionPath)
       socket.emit('levelSession', {
         currentQuestion,
         attemptType: session.attemptType,
         currentStreak: session.streak || 0,
+        remainingHealth: remainingHealth,
+        currentCorrectQuestions: correctQuestions,
+        requiredCorrectQuestions: requiredCorrectQuestions,
         ...(session.attemptType === 'time_rush' ? {
           timeRush: {
             currentTime: session.timeRush.currentTime,
             currentXp: session.timeRush.currentXp,
-            requiredXp: session.timeRush.requiredXp,
+            requiredCorrectQuestions: session.timeRush.requiredCorrectQuestions,
+            currentCorrectQuestions: correctQuestions,
             timeLimit: session.timeRush.timeLimit,
             currentQuestionIndex: session.currentQuestionIndex,
             totalQuestions: session.timeRush.totalQuestions
@@ -71,9 +87,11 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
           precisionPath: {
             currentTime: session.precisionPath.currentTime,
             currentXp: session.precisionPath.currentXp,
-            requiredXp: session.precisionPath.requiredXp,
+            requiredCorrectQuestions: session.precisionPath.requiredCorrectQuestions,
+            currentCorrectQuestions: correctQuestions,
             totalQuestions: session.precisionPath.totalQuestions,
-            currentQuestionIndex: session.currentQuestionIndex
+            currentQuestionIndex: session.currentQuestionIndex,
+            expectedTime: session.precisionPath.expectedTime
           }
         })
       });
@@ -128,8 +146,9 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         questionsHistory: session.questionsHistory || [],
         ...(session.attemptType === 'time_rush' ? {
           timeRush: {
-            currentXp: (response.data as any).data.currentXp,
-            requiredXp: (response.data as any).data.requiredXp,
+            currentXp: session.timeRush.currentXp,
+            currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+            requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             minTime: (response.data as any).data.minTime,
             timeTaken: (response.data as any).data.timeTaken,
             percentile: (response.data as any).data.percentile,
@@ -138,8 +157,9 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
           }
         } : {
           precisionPath: {
-            currentXp: (response.data as any).data.currentXp,
-            requiredXp: (response.data as any).data.requiredXp,
+            currentXp: session.precisionPath.currentXp,
+            currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+            requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             timeTaken: (response.data as any).data.timeTaken,
             bestTime: (response.data as any).data.bestTime,
             percentile: (response.data as any).data.percentile,
@@ -151,7 +171,7 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         nextLevelNumber: (response.data as any).data.nextLevelNumber,
         nextLevelId: (response.data as any).data.nextLevelId,
         nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
-        xpNeeded: (response.data as any).data.xpNeeded,
+        questionsNeeded: (response.data as any).data.questionsNeeded,
         earnedBadges,
         aiFeedback: (response.data as any).data.aiFeedback,
         topics: (response.data as any).data.topics || []
@@ -236,8 +256,9 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         questionsHistory: session.questionsHistory || [],
         ...(session.attemptType === 'time_rush' ? {
           timeRush: {
-            currentXp: (response.data as any).data.currentXp,
-            requiredXp: (response.data as any).data.requiredXp,
+            currentXp: session.timeRush.currentXp,
+            currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+            requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             minTime: (response.data as any).data.minTime,
             timeTaken: (response.data as any).data.timeTaken,
             percentile: (response.data as any).data.percentile,
@@ -246,8 +267,9 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
           }
         } : {
           precisionPath: {
-            currentXp: (response.data as any).data.currentXp,
-            requiredXp: (response.data as any).data.requiredXp,
+            currentXp: session.precisionPath.currentXp,
+            currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+            requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             timeTaken: (response.data as any).data.timeTaken,
             bestTime: (response.data as any).data.bestTime,
             percentile: (response.data as any).data.percentile,
@@ -259,7 +281,7 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         nextLevelNumber: null,
         nextLevelId: null,
         nextLevelAttemptType: null,
-        xpNeeded: (response.data as any).data.xpNeeded,
+        questionsNeeded: (response.data as any).data.questionsNeeded,
         earnedBadges,
         aiFeedback: (response.data as any).data.aiFeedback,
         isNewHighScore: (response.data as any).data.isNewHighScore,

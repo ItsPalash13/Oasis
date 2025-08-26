@@ -204,7 +204,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             userChapterLevelData.timeRush = {
               attempts: 0,
               minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
-              requiredXp: firstLevel.timeRush.requiredXp,
+              requiredCorrectQuestions: firstLevel.timeRush.requiredCorrectQuestions,
               timeLimit: firstLevel.timeRush.totalTime,
               totalQuestions: firstLevel.timeRush.totalQuestions
             };
@@ -212,7 +212,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             userChapterLevelData.precisionPath = {
               attempts: 0,
               minTime: null,
-              requiredXp: firstLevel.precisionPath.requiredXp,
+              requiredCorrectQuestions: firstLevel.precisionPath.requiredCorrectQuestions,
               totalQuestions: firstLevel.precisionPath.totalQuestions
             };
           }
@@ -882,7 +882,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           const fieldName = attemptType === 'time_rush' ? 'timeRush' : 'precisionPath';
           updateObj.$set[fieldName] = {
             attempts: 1,
-            requiredXp: attemptType === 'time_rush' ? (level.timeRush?.requiredXp || 0) : (level.precisionPath?.requiredXp || 0),
+            requiredCorrectQuestions: attemptType === 'time_rush' ? (level.timeRush?.requiredCorrectQuestions || 0) : (level.precisionPath?.requiredCorrectQuestions || 0),
             ...(attemptType === 'time_rush' ? {
               minTime: 0, // For Time Rush, this stores maxTime (best remaining time)
               timeLimit: level.timeRush?.totalTime || 0,
@@ -948,7 +948,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           },
           ...(attemptType === 'time_rush' ? {
             timeRush: {
-              requiredXp: level.timeRush?.requiredXp || 0,
+              requiredCorrectQuestions: level.timeRush?.requiredCorrectQuestions || 0,
               currentXp: 0,
               minTime: userChapterLevel?.timeRush?.minTime || 0, // For Time Rush, this stores maxTime
               timeLimit: level.timeRush?.totalTime || 0,
@@ -957,11 +957,12 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             }
           } : {
             precisionPath: {
-              requiredXp: level.precisionPath?.requiredXp || 0,
+              requiredCorrectQuestions: level.precisionPath?.requiredCorrectQuestions || 0,
               currentXp: 0,
               currentTime: 0,
               minTime: userChapterLevel?.precisionPath?.minTime || Infinity,
-              totalQuestions: level.precisionPath?.totalQuestions || 10
+              totalQuestions: level.precisionPath?.totalQuestions || 10,
+              expectedTime: level.precisionPath?.expectedTime || 0
             }
           })
         });
@@ -1048,15 +1049,12 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         }).select('sectionId');
 
        if(userSections.length === 0){
-        console.log("Creating new UCS");
         const section = await Section.findOne({
           chapterId: new mongoose.Types.ObjectId(chapterId),
           sectionNumber: 1
         });
-        console.log("Section",section);
         
         if (!section) {
-          console.log("No section found with sectionNumber 1, skipping UserChapterSection creation");
           userSections = [];
         } else {
           // Check if UserChapterSection already exists
@@ -1067,7 +1065,6 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           });
           
           if (existingUserSection) {
-            console.log("UserChapterSection already exists:", existingUserSection._id);
             userSections = [existingUserSection];
           } else {
             // Create new UserChapterSection
@@ -1077,7 +1074,6 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               sectionId: section._id,
               status: 'not_started'
             });
-            console.log("New User Section created:", newUserSection._id);
             userSections = [newUserSection];
           }
         }
@@ -1313,9 +1309,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           // Time Rush: Check if current time (remaining) is better than stored maxTime
           const finalTime = currentTime || session.timeRush?.currentTime || 0;
           const maxTime = userChapterLevel?.timeRush?.minTime || 0; // This field stores maxTime for Time Rush
-          const currentXp = session.timeRush?.currentXp || 0;
+          const correctQuestions = session.questionsAnswered?.correct?.length || 0;
+          const requiredCorrectQuestions = session.timeRush?.requiredCorrectQuestions || 0;
           
-          if (finalTime > maxTime && currentXp >= (session.timeRush?.requiredXp || 0)) {
+          if (finalTime > maxTime && correctQuestions >= requiredCorrectQuestions) {
             newHighScore = true;
             let totalMilliseconds = Math.floor(finalTime * 1000); // convert to ms
             let minutes = Math.floor(totalMilliseconds / 60000);
@@ -1326,8 +1323,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             highScoreMessage = `New best time: ${formatted} remaining!`;
           }
 
-          // Check if user has enough XP
-          if (currentXp >= (session.timeRush?.requiredXp || 0)) {
+          // Check if user has enough correct questions
+          if (correctQuestions >= requiredCorrectQuestions) {
             // Find the current level
             const currentLevel = await Level.findById(session.levelId).select('_id levelNumber type sectionId');
             if (!currentLevel) {
@@ -1342,9 +1339,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             }).select('_id levelNumber type sectionId');
 
             // Calculate progress: min(required score, current level scored) / required score * 100
-            const requiredXp = session.timeRush?.requiredXp || 0;
-            const achievedXp = Math.min(currentXp, requiredXp);
-            const calculatedProgress = requiredXp > 0 ? Math.round((achievedXp / requiredXp) * 100) : 0;
+            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
             const currentProgress = userChapterLevel?.progress || 0;
             const progress = Math.max(calculatedProgress, currentProgress);
 
@@ -1368,13 +1364,15 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             );
             const currentMonth = new Date().toISOString().slice(0, 7).replace('-', '/'); // YYYY/MM
             // Update user's totalCoins and health when level is completed
+            // Award coins based on correct questions (e.g., 10 coins per correct question)
+            const coinsEarned = correctQuestions * 10;
             await UserProfile.findOneAndUpdate(
               { userId },
               { 
                 $inc: { 
-                  totalCoins: currentXp, 
+                  totalCoins: coinsEarned, 
                   health: 1,
-                  [`monthlyXp.${currentMonth}`]: currentXp
+                  [`monthlyXp.${currentMonth}`]: coinsEarned
                 }
               },
               { upsert: true }
@@ -1427,7 +1425,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                     timeRush: {
                       minTime: null,
                       attempts: 0,
-                      requiredXp: nextLevel.timeRush?.requiredXp || 0,
+                      requiredCorrectQuestions: nextLevel.timeRush?.requiredCorrectQuestions || 0,
                       timeLimit: nextLevel.timeRush?.totalTime || 0,
                       totalQuestions: nextLevel.timeRush?.totalQuestions || 10
                     }
@@ -1435,7 +1433,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                     precisionPath: {
                       minTime: null,
                       attempts: 0,
-                      requiredXp: nextLevel.precisionPath?.requiredXp || 0
+                      requiredCorrectQuestions: nextLevel.precisionPath?.requiredCorrectQuestions || 0
                     }
                   })
                 });
@@ -1471,8 +1469,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               aiFeedback = await getShortLevelFeedback({
                 levelName: level?.name || 'Level',
                 levelTopics: topicNamesList,
-                studentXP: currentXp,
-                requiredXP: session.timeRush?.requiredXp || 0,
+                studentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 accuracy: Math.round((session.questionsAnswered?.correct?.length || 0) / (session.questionBank.length || 1) * 100),
                 timeTaken: `${Math.floor(finalTime / 60)}:${(finalTime % 60).toFixed(1)}`,
                 levelResult: 'completed',
@@ -1501,8 +1499,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level completed successfully! You have unlocked the next level. ${highScoreMessage}` :
                 'Level completed successfully! You have unlocked the next level.',
               data: {
-                currentXp,
-                requiredXp: session.timeRush?.requiredXp,
+                currentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 minTime: Math.max(finalTime, maxTime), // Best time remaining
                 timeTaken: finalTime,
                 hasNextLevel: !!nextLevel,
@@ -1519,9 +1517,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             });
           } else {
             // Calculate progress: min(required score, current level scored) / required score * 100
-            const requiredXp = session.timeRush?.requiredXp || 0;
-            const achievedXp = Math.min(currentXp, requiredXp);
-            const calculatedProgress = requiredXp > 0 ? Math.round((achievedXp / requiredXp) * 100) : 0;
+            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
             const currentProgress = userChapterLevel?.progress || 0;
             const progress = Math.max(calculatedProgress, currentProgress);
 
@@ -1570,8 +1567,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               aiFeedback = await getShortLevelFeedback({
                 levelName: level?.name || 'Level',
                 levelTopics: topicNamesList,
-                studentXP: currentXp,
-                requiredXP: session.timeRush?.requiredXp || 0,
+                studentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 accuracy: Math.round((session.questionsAnswered?.correct?.length || 0) / (session.questionBank.length || 1) * 100),
                 timeTaken: `${Math.floor(finalTime / 60)}:${(finalTime % 60).toFixed(1)}`,
                 levelResult: 'incomplete',
@@ -1600,11 +1597,11 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level ended. You need more XP to complete this level. ${highScoreMessage}` :
                 'Level ended. You need more XP to complete this level.',
               data: {
-                currentXp,
-                requiredXp: session.timeRush?.requiredXp,
+                currentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 minTime: maxTime, // Best time remaining
                 timeTaken: finalTime,
-                xpNeeded: (session.timeRush?.requiredXp || 0) - currentXp,
+                questionsNeeded: requiredCorrectQuestions - correctQuestions,
                 hasNextLevel: false,
                 nextLevelNumber: null,
                 nextLevelId: null,
@@ -1622,10 +1619,11 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           // Precision Path: Check if current time is better than min time
           const finalTime = currentTime || session.precisionPath?.currentTime || 0;
           const minTime = userChapterLevel?.precisionPath?.minTime || Infinity;
-          const currentXp = session.precisionPath?.currentXp || 0;
+          const correctQuestions = session.questionsAnswered?.correct?.length || 0;
+          const requiredCorrectQuestions = session.precisionPath?.requiredCorrectQuestions || 0;
           
-          // Check if user has enough XP
-          if (currentXp >= (session.precisionPath?.requiredXp || 0)) {
+          // Check if user has enough correct questions
+          if (correctQuestions >= requiredCorrectQuestions) {
             // Level completed - check and update best time
             if (finalTime < minTime) {
               newHighScore = true;
@@ -1651,10 +1649,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               status: true
             }).select('_id levelNumber type sectionId');
 
-            // Calculate progress: min(required score, current level scored) / required score * 100
-            const requiredXp = session.precisionPath?.requiredXp || 0;
-            const achievedXp = Math.min(currentXp, requiredXp);
-            const calculatedProgress = requiredXp > 0 ? Math.round((achievedXp / requiredXp) * 100) : 0;
+            // Calculate progress: min(required correct, current correct) / required correct * 100
+            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
             const currentProgress = userChapterLevel?.progress || 0;
             const progress = Math.max(calculatedProgress, currentProgress);
 
@@ -1679,14 +1676,16 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 
             // Update user's totalCoins and health when level is completed
             //check if todays date is 1 more than last attempt date 
+            // Award coins based on correct questions (e.g., 10 coins per correct question)
+            const coinsEarned = correctQuestions * 10;
             const currentMonth = new Date().toISOString().slice(0, 7).replace('-', '/'); // YYYY/MM
             await UserProfile.findOneAndUpdate(
               { userId },
               { 
                 $inc: { 
-                  totalCoins: currentXp, 
+                  totalCoins: coinsEarned, 
                   health: 1,
-                  [`monthlyXp.${currentMonth}`]: currentXp
+                  [`monthlyXp.${currentMonth}`]: coinsEarned
                 }
               },
               { upsert: true }
@@ -1740,14 +1739,14 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                     timeRush: {
                       minTime: null,
                       attempts: 0,
-                      requiredXp: nextLevel.timeRush?.requiredXp || 0,
+                      requiredCorrectQuestions: nextLevel.timeRush?.requiredCorrectQuestions || 0,
                       timeLimit: nextLevel.timeRush?.totalTime || 0
                     }
                   } : {
                     precisionPath: {
                       minTime: null,
                       attempts: 0,
-                      requiredXp: nextLevel.precisionPath?.requiredXp || 0
+                      requiredCorrectQuestions: nextLevel.precisionPath?.requiredCorrectQuestions || 0
                     }
                   })
                 });
@@ -1783,8 +1782,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               aiFeedback = await getShortLevelFeedback({
                 levelName: level?.name || 'Level',
                 levelTopics: topicNamesList,
-                studentXP: currentXp,
-                requiredXP: session.precisionPath?.requiredXp || 0,
+                studentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 accuracy: Math.round((session.questionsAnswered?.correct?.length || 0) / (session.questionBank.length || 1) * 100),
                 timeTaken: `${Math.floor(finalTime / 60)}:${(finalTime % 60).toFixed(1)}`,
                 levelResult: 'completed',
@@ -1813,8 +1812,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level completed successfully! You have unlocked the next level. ${highScoreMessage}` :
                 'Level completed successfully! You have unlocked the next level.',
               data: {
-                currentXp,
-                requiredXp: session.precisionPath?.requiredXp,
+                currentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 timeTaken: finalTime,
                 bestTime: Math.min(finalTime, minTime),
                 hasNextLevel: !!nextLevel,
@@ -1830,10 +1829,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               }
             });
           } else {
-            // Calculate progress: min(required score, current level scored) / required score * 100
-            const requiredXp = session.precisionPath?.requiredXp || 0;
-            const achievedXp = Math.min(currentXp, requiredXp);
-            const calculatedProgress = requiredXp > 0 ? Math.round((achievedXp / requiredXp) * 100) : 0;
+            // Calculate progress: min(required correct, current correct) / required correct * 100
+            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
             const currentProgress = userChapterLevel?.progress || 0;
             const progress = Math.max(calculatedProgress, currentProgress);
 
@@ -1883,8 +1881,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               aiFeedback = await getShortLevelFeedback({
                 levelName: level?.name || 'Level',
                 levelTopics: topicNamesList,
-                studentXP: currentXp,
-                requiredXP: session.precisionPath?.requiredXp || 0,
+                studentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 accuracy: Math.round((session.questionsAnswered?.correct?.length || 0) / (session.questionBank.length || 1) * 100),
                 timeTaken: `${Math.floor(finalTime / 60)}:${(finalTime % 60).toFixed(1)}`,
                 levelResult: 'incomplete',
@@ -1911,11 +1909,11 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               success: true,
               message: 'Level ended. You need more XP to complete this level.',
               data: {
-                currentXp,
-                requiredXp: session.precisionPath?.requiredXp,
+                currentCorrectQuestions: correctQuestions,
+                requiredCorrectQuestions: requiredCorrectQuestions,
                 timeTaken: finalTime,
                 bestTime: minTime,
-                xpNeeded: (session.precisionPath?.requiredXp || 0) - currentXp,
+                questionsNeeded: requiredCorrectQuestions - correctQuestions,
                 hasNextLevel: false,
                 nextLevelNumber: null,
                 nextLevelId: null,

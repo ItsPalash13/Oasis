@@ -1226,7 +1226,7 @@ function UserChapterLevelsTab() {
               <Grid item xs={12}>
                 <Alert severity="info">
                   <Typography variant="body2">
-                    <strong>Level Settings:</strong> The MinTime, RequiredXP, and other settings will be automatically inherited from the selected level.
+                    <strong>Level Settings:</strong> The MinTime, RequiredCorrectQuestions, and other settings will be automatically inherited from the selected level.
                   </Typography>
                 </Alert>
               </Grid>
@@ -1368,8 +1368,8 @@ function UserLevelSessionsTab() {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6">Time Rush Progress</Typography>
-                      <Typography>Required XP: {selectedSession.timeRush.requiredXp}</Typography>
-                      <Typography>Current XP: {selectedSession.timeRush.currentXp}</Typography>
+                      <Typography>Required Correct Questions: {selectedSession.timeRush.requiredCorrectQuestions}</Typography>
+                      <Typography>Current Correct Questions: {selectedSession.questionsAnswered?.correct?.length || 0}</Typography>
                       <Typography>Min Time: {selectedSession.timeRush.minTime || 'Not set'}s</Typography>
                       <Typography>Time Limit: {selectedSession.timeRush.timeLimit}s</Typography>
                       <Typography>Current Time: {selectedSession.timeRush.currentTime}s</Typography>
@@ -1384,8 +1384,8 @@ function UserLevelSessionsTab() {
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="h6">Precision Path Progress</Typography>
-                      <Typography>Required XP: {selectedSession.precisionPath.requiredXp}</Typography>
-                      <Typography>Current XP: {selectedSession.precisionPath.currentXp}</Typography>
+                      <Typography>Required Correct Questions: {selectedSession.precisionPath.requiredCorrectQuestions}</Typography>
+                      <Typography>Current Correct Questions: {selectedSession.questionsAnswered?.correct?.length || 0}</Typography>
                       <Typography>Current Time: {selectedSession.precisionPath.currentTime}s</Typography>
                       <Typography>Min Time: {selectedSession.precisionPath.minTime || 'Not set'}s</Typography>
                       <Typography>Total Questions: {selectedSession.precisionPath.totalQuestions}</Typography>
