@@ -11,16 +11,45 @@ import {
 } from '@mui/material';
 import { Star as StarIcon, EmojiEvents as TrophyIcon, TrendingUp as TrendingIcon, Timer as TimerIcon } from '@mui/icons-material';
 import { quizStyles } from '../../../theme/quizTheme';
-import QuizLeaderboard from '../../../components/Leaderboard/QuizLeaderboard';
+// Leaderboard removed in favor of percentiles
 
 const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
   if (!quizResults) return null;
 
   const isTimeRush = quizResults.attemptType === 'time_rush';
   const data = isTimeRush ? quizResults.timeRush : quizResults.precisionPath;
-  const progressPercent = Math.min((data.currentXp / data.requiredXp) * 100, 100);
+  const progressPercent = data.requiredCorrectQuestions
+    ? Math.min((data.currentCorrectQuestions / data.requiredCorrectQuestions) * 100, 100)
+    : 0;
   const isLevelCompleted = data.currentXp >= data.requiredXp;
   const hasNextLevel = quizResults.hasNextLevel && quizResults.nextLevelId;
+
+  const showBestMsg = Boolean(data?.isnewmintime || data?.isnewmaxxp);
+  const bestMsg = showBestMsg
+    ? `${data?.isnewmintime ? (isTimeRush ? 'New best remaining time!' : 'New best time!') : ''}${data?.isnewmintime && data?.isnewmaxxp ? ' • ' : ''}${data?.isnewmaxxp ? 'New max XP!' : ''}`
+    : '';
+
+  // Build headline and supporting line
+  const headline = showBestMsg
+    ? (isLevelCompleted ? 'Awesome! New personal best!' : 'Great progress! New personal best!')
+    : (isLevelCompleted ? 'Well done! Level complete!' : 'Nice effort! Keep going!');
+
+  const timePctText = typeof data.timePercentile === 'number' ? `Top ${data.timePercentile}% in time` : '';
+  const xpPctText = typeof data.xpPercentile === 'number' ? `Top ${data.xpPercentile}% in XP` : '';
+  const percentileLine = [timePctText, xpPctText].filter(Boolean).join(' • ');
+
+  // Choose banner styles and icon
+  const bothBest = Boolean(data?.isnewmintime && data?.isnewmaxxp);
+  let bannerGradient = 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
+  if (bothBest) {
+    bannerGradient = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+  } else if (data?.isnewmintime) {
+    bannerGradient = 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
+  } else if (data?.isnewmaxxp) {
+    bannerGradient = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+  } else if (!isLevelCompleted) {
+    bannerGradient = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+  }
 
   return (
     <Box sx={{ 
@@ -48,13 +77,12 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
         {/* XP Display */}
         <Box sx={{
           display: 'flex',
-          alignItems: 'center',
           gap: 1,
           p: 1.5,
           borderRadius: 2,
-          background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
           color: 'white',
-          boxShadow: '0 4px 16px rgba(245, 158, 11, 0.3)',
+          boxShadow: '0 4px 16px rgba(245, 158, 11, 0.25)',
           flex: 1,
           maxWidth: '45%'
         }}>
@@ -73,13 +101,12 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
         {data.timeTaken !== undefined && (
           <Box sx={{
             display: 'flex',
-            alignItems: 'center',
             gap: 1,
             p: 1.5,
             borderRadius: 2,
-            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
             color: 'white',
-            boxShadow: '0 4px 16px rgba(25, 118, 210, 0.3)',
+            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.25)',
             flex: 1,
             maxWidth: '45%'
           }}>
@@ -97,18 +124,154 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
 
       </Box>
 
-      {/* Leaderboard Section */}
-      {data.leaderboard && data.leaderboard.length > 0 && (
-        <QuizLeaderboard 
-          leaderboardData={data.leaderboard}
-          currentUserRank={data.rank}
-          attemptType={quizResults.attemptType}
-          formatTime={formatTime}
-          userPercentile={data.percentile}
-        />
+      {/* Percentiles Section */}
+      {(typeof data.timePercentile === 'number' || typeof data.xpPercentile === 'number') && (
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          mb: 1
+        }}>
+                    {/* XP Percentile Card */}
+                    {typeof data.xpPercentile === 'number' && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(245, 158, 11, 0.25)',
+              flex: 1,
+              maxWidth: '45%'
+            }}>
+              <TrendingIcon sx={{ fontSize: '1.2rem' }} />
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                  {`${data.xpPercentile === 100 ? '99.99' : data.xpPercentile === 0 ? '0.01' : data.xpPercentile}%`}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                  XP PERCENTILE
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Time Percentile Card */}
+          {typeof data.timePercentile === 'number' && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 1.5,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(139, 92, 246, 0.25)',
+              flex: 1,
+              maxWidth: '45%'
+            }}>
+              <TimerIcon sx={{ fontSize: '1.2rem' }} />
+              <Box>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                  {`${data.timePercentile === 100 ? '99.99' : data.timePercentile === 0 ? '0.01' : data.timePercentile}%`}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                  TIME PERCENTILE
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
       )}
 
+      {/* Personal Best Banners (separate, solid colors) */}
+      <Box sx={{ mt: 1.5, mb: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {data?.isnewmintime && (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            p: 2,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+            color: 'white',
+            boxShadow: '0 0 8px rgba(6, 182, 212, 0.4)',
+            border: '1px solid rgba(6, 182, 212, 0.6)',
+            position: 'relative'
+          }}>
+            <Box sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              boxShadow: '0 0 6px rgba(255,255,255,0.3)',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <TimerIcon sx={{ color: 'white' }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1" sx={{ 
+                fontWeight: 'bold', 
+                lineHeight: 1.1,
+                textShadow: '0 0 4px rgba(255,255,255,0.5)'
+              }}>
+               Congratulations! {isTimeRush ? 'New Best Time!' : 'New Min Time!'}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        {data?.isnewmaxxp && (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            p: 2,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+            color: 'white',
+            boxShadow: '0 0 8px rgba(236, 72, 153, 0.4)',
+            border: '1px solid rgba(236, 72, 153, 0.6)',
+            position: 'relative'
+          }}>
+            <Box sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              boxShadow: '0 0 6px rgba(255,255,255,0.3)',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <TrendingIcon sx={{ color: 'white' }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1" sx={{ 
+                fontWeight: 'bold', 
+                lineHeight: 1.1,
+                textShadow: '0 0 4px rgba(255,255,255,0.5)'
+              }}>
+                Congratulations! New Max XP!
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
 
+      <style>
+        {`
+          @keyframes neonPulse {
+            0% { text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+            100% { text-shadow: 0 0 20px rgba(255,255,255,1), 0 0 30px rgba(255,255,255,0.8); }
+          }
+        `}
+      </style>
 
       {/* Progress Section - Full Width 
       <Card sx={{ 
@@ -158,10 +321,10 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
               gap: 1,
               mb: 1
             }}>
-              <TrophyIcon sx={{ color: '#f57c00', fontSize: '1rem' }} />
+              <TrophyIcon sx={{ color: '#f59e0b', fontSize: '1rem' }} />
               <Typography variant="body2" sx={{ 
                 fontWeight: 'bold', 
-                color: '#f57c00'
+                color: '#f59e0b'
               }}>
                 New Badges Earned!
               </Typography>
@@ -179,10 +342,10 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: 0.25,
-                  backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
                   borderRadius: 1,
                   padding: '8px 12px',
-                  border: '1px solid rgba(255, 193, 7, 0.3)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
                   minWidth: 80,
                   maxWidth: 100
                 }}>
@@ -199,7 +362,7 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
                   )}
                   <Typography variant="caption" sx={{ 
                     fontWeight: 'bold', 
-                    color: '#f57c00',
+                    color: '#f59e0b',
                     textAlign: 'center',
                     lineHeight: 1.1,
                     fontSize: '0.7rem'
@@ -207,7 +370,7 @@ const Results = ({ quizResults, earnedBadges, formatTime, onNextLevel }) => {
                     {badge.badgeName}
                   </Typography>
                   <Box sx={{ 
-                    backgroundColor: '#f57c00', 
+                    backgroundColor: '#f59e0b', 
                     color: 'white', 
                     borderRadius: '50%', 
                     width: 16, 

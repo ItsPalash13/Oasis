@@ -179,6 +179,10 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
       type: Number,
       min: 0,
     },
+    maxXp: {
+      type: Number,
+      min: 0,
+    },
     currentXp: {
       type: Number,
       min: 0,
@@ -204,6 +208,10 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
   // Precision Path specific fields
   precisionPath: {
     requiredCorrectQuestions: {
+      type: Number,
+      min: 0,
+    },
+    maxXp: {
       type: Number,
       min: 0,
     },

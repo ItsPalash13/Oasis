@@ -374,7 +374,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
       let speedBonus = 0;
       let speedBonusMsg = '';
       
-              if (isCorrect && timeSpent) {
+      if (isCorrect && timeSpent) {
           console.log('Time Spent (ms):', timeSpent);
           let totalTime, requiredCorrectQuestions;
           
@@ -388,7 +388,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           
           if (totalTime && requiredCorrectQuestions) {
             console.log('Total Time (s):', totalTime, 'Required Correct Questions:', requiredCorrectQuestions);
-            const averageTimePerQuestion = totalTime / requiredCorrectQuestions;
+            const averageTimePerQuestion = (totalTime / requiredCorrectQuestions) * 0.8; // 80% of the average time making it harder to get the bonus
             const timeSpentInSeconds = timeSpent / 1000; // Convert ms to seconds
             
             console.log('Average Time Per Question (s):', averageTimePerQuestion, 'Time Spent (s):', timeSpentInSeconds);
@@ -627,26 +627,30 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           attemptType: session.attemptType,
           questionsHistory: session.questionsHistory || [],
                      ...(session.attemptType === 'time_rush' ? {
-             timeRush: {
-               currentXp: session.timeRush.currentXp,
-               currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
-               requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
-               minTime: (response.data as any).data.minTime,
-               timeTaken: (response.data as any).data.timeTaken,
-               percentile: (response.data as any).data.percentile,
-               rank: (response.data as any).data.rank,
-               leaderboard: (response.data as any).data.leaderboard
-             }
-           } : {
-            precisionPath: {
+            timeRush: {
+              currentXp: session.timeRush.currentXp,
+              maxXp: (response.data as any).data.maxXp,
+              currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
+              requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
+              minTime: (response.data as any).data.minTime,
+              timeTaken: (response.data as any).data.timeTaken,
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
+            }
+          } : {
+           precisionPath: {
               currentXp: session.precisionPath.currentXp,
+              maxXp: (response.data as any).data.maxXp,
               currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
               requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               timeTaken: (response.data as any).data.timeTaken,
               bestTime: (response.data as any).data.bestTime,  
-              percentile: (response.data as any).data.percentile,
-              rank: (response.data as any).data.rank,
-              leaderboard: (response.data as any).data.leaderboard
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
             }
           }),
           hasNextLevel: (response.data as any).data.hasNextLevel,
@@ -655,7 +659,8 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
           questionsNeeded: (response.data as any).data.questionsNeeded,
           earnedBadges,
-          isNewHighScore: (response.data as any).data.isNewHighScore,
+          isnewmintime: (response.data as any).data.isnewmintime,
+          isnewmaxxp: (response.data as any).data.isnewmaxxp,
           aiFeedback: (response.data as any).data.aiFeedback,
           topics: (response.data as any).data.topics || []
         });
@@ -708,24 +713,28 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           ...(session.attemptType === 'time_rush' ? {
             timeRush: {
               currentXp: session.timeRush.currentXp,
+              maxXp: (response.data as any).data.maxXp,
               currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
               requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               minTime: (response.data as any).data.minTime,
               timeTaken: (response.data as any).data.timeTaken,
-              percentile: (response.data as any).data.percentile,
-              rank: (response.data as any).data.rank,
-              leaderboard: (response.data as any).data.leaderboard
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
             }
           } : {
             precisionPath: {
               currentXp: session.precisionPath.currentXp,
+              maxXp: (response.data as any).data.maxXp,
               currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
               requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
               timeTaken: (response.data as any).data.timeTaken,
               bestTime: (response.data as any).data.bestTime,
-              percentile: (response.data as any).data.percentile,
-              rank: (response.data as any).data.rank,
-              leaderboard: (response.data as any).data.leaderboard
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
             }
           }),
           hasNextLevel: (response.data as any).data.hasNextLevel,
@@ -734,7 +743,8 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           nextLevelAttemptType: (response.data as any).data.nextLevelAttemptType,
           questionsNeeded: (response.data as any).data.questionsNeeded,
           earnedBadges,
-          isNewHighScore: (response.data as any).data.isNewHighScore,
+          isnewmintime: (response.data as any).data.isnewmintime,
+          isnewmaxxp: (response.data as any).data.isnewmaxxp,
           aiFeedback: (response.data as any).data.aiFeedback,
           topics: (response.data as any).data.topics || []
         });
@@ -791,9 +801,10 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
               requiredCorrectQuestions: requiredCorrectQuestions,
               minTime: (response.data as any).data.minTime,
               timeTaken: (response.data as any).data.timeTaken,
-              percentile: (response.data as any).data.percentile,
-              rank: (response.data as any).data.rank,
-              leaderboard: (response.data as any).data.leaderboard
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
             }
           } : {
             precisionPath: {
@@ -802,9 +813,10 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
               requiredCorrectQuestions: requiredCorrectQuestions,
               timeTaken: (response.data as any).data.timeTaken,
               bestTime: (response.data as any).data.bestTime,
-              percentile: (response.data as any).data.percentile,
-              rank: (response.data as any).data.rank,
-              leaderboard: (response.data as any).data.leaderboard
+              timePercentile: (response.data as any).data.timePercentile,
+              xpPercentile: (response.data as any).data.xpPercentile,
+              isnewmintime: (response.data as any).data.isnewmintime,
+              isnewmaxxp: (response.data as any).data.isnewmaxxp
             }
           }),
           hasNextLevel: false,
@@ -813,14 +825,14 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
           nextLevelAttemptType: null,
           questionsNeeded: requiredCorrectQuestions - correctQuestions,
           earnedBadges,
-          isNewHighScore: false,
+          isnewmintime: false,
+          isnewmaxxp: false,
           aiFeedback: (response.data as any).data.aiFeedback,
           topics: (response.data as any).data.topics || [],
           earlyTermination: true
         });
         socket.disconnect();
       } else{
-        console.log('Current XP1:', session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp);
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,

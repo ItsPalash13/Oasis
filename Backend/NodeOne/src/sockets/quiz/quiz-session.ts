@@ -147,24 +147,28 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         ...(session.attemptType === 'time_rush' ? {
           timeRush: {
             currentXp: session.timeRush.currentXp,
+            maxXp: (response.data as any).data.maxXp,
             currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
             requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             minTime: (response.data as any).data.minTime,
             timeTaken: (response.data as any).data.timeTaken,
-            percentile: (response.data as any).data.percentile,
-            rank: (response.data as any).data.rank,
-            leaderboard: (response.data as any).data.leaderboard
+            timePercentile: (response.data as any).data.timePercentile,
+            xpPercentile: (response.data as any).data.xpPercentile,
+            isnewmintime: (response.data as any).data.isnewmintime,
+            isnewmaxxp: (response.data as any).data.isnewmaxxp
           }
         } : {
           precisionPath: {
             currentXp: session.precisionPath.currentXp,
+            maxXp: (response.data as any).data.maxXp,
             currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
             requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             timeTaken: (response.data as any).data.timeTaken,
             bestTime: (response.data as any).data.bestTime,
-            percentile: (response.data as any).data.percentile,
-            rank: (response.data as any).data.rank,
-            leaderboard: (response.data as any).data.leaderboard
+            timePercentile: (response.data as any).data.timePercentile,
+            xpPercentile: (response.data as any).data.xpPercentile,
+            isnewmintime: (response.data as any).data.isnewmintime,
+            isnewmaxxp: (response.data as any).data.isnewmaxxp
           }
         }),
         hasNextLevel: (response.data as any).data.hasNextLevel,
@@ -257,24 +261,28 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         ...(session.attemptType === 'time_rush' ? {
           timeRush: {
             currentXp: session.timeRush.currentXp,
+            maxXp: (response.data as any).data.maxXp,
             currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
             requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             minTime: (response.data as any).data.minTime,
             timeTaken: (response.data as any).data.timeTaken,
-            percentile: (response.data as any).data.percentile,
-            rank: (response.data as any).data.rank,
-            leaderboard: (response.data as any).data.leaderboard
+            timePercentile: (response.data as any).data.timePercentile,
+            xpPercentile: (response.data as any).data.xpPercentile,
+            isnewmintime: (response.data as any).data.isnewmintime,
+            isnewmaxxp: (response.data as any).data.isnewmaxxp
           }
         } : {
           precisionPath: {
             currentXp: session.precisionPath.currentXp,
+            maxXp: (response.data as any).data.maxXp,
             currentCorrectQuestions: (response.data as any).data.currentCorrectQuestions,
             requiredCorrectQuestions: (response.data as any).data.requiredCorrectQuestions,
             timeTaken: (response.data as any).data.timeTaken,
             bestTime: (response.data as any).data.bestTime,
-            percentile: (response.data as any).data.percentile,
-            rank: (response.data as any).data.rank,
-            leaderboard: (response.data as any).data.leaderboard
+            timePercentile: (response.data as any).data.timePercentile,
+            xpPercentile: (response.data as any).data.xpPercentile,
+            isnewmintime: (response.data as any).data.isnewmintime,
+            isnewmaxxp: (response.data as any).data.isnewmaxxp
           }
         }),
         hasNextLevel: false,
@@ -284,7 +292,8 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
         questionsNeeded: (response.data as any).data.questionsNeeded,
         earnedBadges,
         aiFeedback: (response.data as any).data.aiFeedback,
-        isNewHighScore: (response.data as any).data.isNewHighScore,
+        isnewmintime: (response.data as any).data.isnewmintime,
+        isnewmaxxp: (response.data as any).data.isnewmaxxp,
         topics: (response.data as any).data.topics || []
       });
 

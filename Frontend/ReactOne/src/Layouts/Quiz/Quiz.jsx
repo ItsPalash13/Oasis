@@ -509,7 +509,7 @@ const Quiz = ({ socket }) => {
       }
       
       // Trigger fireworks for new high scores
-      if (data.isNewHighScore) {
+      if (data.isnewmintime || data.isnewmaxxp || (data.timeRush?.isnewmintime || data.timeRush?.isnewmaxxp) || (data.precisionPath?.isnewmintime || data.precisionPath?.isnewmaxxp)) {
         // Delay fireworks to appear after dialog is shown
         setTimeout(() => {
           setShowHighScoreFireworks(true);
@@ -521,7 +521,7 @@ const Quiz = ({ socket }) => {
       // Play level won sound only when level is completed
       const isTimeRush = data.attemptType === 'time_rush';
       const dataObj = isTimeRush ? data.timeRush : data.precisionPath;
-      const isLevelCompleted = dataObj.currentXp >= dataObj.requiredXp;
+      const isLevelCompleted = (dataObj.currentCorrectQuestions >= dataObj.requiredCorrectQuestions);
       
       if (isLevelCompleted) {
         const audio = new Audio(SOUND_FILES.LEVEL_WON);

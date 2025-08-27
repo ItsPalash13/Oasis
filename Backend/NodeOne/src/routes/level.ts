@@ -618,7 +618,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
       }
     };
 
-    // Combined helper function to calculate percentile for both Time Rush and Precision Path
+    // Combined helper function to calculate time-based percentile for both Time Rush and Precision Path (no leaderboard)
     const calculateLevelPercentile = async (
       chapterId: string, 
       levelId: string, 
@@ -627,16 +627,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
       attemptType: 'time_rush' | 'precision_path'
     ): Promise<{ 
       percentile: number, 
-      participantCount: number, 
-      rank: number, 
-      leaderboard: Array<{
-        userId: string,
-        fullName: string | null,
-        avatar: string | null,
-        avatarBgColor: string | null,
-        time: number,
-        rank: number
-      }> | null
+      participantCount: number
     }> => {
       try {
         // Configure query based on attempt type
@@ -652,12 +643,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         }).select(selectField);
 
         if (allAttempts.length === 0) {
-          return { 
-            percentile: 100, 
-            participantCount: 0, 
-            rank: 1, 
-            leaderboard: null 
-          };
+          return { percentile: 100, participantCount: 0 };
         }
 
         // Extract and prepare ranking data
@@ -675,16 +661,8 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           });
 
         if (rankingData.length === 0) {
-          return { 
-            percentile: 100, 
-            participantCount: 0, 
-            rank: 1, 
-            leaderboard: null 
-          };
+          return { percentile: 100, participantCount: 0 };
         }
-
-        // Find user's rank
-        const userRank = rankingData.findIndex(data => data.userId.toString() === userId) + 1;
         
         // Calculate percentile (excluding current user from comparison)
         const otherUsersData = rankingData.filter(data => data.userId.toString() !== userId);
@@ -701,76 +679,57 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
         const percentile = otherUsersData.length > 0 ? 
           Math.round((usersWithWorsePerformance / otherUsersData.length) * 100) : 100;
 
-        // Generate leaderboard: top 5 if user is in top 5, otherwise top 5 + current user
-        let leaderboard = null;
-        let leaderboardUserIds = [];
-        let leaderboardEntries = [];
-
-        if (userRank <= 5) {
-          // User is in top 5 - just show top 5
-          leaderboardEntries = rankingData.slice(0, 5);
-          leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
-        } else {
-          // User is not in top 5 - show top 5 + current user
-          const top5 = rankingData.slice(0, 5);
-          const currentUserData = rankingData.find(data => data.userId.toString() === userId);
-          
-          if (currentUserData) {
-            leaderboardEntries = [...top5, currentUserData];
-            leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
-          } else {
-            // Fallback to just top 5 if current user data not found
-            leaderboardEntries = top5;
-            leaderboardUserIds = leaderboardEntries.map(data => data.userId.toString());
-          }
-        }
-
-        if (leaderboardEntries.length > 0) {
-          // Get profile data for all leaderboard users
-          const userProfiles = await UserProfile.find({ 
-            userId: { $in: leaderboardUserIds } 
-          }).select('userId fullName avatar avatarBgColor');
-
-          // Create profile lookup map
-          const profileMap = new Map();
-          userProfiles.forEach(profile => {
-            profileMap.set(profile.userId, {
-              fullName: profile.fullName || null,
-              avatar: profile.avatar || null,
-              avatarBgColor: profile.avatarBgColor || null
-            });
-          });
-
-          // Build leaderboard array with actual ranks
-          leaderboard = leaderboardEntries.map((data) => {
-            const profile = profileMap.get(data.userId.toString()) || {};
-            // Find the actual rank in the full ranking data
-            const actualRank = rankingData.findIndex(rd => rd.userId.toString() === data.userId.toString()) + 1;
-            return {
-              userId: data.userId.toString(),
-              fullName: profile.fullName || null,
-              avatar: profile.avatar || null,
-              avatarBgColor: profile.avatarBgColor || null,
-              time: data.time!,
-              rank: actualRank
-            };
-          });
-        }
-        
-        return { 
-          percentile, 
-          participantCount: otherUsersData.length, 
-          rank: userRank || (rankingData.length + 1), 
-          leaderboard 
-        };
+        return { percentile, participantCount: otherUsersData.length };
       } catch (error) {
         console.error(`Error calculating ${attemptType} percentile:`, error);
-        return { 
-          percentile: 0, 
-          participantCount: 0, 
-          rank: 0, 
-          leaderboard: null 
-        };
+        return { percentile: 0, participantCount: 0 };
+      }
+    };
+
+    // Helper to calculate XP-based percentile for both modes using maxXp (higher is better)
+    const calculateLevelXpPercentile = async (
+      chapterId: string,
+      levelId: string,
+      userXp: number,
+      userId: string,
+      attemptType: 'time_rush' | 'precision_path'
+    ): Promise<{
+      percentile: number,
+      participantCount: number
+    }> => {
+      try {
+        const fieldPath = attemptType === 'time_rush' ? 'timeRush.maxXp' : 'precisionPath.maxXp';
+        const selectField = `${fieldPath} userId`;
+        const allAttempts = await UserChapterLevel.find({
+          chapterId,
+          levelId,
+          attemptType,
+          [fieldPath]: { $exists: true, $nin: [null, undefined] }
+        }).select(selectField);
+
+        if (allAttempts.length === 0) {
+          return { percentile: 100, participantCount: 0 };
+        }
+
+        const rankingData = allAttempts
+          .map(attempt => ({
+            userId: attempt.userId,
+            xp: attemptType === 'time_rush' ? attempt.timeRush?.maxXp : attempt.precisionPath?.maxXp
+          }))
+          .filter(data => data.xp !== null && data.xp !== undefined)
+          .sort((a, b) => (b.xp! - a.xp!)); // higher xp is better
+
+        if (rankingData.length === 0) {
+          return { percentile: 100, participantCount: 0 };
+        }
+
+        const otherUsersData = rankingData.filter(data => data.userId.toString() !== userId);
+        const usersWithWorsePerformance = otherUsersData.filter(data => (data.xp || 0) < userXp).length;
+        const percentile = otherUsersData.length > 0 ? Math.round((usersWithWorsePerformance / otherUsersData.length) * 100) : 100;
+        return { percentile, participantCount: otherUsersData.length };
+      } catch (error) {
+        console.error(`Error calculating XP percentile (${attemptType}):`, error);
+        return { percentile: 0, participantCount: 0 };
       }
     };
 
@@ -1171,10 +1130,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
           }
           
           // Calculate percentile for this level
-          let percentile = null;
-          let participantCount = null;
-          let rank = null;
-          let leaderboard = null;
+          let timePercentile = null;
+          let timeParticipantCount = null;
+          let xpPercentile = null;
+          let xpParticipantCount = null;
           if (rawProgress) {
             if (level.type === 'time_rush' && rawProgress.timeRush?.minTime && rawProgress.timeRush.minTime > 0) {
               const result = await calculateLevelPercentile(
@@ -1184,10 +1143,17 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 userId,
                 'time_rush'
               );
-              percentile = result.percentile;
-              participantCount = result.participantCount;
-              rank = result.rank;
-              leaderboard = result.leaderboard;
+              timePercentile = result.percentile;
+              timeParticipantCount = result.participantCount;
+              const xpRes = await calculateLevelXpPercentile(
+                chapterId,
+                level._id.toString(),
+                rawProgress.timeRush?.maxXp || 0,
+                userId,
+                'time_rush'
+              );
+              xpPercentile = xpRes.percentile;
+              xpParticipantCount = xpRes.participantCount;
             } else if (level.type === 'precision_path' && rawProgress.precisionPath?.minTime && rawProgress.precisionPath.minTime !== Infinity) {
               const result = await calculateLevelPercentile(
                 chapterId,
@@ -1196,10 +1162,17 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 userId,
                 'precision_path'
               );
-              percentile = result.percentile;
-              participantCount = result.participantCount;
-              rank = result.rank;
-              leaderboard = result.leaderboard;
+              timePercentile = result.percentile;
+              timeParticipantCount = result.participantCount;
+              const xpRes = await calculateLevelXpPercentile(
+                chapterId,
+                level._id.toString(),
+                rawProgress.precisionPath?.maxXp || 0,
+                userId,
+                'precision_path'
+              );
+              xpPercentile = xpRes.percentile;
+              xpParticipantCount = xpRes.participantCount;
             }
           }
           
@@ -1215,10 +1188,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               mode: level.type,
               locked,
               progress: rawProgress?.progress || 0, // Include progress field from UserChapterLevel
-              percentile: percentile, // Include percentile ranking
-              participantCount: participantCount, // Include participant count
-              rank: rank, // Include user's rank
-              leaderboard: leaderboard // Include top 5 leaderboard if user is in top 5
+              timePercentile: timePercentile,
+              timeParticipantCount: timeParticipantCount,
+              xpPercentile: xpPercentile,
+              xpParticipantCount: xpParticipantCount
             };
         }));
 
@@ -1345,6 +1318,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const progress = Math.max(calculatedProgress, currentProgress);
 
             // Update UserChapterLevel for current level
+            const sessionXp = session.timeRush?.currentXp || 0;
+            const prevMaxXp = userChapterLevel?.timeRush?.maxXp || 0;
+            const newMaxXp = Math.max(prevMaxXp, sessionXp);
+            const isNewMaxXp = sessionXp > (prevMaxXp || 0);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1357,6 +1334,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                   status: 'completed',
                   completedAt: new Date(),
                   'timeRush.minTime': Math.max(finalTime, maxTime), // Store the maximum time remaining
+                  'timeRush.maxXp': newMaxXp,
                   progress: progress
                 }
               },
@@ -1448,9 +1426,15 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               userId,
               'time_rush'
             );
-            const percentile = percentileResult.percentile;
-            const rank = percentileResult.rank;
-            const leaderboard = percentileResult.leaderboard;
+            const timePercentile = percentileResult.percentile;
+            const xpResult = await calculateLevelXpPercentile(
+              session.chapterId.toString(),
+              session.levelId.toString(),
+              session.timeRush?.currentXp || 0,
+              userId,
+              'time_rush'
+            );
+            const xpPercentile = xpResult.percentile;
 
             // Get level details for GPT feedback
             const level = await Level.findById(session.levelId);
@@ -1499,18 +1483,20 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level completed successfully! You have unlocked the next level. ${highScoreMessage}` :
                 'Level completed successfully! You have unlocked the next level.',
               data: {
+                currentXp: sessionXp,
+                maxXp: newMaxXp,
                 currentCorrectQuestions: correctQuestions,
                 requiredCorrectQuestions: requiredCorrectQuestions,
                 minTime: Math.max(finalTime, maxTime), // Best time remaining
                 timeTaken: finalTime,
+                timePercentile,
+                xpPercentile,
                 hasNextLevel: !!nextLevel,
                 nextLevelNumber: nextLevel?.levelNumber,
                 nextLevelId: nextLevel?._id,
                 nextLevelAttemptType: nextLevel?.type,
-                isNewHighScore: newHighScore,
-                percentile,
-                rank,
-                leaderboard,
+                isnewmintime: newHighScore,
+                isnewmaxxp: isNewMaxXp,
                 topics: topicsAccuracyUpdates,
                 aiFeedback
               }
@@ -1523,6 +1509,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const progress = Math.max(calculatedProgress, currentProgress);
 
             // Update progress even if level not completed (don't update best time)
+            const sessionXp = session.timeRush?.currentXp || 0;
+            const prevMaxXp = userChapterLevel?.timeRush?.maxXp || 0;
+            const newMaxXp = Math.max(prevMaxXp, sessionXp);
+            const isNewMaxXp = sessionXp > (prevMaxXp || 0);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1532,6 +1522,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               },
               {
                 $set: {
+                  'timeRush.maxXp': newMaxXp,
                   progress: progress
                 }
               },
@@ -1545,10 +1536,16 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               maxTime,
               userId,
               'time_rush'
-            ) : { percentile: 0, rank: 0, leaderboard: null };
-            const percentile = percentileData.percentile;
-            const rank = percentileData.rank;
-            const leaderboard = percentileData.leaderboard;
+            ) : { percentile: 0, participantCount: 0 };
+            const timePercentile = percentileData.percentile;
+            const xpResult = await calculateLevelXpPercentile(
+              session.chapterId.toString(),
+              session.levelId.toString(),
+              session.timeRush?.currentXp || 0,
+              userId,
+              'time_rush'
+            );
+            const xpPercentile = xpResult.percentile;
 
             // Get level details for GPT feedback
             const level = await Level.findById(session.levelId);
@@ -1597,19 +1594,21 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level ended. You need more XP to complete this level. ${highScoreMessage}` :
                 'Level ended. You need more XP to complete this level.',
               data: {
+                currentXp: sessionXp,
+                maxXp: newMaxXp,
                 currentCorrectQuestions: correctQuestions,
                 requiredCorrectQuestions: requiredCorrectQuestions,
                 minTime: maxTime, // Best time remaining
                 timeTaken: finalTime,
                 questionsNeeded: requiredCorrectQuestions - correctQuestions,
+                timePercentile,
+                xpPercentile,
                 hasNextLevel: false,
                 nextLevelNumber: null,
                 nextLevelId: null,
                 nextLevelAttemptType: null,
-                isNewHighScore: newHighScore,
-                percentile,
-                rank,
-                leaderboard,
+                isnewmintime: false,
+                isnewmaxxp: isNewMaxXp,
                 topics: topicsAccuracyUpdates,
                 aiFeedback
               }
@@ -1656,6 +1655,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const progress = Math.max(calculatedProgress, currentProgress);
 
             // Update UserChapterLevel for current level
+            const sessionXp = session.precisionPath?.currentXp || 0;
+            const prevMaxXp = userChapterLevel?.precisionPath?.maxXp || 0;
+            const newMaxXp = Math.max(prevMaxXp, sessionXp);
+            const isNewMaxXp = sessionXp > (prevMaxXp || 0);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1668,6 +1671,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                   status: 'completed',
                   completedAt: new Date(),
                   'precisionPath.minTime': Math.min(finalTime, minTime),
+                  'precisionPath.maxXp': newMaxXp,
                   progress: progress
                 }
               },
@@ -1761,9 +1765,15 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               userId,
               'precision_path'
             );
-            const percentile = percentileResult.percentile;
-            const rank = percentileResult.rank;
-            const leaderboard = percentileResult.leaderboard;
+            const timePercentile = percentileResult.percentile;
+            const xpResult = await calculateLevelXpPercentile(
+              session.chapterId.toString(),
+              session.levelId.toString(),
+              session.precisionPath?.currentXp || 0,
+              userId,
+              'precision_path'
+            );
+            const xpPercentile = xpResult.percentile;
 
             // Get level details for GPT feedback
             const level = await Level.findById(session.levelId);
@@ -1812,18 +1822,20 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
                 `Level completed successfully! You have unlocked the next level. ${highScoreMessage}` :
                 'Level completed successfully! You have unlocked the next level.',
               data: {
+                currentXp: sessionXp,
+                maxXp: newMaxXp,
                 currentCorrectQuestions: correctQuestions,
                 requiredCorrectQuestions: requiredCorrectQuestions,
                 timeTaken: finalTime,
                 bestTime: Math.min(finalTime, minTime),
+                timePercentile,
+                xpPercentile,
                 hasNextLevel: !!nextLevel,
                 nextLevelNumber: nextLevel?.levelNumber,
                 nextLevelId: nextLevel?._id,
                 nextLevelAttemptType: nextLevel?.type,
-                isNewHighScore: newHighScore,
-                percentile,
-                rank,
-                leaderboard,
+                isnewmintime: newHighScore,
+                isnewmaxxp: isNewMaxXp,
                 topics: topicsAccuracyUpdates,
                 aiFeedback
               }
@@ -1836,6 +1848,10 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const progress = Math.max(calculatedProgress, currentProgress);
 
             // Update progress even if level not completed
+            const sessionXp = session.precisionPath?.currentXp || 0;
+            const prevMaxXp = userChapterLevel?.precisionPath?.maxXp || 0;
+            const newMaxXp = Math.max(prevMaxXp, sessionXp);
+            const isNewMaxXp = sessionXp > (prevMaxXp || 0);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1845,6 +1861,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               },
               {
                 $set: {
+                  'precisionPath.maxXp': newMaxXp,
                   progress: progress
                 }
               },
@@ -1859,10 +1876,16 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               minTime,
               userId,
               'precision_path'
-            ) : { percentile: 0, rank: 0, leaderboard: null };
-            const percentile = percentileData.percentile;
-            const rank = percentileData.rank;
-            const leaderboard = percentileData.leaderboard;
+            ) : { percentile: 0, participantCount: 0 };
+            const timePercentile = percentileData.percentile;
+            const xpResult = await calculateLevelXpPercentile(
+              session.chapterId.toString(),
+              session.levelId.toString(),
+              session.precisionPath?.currentXp || 0,
+              userId,
+              'precision_path'
+            );
+            const xpPercentile = xpResult.percentile;
 
             // Get level details for GPT feedback
             const level = await Level.findById(session.levelId);
@@ -1909,18 +1932,21 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
               success: true,
               message: 'Level ended. You need more XP to complete this level.',
               data: {
+                currentXp: sessionXp,
+                maxXp: newMaxXp,
                 currentCorrectQuestions: correctQuestions,
                 requiredCorrectQuestions: requiredCorrectQuestions,
                 timeTaken: finalTime,
                 bestTime: minTime,
                 questionsNeeded: requiredCorrectQuestions - correctQuestions,
+                timePercentile,
+                xpPercentile,
                 hasNextLevel: false,
                 nextLevelNumber: null,
                 nextLevelId: null,
                 nextLevelAttemptType: null,
-                percentile,
-                rank,
-                leaderboard,
+                isnewmintime: false,
+                isnewmaxxp: isNewMaxXp,
                 topics: topicsAccuracyUpdates,
                 aiFeedback
               }
