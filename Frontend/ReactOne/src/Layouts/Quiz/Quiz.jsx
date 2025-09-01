@@ -827,7 +827,7 @@ const Quiz = ({ socket }) => {
             <CorrectQuestionsDisplay>
               <CheckCircleIcon />
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                {currentCorrectQuestions}/{requiredCorrectQuestions} <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>Qs</Typography>
+                {currentCorrectQuestions}/{requiredCorrectQuestions} <Typography variant="caption" color={theme => theme.palette.mode === 'dark' ? 'text.secondary' : 'white'} sx={{ fontWeight: 500 }}>Qs</Typography>
               </Typography>
             </CorrectQuestionsDisplay>
             <XpDisplay>

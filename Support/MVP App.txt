@@ -8,6 +8,8 @@ Subjects → Physics, Chemistry, Mathematics
 
 Chapters → E.g., Probability, Electrostatics
 
+Section → JEE LEVEL
+
 Units → Logical concept clusters within a chapter (e.g., Conditional Events, Bayes' Theorem)
 
 Topics → Granular knowledge components (e.g., "Mutually Exclusive Events")
@@ -17,28 +19,16 @@ Each chapter is divided into units, and each unit contains MCQs tagged with topi
 
 
 🎮 Gameplay Summary:
-User is given a target XP score (say, 300 XP)
-A time limit is set (e.g., 3 minutes)
 XP is earned per correct answer (more for fast + accurate responses)
 Bonus XP is awarded for:
 Finishing before the timer
 Answering consecutively correct (streaks)
+Min Time and Max XP is kept as personal record
 
 
 Levels can be of 2 types
 ⏱️ Time Rush Mode
-"Reach Target Xp in the least time possible with fixed no of questions(Stopwatch)"
+"Get n number of questions correct with h number of lives(wrongly answered) in a time(Stopwatch)"
 
 🎯 Precision Path Mode // Needs Revision
-"Reach Target Xp in the least time possible with fixed no of questions(Timer)"
-
-Time Rush
-[ ] Fixed timer	
-[ ] 10 fixed questions pulled from your pool	
-[ ] XP per question = base + bonus (difficulty-weighted)	
-[ ] Streaks tracked in real-time	
-[ ] Bonus XP for streaks and speed
-[ ] Base XP to Unlock next level
-[ ] Level ends when either time ran out or questions ran out
-[ ] FinalXP calculated based on baseXp matched + Streaks + TotalXP(Total collected xps after right and wrong questions)
-[ ] Histogram and Percentile based on Mintime to reach basexp and Max FinalXP
+"Get n number of questions correct with h number of lives(wrongly answered) in a time(Timer)"

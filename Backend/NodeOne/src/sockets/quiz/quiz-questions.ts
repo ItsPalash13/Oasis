@@ -351,7 +351,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         const topicIds = question.topics.map(topic => topic.id.toString());
         // Combine existing and new topic IDs, ensure uniqueness using Set
         const allTopicIds = new Set([
-          ...((session.uniqueTopics || []).map(id => id.toString())),
+          ...((session.uniqueTopics || []).map((id: any) => id.toString())),
           ...topicIds
         ]);
         session.uniqueTopics = Array.from(allTopicIds).map(id => new mongoose.Types.ObjectId(id));

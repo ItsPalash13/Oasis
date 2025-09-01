@@ -18,6 +18,7 @@
     import { getShortLevelFeedback } from '../utils/gpt';
     import { processUserLevelSession } from '../utils/performance';
 import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance';
+import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
     // Helper: compute topics accuracy updates from the in-memory session
     const computeTopicsAccuracyUpdates = async (session: any) => {
@@ -32,6 +33,43 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
       } catch (procErr) {
         console.error('Performance processing failed:', (procErr as any)?.message || procErr);
         return [] as Array<{ topicId: string; topicName: string | null; previousAcc: number | null; updatedAcc: number }>;
+      }
+    };
+
+    // Helper: save session to UserLevelSessionHistory
+    const saveSessionToHistory = async (session: any) => {
+      try {
+        console.log(`\n=== Saving Session to History ===`);
+        console.log(`Session ID: ${session._id}`);
+        console.log(`User ID: ${session.userId}`);
+        console.log(`Level ID: ${session.levelId}`);
+        console.log(`Attempt Type: ${session.attemptType}`);
+        
+        // Create a copy of the session for history
+        const sessionHistory = new UserLevelSessionHistory({
+          userChapterLevelId: session.userChapterLevelId,
+          userId: session.userId,
+          chapterId: session.chapterId,
+          levelId: session.levelId,
+          status: session.status,
+          uniqueTopics: session.uniqueTopics,
+          attemptType: session.attemptType,
+          currentQuestion: session.currentQuestion,
+          questionsAnswered: session.questionsAnswered,
+          questionsHistory: session.questionsHistory,
+          questionBank: session.questionBank,
+          currentQuestionIndex: session.currentQuestionIndex,
+          streak: session.streak,
+          timeRush: session.timeRush,
+          precisionPath: session.precisionPath
+        });
+
+        await sessionHistory.save();
+        console.log(`✅ Successfully saved session to history with ID: ${sessionHistory._id}`);
+        console.log(`=== End Saving Session to History ===\n`);
+      } catch (error) {
+        console.error('Error saving session to history:', error);
+        // Don't throw error to avoid breaking the main flow
       }
     };
 
@@ -1430,7 +1468,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const xpResult = await calculateLevelXpPercentile(
               session.chapterId.toString(),
               session.levelId.toString(),
-              session.timeRush?.currentXp || 0,
+              Math.max(session.timeRush?.currentXp || 0, newMaxXp),
               userId,
               'time_rush'
             );
@@ -1473,6 +1511,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             await processBadgesAfterQuiz(userLevelSessionId);
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+
+            // Save session to history before deletion
+            await saveSessionToHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1541,7 +1582,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const xpResult = await calculateLevelXpPercentile(
               session.chapterId.toString(),
               session.levelId.toString(),
-              session.timeRush?.currentXp || 0,
+              Math.max(session.timeRush?.currentXp || 0, newMaxXp),
               userId,
               'time_rush'
             );
@@ -1584,6 +1625,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             await processBadgesAfterQuiz(userLevelSessionId);
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+
+            // Save session to history before deletion
+            await saveSessionToHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1769,7 +1813,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const xpResult = await calculateLevelXpPercentile(
               session.chapterId.toString(),
               session.levelId.toString(),
-              session.precisionPath?.currentXp || 0,
+              Math.max(session.precisionPath?.currentXp || 0, newMaxXp),
               userId,
               'precision_path'
             );
@@ -1812,6 +1856,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             await processBadgesAfterQuiz(userLevelSessionId);
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+
+            // Save session to history before deletion
+            await saveSessionToHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1881,7 +1928,7 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             const xpResult = await calculateLevelXpPercentile(
               session.chapterId.toString(),
               session.levelId.toString(),
-              session.precisionPath?.currentXp || 0,
+              Math.max(session.precisionPath?.currentXp || 0, newMaxXp),
               userId,
               'precision_path'
             );
@@ -1924,6 +1971,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
             await processBadgesAfterQuiz(userLevelSessionId);
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+
+            // Save session to history before deletion
+            await saveSessionToHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);

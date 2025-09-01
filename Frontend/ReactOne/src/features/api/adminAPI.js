@@ -305,6 +305,23 @@ export const adminApi = createApi({
       query: (id) => ({ url: `/api/admin/users/level-sessions/${id}`, method: 'GET' }),
       providesTags: ['User'],
     }),
+    // User Level Session History endpoints (read-only)
+    getUserLevelSessionHistory: builder.query({
+      query: (params) => ({ 
+        url: '/api/admin/users/level-session-history', 
+        method: 'GET',
+        params: params || {}
+      }),
+      providesTags: ['User'],
+    }),
+    getUserLevelSessionHistoryById: builder.query({
+      query: (id) => ({ url: `/api/admin/users/level-session-history/${id}`, method: 'GET' }),
+      providesTags: ['User'],
+    }),
+    deleteUserLevelSessionHistory: builder.mutation({
+      query: (id) => ({ url: `/api/admin/users/level-session-history/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['User'],
+    }),
     // Badge endpoints
     getBadges: builder.query({
       query: () => ({ url: '/api/admin/badges', method: 'GET' }),
@@ -392,6 +409,10 @@ export const {
   // User Level Session hooks (read-only)
   useGetUserLevelSessionsQuery,
   useGetUserLevelSessionByIdQuery,
+  // User Level Session History hooks (read-only)
+  useGetUserLevelSessionHistoryQuery,
+  useGetUserLevelSessionHistoryByIdQuery,
+  useDeleteUserLevelSessionHistoryMutation,
   // Badge hooks
   useGetBadgesQuery,
   useCreateBadgeMutation,

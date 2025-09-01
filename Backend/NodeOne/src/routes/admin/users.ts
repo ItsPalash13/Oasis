@@ -4,6 +4,7 @@ import { UserChapterUnit } from '../../models/UserChapterUnit';
 import { UserChapterSection } from '../../models/UserChapterSection';
 import { UserChapterLevel } from '../../models/UserChapterLevel';
 import { UserLevelSession } from '../../models/UserLevelSession';
+import { UserLevelSessionHistory } from '../../models/UserLevelSessionHistory';
 import { Chapter } from '../../models/Chapter';
 import { Section } from '../../models/Section';
 import { Unit } from '../../models/Units';
@@ -1088,6 +1089,145 @@ router.get('/level-sessions/:id', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch user level session',
+      error: error.message
+    });
+  }
+});
+
+// ==================== USER LEVEL SESSION HISTORY (READ ONLY) ====================
+
+// GET all user level session history
+router.get('/level-session-history', async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 10, userId, chapterId, levelId, attemptType, status } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    let filter: any = {};
+    if (userId) filter.userId = userId;
+    if (chapterId) filter.chapterId = chapterId;
+    if (levelId) filter.levelId = levelId;
+    if (attemptType) filter.attemptType = attemptType;
+    if (status !== undefined) filter.status = Number(status);
+
+    const [userLevelSessionHistory, total] = await Promise.all([
+      UserLevelSessionHistory.find(filter)
+        .populate('chapterId', 'name')
+        .populate('levelId', 'name levelNumber')
+        .populate('currentQuestion', 'question')
+        .populate('questionsAnswered.correct', 'question')
+        .populate('questionsAnswered.incorrect', 'question')
+        .populate('questionBank', 'question')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      UserLevelSessionHistory.countDocuments(filter)
+    ]);
+
+    // Populate user profile data for each session history
+    const userLevelSessionHistoryWithProfiles = await Promise.all(
+      userLevelSessionHistory.map(async (session) => {
+        const userProfile = await UserProfile.findOne({ userId: session.userId });
+        return {
+          ...session.toObject(),
+          userProfile: userProfile ? {
+            _id: userProfile._id,
+            username: userProfile.username,
+            email: userProfile.email,
+            fullName: userProfile.fullName
+          } : null
+        };
+      })
+    );
+
+    return res.json({
+      success: true,
+      data: userLevelSessionHistoryWithProfiles,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user level session history:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user level session history',
+      error: error.message
+    });
+  }
+});
+
+// GET user level session history by ID
+router.get('/level-session-history/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userLevelSessionHistory = await UserLevelSessionHistory.findById(id)
+      .populate('chapterId', 'name')
+      .populate('levelId', 'name levelNumber')
+      .populate('currentQuestion', 'question')
+      .populate('questionsAnswered.correct', 'question')
+      .populate('questionsAnswered.incorrect', 'question')
+      .populate('questionBank', 'question');
+
+    if (!userLevelSessionHistory) {
+      return res.status(404).json({
+        success: false,
+        message: 'User level session history not found'
+      });
+    }
+
+    // Get user profile data
+    const userProfile = await UserProfile.findOne({ userId: userLevelSessionHistory.userId });
+    const userLevelSessionHistoryWithProfile = {
+      ...userLevelSessionHistory.toObject(),
+      userProfile: userProfile ? {
+        _id: userProfile._id,
+        username: userProfile.username,
+        email: userProfile.email,
+        fullName: userProfile.fullName
+      } : null
+    };
+
+    return res.json({
+      success: true,
+      data: userLevelSessionHistoryWithProfile
+    });
+  } catch (error) {
+    console.error('Error fetching user level session history:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user level session history',
+      error: error.message
+    });
+  }
+});
+
+// DELETE user level session history
+router.delete('/level-session-history/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userLevelSessionHistory = await UserLevelSessionHistory.findById(id);
+    
+    if (!userLevelSessionHistory) {
+      return res.status(404).json({
+        success: false,
+        message: 'User level session history not found'
+      });
+    }
+
+    await UserLevelSessionHistory.findByIdAndDelete(id);
+
+    return res.json({
+      success: true,
+      message: 'User level session history deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting user level session history:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete user level session history',
       error: error.message
     });
   }

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IUserLevelSession extends Document {
+export interface IUserLevelSessionHistory extends Document {
   // Common fields
   userChapterLevelId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
@@ -58,7 +58,7 @@ export interface IUserLevelSession extends Document {
     };
 }
 
-export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
+export const UserLevelSessionHistorySchema = new Schema<IUserLevelSessionHistory>({
   // Common fields
   userChapterLevelId: {
     type: Schema.Types.ObjectId,
@@ -241,17 +241,8 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
 });
 
 // Index for faster queries
-UserLevelSessionSchema.index({ userChapterLevelId: 1 });
+UserLevelSessionHistorySchema.index({ userChapterLevelId: 1 });
 
-// Pre-save middleware to validate session type constraints
-UserLevelSessionSchema.pre('save', function(next) {
-  if (this.attemptType === 'time_rush') {
-    // Time Rush: must have timeLimit > 0, can exceed requiredCorrectQuestions
-    if (this.timeRush.timeLimit <= 0) {
-      return next(new Error('Time Rush mode must have a positive time limit'));
-    }
-  } 
-  next();
-});
 
-export const UserLevelSession = mongoose.models.UserLevelSession || mongoose.model<IUserLevelSession>('UserLevelSession', UserLevelSessionSchema);
+
+export const UserLevelSessionHistory = mongoose.models.UserLevelSessionHistory || mongoose.model<IUserLevelSessionHistory>('UserLevelSessionHistory', UserLevelSessionHistorySchema);

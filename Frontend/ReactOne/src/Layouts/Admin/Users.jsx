@@ -50,6 +50,10 @@ import {
   // User Level Session hooks (read-only)
   useGetUserLevelSessionsQuery,
   useGetUserLevelSessionByIdQuery,
+  // User Level Session History hooks (read-only)
+  useGetUserLevelSessionHistoryQuery,
+  useGetUserLevelSessionHistoryByIdQuery,
+  useDeleteUserLevelSessionHistoryMutation,
   // Other hooks
   useGetChaptersQuery,
   useGetSectionsQuery,
@@ -93,6 +97,7 @@ export default function UsersAdmin() {
         <Tab label="User Chapter Units" id="users-tab-2" aria-controls="users-tabpanel-2" />
         <Tab label="User Chapter Levels" id="users-tab-3" aria-controls="users-tabpanel-3" />
         <Tab label="User Level Sessions" id="users-tab-4" aria-controls="users-tabpanel-4" />
+        <Tab label="User Session History" id="users-tab-5" aria-controls="users-tabpanel-5" />
       </Tabs>
 
       <TabPanel value={tab} index={0}>
@@ -109,6 +114,9 @@ export default function UsersAdmin() {
       </TabPanel>
       <TabPanel value={tab} index={4}>
         <UserLevelSessionsTab />
+      </TabPanel>
+      <TabPanel value={tab} index={5}>
+        <UserLevelSessionHistoryTab />
       </TabPanel>
     </Box>
   );
@@ -1042,8 +1050,8 @@ function UserChapterLevelsTab() {
       renderCell: (params) => (
         <Chip
           label={params.value === 'time_rush' ? 'Time Rush' : 'Precision Path'}
-          color={params.value === 'time_rush' ? 'primary' : 'secondary'}
-          size="small"
+          color='secondary'
+          size="small" 
         />
       ),
     },
@@ -1399,6 +1407,230 @@ function UserLevelSessionsTab() {
                 <Typography>Correct: {selectedSession.questionsAnswered?.correct?.length || 0}</Typography>
                 <Typography>Incorrect: {selectedSession.questionsAnswered?.incorrect?.length || 0}</Typography>
               </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDetailsDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
+// ==================== USER LEVEL SESSION HISTORY TAB (READ ONLY) ====================
+function UserLevelSessionHistoryTab() {
+  const { data: sessionHistoryData, isLoading } = useGetUserLevelSessionHistoryQuery();
+  const [deleteSessionHistory] = useDeleteUserLevelSessionHistoryMutation();
+  const [selectedSessionHistory, setSelectedSessionHistory] = useState(null);
+  const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
+
+  const handleRowClick = (params) => {
+    setSelectedSessionHistory(params.row);
+    setOpenDetailsDialog(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this session history record?')) {
+      try {
+        await deleteSessionHistory(id).unwrap();
+      } catch (error) {
+        console.error('Error deleting session history:', error);
+      }
+    }
+  };
+
+  const columns = [
+    {
+      field: 'userProfile',
+      headerName: 'User',
+      width: 250,
+      renderCell: (params) => {
+        if (params.value) {
+          return `${params.value.username} (${params.value.email})`;
+        }
+        return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'chapterId',
+      headerName: 'Chapter',
+      width: 150,
+      renderCell: (params) => params.value?.name || params.value || 'N/A',
+    },
+    {
+      field: 'levelId',
+      headerName: 'Level',
+      width: 150,
+      renderCell: (params) => `${params.value?.name || 'N/A'} (${params.value?.levelNumber || 'N/A'})`,
+    },
+    {
+      field: 'attemptType',
+      headerName: 'Type',
+      width: 120,
+      renderCell: (params) => (
+        <Chip
+          label={params.value === 'time_rush' ? 'Time Rush' : 'Precision Path'}
+          color='secondary'
+          size="small"
+        />
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          label={params.value === 1 ? 'Completed' : 'Incomplete'}
+          color={params.value === 1 ? 'success' : 'warning'}
+          size="small"
+        />
+      ),
+    },
+    {
+      field: 'currentQuestionIndex',
+      headerName: 'Question #',
+      width: 100,
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Session Date',
+      width: 180,
+      renderCell: (params) => new Date(params.value).toLocaleString(),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 150,
+      renderCell: (params) => (
+        <Box>
+          <Tooltip title="View Details">
+            <IconButton onClick={() => handleRowClick(params)} size="small">
+              <ViewIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error">
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h6">User Level Session History</Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          This tab shows historical user level sessions. These records are created automatically when users complete or end levels.
+        </Alert>
+      </Box>
+
+      <DataGrid
+        rows={sessionHistoryData?.data || []}
+        columns={columns}
+        loading={isLoading}
+        getRowId={(row) => row._id}
+        pageSizeOptions={[10, 25, 50]}
+        initialState={{
+          pagination: {
+            paginationModel: { page: 0, pageSize: 10 },
+          },
+        }}
+        getRowHeight={() => 'auto'}
+        sx={{ height: 500 }}
+      />
+
+      <Dialog open={openDetailsDialog} onClose={() => setOpenDetailsDialog(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>Session History Details</DialogTitle>
+        <DialogContent>
+          {selectedSessionHistory && (
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="h6">Session Information</Typography>
+                <Typography>User: {selectedSessionHistory.userProfile ? `${selectedSessionHistory.userProfile.username} (${selectedSessionHistory.userProfile.email})` : selectedSessionHistory.userId}</Typography>
+                <Typography>Chapter: {selectedSessionHistory.chapterId?.name || selectedSessionHistory.chapterId}</Typography>
+                <Typography>Level: {selectedSessionHistory.levelId?.name || selectedSessionHistory.levelId}</Typography>
+                <Typography>Type: {selectedSessionHistory.attemptType}</Typography>
+                <Typography>Status: {selectedSessionHistory.status === 1 ? 'Completed' : 'Incomplete'}</Typography>
+                <Typography>Current Question Index: {selectedSessionHistory.currentQuestionIndex}</Typography>
+                <Typography>Session Date: {new Date(selectedSessionHistory.createdAt).toLocaleString()}</Typography>
+              </Grid>
+
+              {selectedSessionHistory.attemptType === 'time_rush' && selectedSessionHistory.timeRush && (
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="h6">Time Rush Results</Typography>
+                      <Typography>Required Correct Questions: {selectedSessionHistory.timeRush.requiredCorrectQuestions}</Typography>
+                      <Typography>Current Correct Questions: {selectedSessionHistory.questionsAnswered?.correct?.length || 0}</Typography>
+                      <Typography>Current XP: {selectedSessionHistory.timeRush.currentXp || 0}</Typography>
+                      <Typography>Min Time: {selectedSessionHistory.timeRush.minTime || 'Not set'}s</Typography>
+                      <Typography>Time Limit: {selectedSessionHistory.timeRush.timeLimit}s</Typography>
+                      <Typography>Current Time: {selectedSessionHistory.timeRush.currentTime}s</Typography>
+                      <Typography>Total Questions: {selectedSessionHistory.timeRush.totalQuestions}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {selectedSessionHistory.attemptType === 'precision_path' && selectedSessionHistory.precisionPath && (
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="h6">Precision Path Results</Typography>
+                      <Typography>Required Correct Questions: {selectedSessionHistory.precisionPath.requiredCorrectQuestions}</Typography>
+                      <Typography>Current Correct Questions: {selectedSessionHistory.questionsAnswered?.correct?.length || 0}</Typography>
+                      <Typography>Current XP: {selectedSessionHistory.precisionPath.currentXp || 0}</Typography>
+                      <Typography>Current Time: {selectedSessionHistory.precisionPath.currentTime}s</Typography>
+                      <Typography>Min Time: {selectedSessionHistory.precisionPath.minTime || 'Not set'}s</Typography>
+                      <Typography>Total Questions: {selectedSessionHistory.precisionPath.totalQuestions}</Typography>
+                      <Typography>Expected Time: {selectedSessionHistory.precisionPath.expectedTime}s</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              <Grid item xs={12} md={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="h6">Questions Summary</Typography>
+                    <Typography>Correct Answers: {selectedSessionHistory.questionsAnswered?.correct?.length || 0}</Typography>
+                    <Typography>Incorrect Answers: {selectedSessionHistory.questionsAnswered?.incorrect?.length || 0}</Typography>
+                    <Typography>Total Questions in Bank: {selectedSessionHistory.questionBank?.length || 0}</Typography>
+                    <Typography>Streak: {selectedSessionHistory.streak || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {selectedSessionHistory.questionsHistory && selectedSessionHistory.questionsHistory.length > 0 && (
+                <Grid item xs={12}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="h6">Questions History</Typography>
+                      <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+                        {selectedSessionHistory.questionsHistory.map((qh, index) => (
+                          <Box key={index} sx={{ mb: 2, p: 1, border: '1px solid #ddd', borderRadius: 1 }}>
+                            <Typography variant="subtitle2">Question {index + 1}</Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>{qh.question}</Typography>
+                            <Typography variant="body2" color={qh.userOptionChoice === qh.correctOption ? 'success.main' : 'error.main'}>
+                              User Choice: {qh.userOptionChoice + 1} | Correct: {qh.correctOption + 1}
+                            </Typography>
+                            {qh.topics && qh.topics.length > 0 && (
+                              <Typography variant="body2">
+                                Topics: {qh.topics.map(t => t.topicName).join(', ')}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
             </Grid>
           )}
         </DialogContent>

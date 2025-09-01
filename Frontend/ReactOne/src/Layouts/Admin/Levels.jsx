@@ -270,7 +270,7 @@ export default function LevelsAdmin() {
       renderCell: (params) => (
         <Chip
           label={params.value === 'time_rush' ? 'Time Rush' : 'Precision Path'}
-          color={params.value === 'time_rush' ? 'primary' : 'secondary'}
+          color='secondary'
           size="small"
         />
       ),
