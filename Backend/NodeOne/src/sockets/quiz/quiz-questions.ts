@@ -450,25 +450,34 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         session.streak = (session.streak || 0) + 1;
         
         // Check for streak milestones (3, 6, 9)
-        if (session.streak === 3 || session.streak === 6 || session.streak === 9) {
-          // Award bonus XP for streak milestones
-          const bonusXp = session.streak;
-          
-          // Update XP based on game mode
-          if (session.attemptType === 'time_rush') {
-            session.timeRush.currentXp += bonusXp;
-            console.log('Time Rush XP:', session.timeRush.currentXp, 'XP Earned:', bonusXp);
-          } else {
-            session.precisionPath.currentXp += bonusXp;
-            console.log('Precision Path XP:', session.precisionPath.currentXp, 'XP Earned:', bonusXp);
+        // Check for streak milestones using environment variables
+        const streakMilestones = process.env.STREAK_MILESTONES?.split(',').map(Number) || [3, 6, 9];
+        
+        // Reverse loop over streak milestones to check if current streak matches any milestone
+        for (let i = streakMilestones.length - 1; i >= 0; i--) {
+          if (session.streak === streakMilestones[i]) {
+            // Award bonus XP for streak milestones
+            const bonusXp = session.streak;
+            
+            // Update XP based on game mode
+            if (session.attemptType === 'time_rush') {
+              session.timeRush.currentXp += bonusXp;
+              console.log('Time Rush XP:', session.timeRush.currentXp, 'XP Earned:', bonusXp);
+            } else {
+              session.precisionPath.currentXp += bonusXp;
+              console.log('Precision Path XP:', session.precisionPath.currentXp, 'XP Earned:', bonusXp);
+            }
+            
+            // Create bonuses array
+            bonuses.push({
+              type: 'streak',
+              msg: `Amazing! ${session.streak} correct answers in a row! +${bonusXp} bonus XP!`,
+              currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp
+            });
+            
+            // Break after finding the first matching milestone
+            break;
           }
-          
-          // Create bonuses array
-          bonuses.push({
-            type: 'streak',
-            msg: `Amazing! ${session.streak} correct answers in a row! +${bonusXp} bonus XP!`,
-            currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp
-          });
         }
         
         console.log('Bonuses:', bonuses);

@@ -240,8 +240,7 @@ router.delete('/profiles/:id', async (req: Request, res: Response) => {
 // GET all user chapter units
 router.get('/chapter-units', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, userId, chapterId, unitId, status } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { userId, chapterId, unitId, status } = req.query;
     
     let filter: any = {};
     if (userId) filter.userId = userId;
@@ -253,9 +252,7 @@ router.get('/chapter-units', async (req: Request, res: Response) => {
       UserChapterUnit.find(filter)
         .populate('chapterId', 'name')
         .populate('unitId', 'name')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserChapterUnit.countDocuments(filter)
     ]);
 
@@ -279,10 +276,7 @@ router.get('/chapter-units', async (req: Request, res: Response) => {
       success: true,
       data: userChapterUnitsWithProfiles,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
@@ -540,8 +534,7 @@ router.delete('/chapter-units/:id', async (req: Request, res: Response) => {
 // GET all user chapter sections
 router.get('/chapter-sections', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, userId, chapterId, sectionId, status } = req.query as any;
-    const skip = (Number(page) - 1) * Number(limit);
+    const {  userId, chapterId, sectionId, status } = req.query as any;
 
     const filter: any = {};
     if (userId) filter.userId = userId;
@@ -553,9 +546,7 @@ router.get('/chapter-sections', async (req: Request, res: Response) => {
       UserChapterSection.find(filter)
         .populate('chapterId', 'name')
         .populate('sectionId', 'name')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserChapterSection.countDocuments(filter)
     ]);
 
@@ -579,10 +570,7 @@ router.get('/chapter-sections', async (req: Request, res: Response) => {
       success: true,
       data: userChapterSectionsWithProfiles,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error: any) {
@@ -725,8 +713,8 @@ router.delete('/chapter-sections/:id', async (req: Request, res: Response) => {
 // GET all user chapter levels
 router.get('/chapter-levels', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, userId, chapterId, levelId, attemptType, status } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { userId, chapterId, levelId, attemptType, status } = req.query;
+
     
     let filter: any = {};
     if (userId) filter.userId = userId;
@@ -739,9 +727,7 @@ router.get('/chapter-levels', async (req: Request, res: Response) => {
       UserChapterLevel.find(filter)
         .populate('chapterId', 'name')
         .populate('levelId', 'name levelNumber')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserChapterLevel.countDocuments(filter)
     ]);
 
@@ -765,10 +751,7 @@ router.get('/chapter-levels', async (req: Request, res: Response) => {
       success: true,
       data: userChapterLevelsWithProfiles,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
@@ -1017,8 +1000,8 @@ router.delete('/chapter-levels/:id', async (req: Request, res: Response) => {
 // GET all user level sessions
 router.get('/level-sessions', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, userId, chapterId, levelId, attemptType, status } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { userId, chapterId, levelId, attemptType, status } = req.query;
+
     
     let filter: any = {};
     if (userId) filter.userId = userId;
@@ -1035,9 +1018,7 @@ router.get('/level-sessions', async (req: Request, res: Response) => {
         .populate('questionsAnswered.correct', 'question')
         .populate('questionsAnswered.incorrect', 'question')
         .populate('questionBank', 'question')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserLevelSession.countDocuments(filter)
     ]);
 
@@ -1045,10 +1026,7 @@ router.get('/level-sessions', async (req: Request, res: Response) => {
       success: true,
       data: userLevelSessions,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {
@@ -1099,8 +1077,8 @@ router.get('/level-sessions/:id', async (req: Request, res: Response) => {
 // GET all user level session history
 router.get('/level-session-history', async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 10, userId, chapterId, levelId, attemptType, status } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { userId, chapterId, levelId, attemptType, status } = req.query;
+
     
     let filter: any = {};
     if (userId) filter.userId = userId;
@@ -1117,9 +1095,7 @@ router.get('/level-session-history', async (req: Request, res: Response) => {
         .populate('questionsAnswered.correct', 'question')
         .populate('questionsAnswered.incorrect', 'question')
         .populate('questionBank', 'question')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
+        .sort({ createdAt: -1 }),
       UserLevelSessionHistory.countDocuments(filter)
     ]);
 
@@ -1143,10 +1119,7 @@ router.get('/level-session-history', async (req: Request, res: Response) => {
       success: true,
       data: userLevelSessionHistoryWithProfiles,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
         total,
-        pages: Math.ceil(total / Number(limit))
       }
     });
   } catch (error) {

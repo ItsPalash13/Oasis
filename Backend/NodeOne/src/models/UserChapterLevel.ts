@@ -20,6 +20,7 @@ export interface IUserChapterLevel extends Document {
     requiredCorrectQuestions?: number;
     timeLimit?: number;  // Time limit for Time Rush mode
     totalQuestions?: number;
+    maxCorrectQuestions?: number;
   };
 
   // Precision Path specific fields (only present when attemptType is 'precision_path')
@@ -30,6 +31,7 @@ export interface IUserChapterLevel extends Document {
     requiredCorrectQuestions?: number;
     totalQuestions?: number;
     expectedTime?: number;
+    maxCorrectQuestions?: number;
   };
 }
 
@@ -105,6 +107,10 @@ export const UserChapterLevelSchema = new Schema<IUserChapterLevel>({
     totalQuestions: {
       type: Number,
       min: 0
+    },
+    maxCorrectQuestions: {
+      type: Number,
+      min: 0
     }
   },
 
@@ -131,6 +137,10 @@ export const UserChapterLevelSchema = new Schema<IUserChapterLevel>({
       min: 0
     },
     expectedTime: {
+      type: Number,
+      min: 0
+    },
+    maxCorrectQuestions: {
       type: Number,
       min: 0
     }
@@ -160,4 +170,4 @@ UserChapterLevelSchema.pre('save', function(next) {
   next();
 });
 
-export const UserChapterLevel = mongoose.model<IUserChapterLevel>('UserChapterLevel', UserChapterLevelSchema);
+export const UserChapterLevel = mongoose.models.UserChapterLevel || mongoose.model<IUserChapterLevel>('UserChapterLevel', UserChapterLevelSchema);

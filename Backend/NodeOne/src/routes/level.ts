@@ -1416,17 +1416,19 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               status: true
             }).select('_id levelNumber type sectionId');
 
-            // Calculate progress: min(required score, current level scored) / required score * 100
-            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
-            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
-            const currentProgress = userChapterLevel?.progress || 0;
-            const progress = Math.max(calculatedProgress, currentProgress);
-
             // Update UserChapterLevel for current level
             const sessionXp = session.timeRush?.currentXp || 0;
             const prevMaxXp = userChapterLevel?.timeRush?.maxXp || 0;
             const newMaxXp = Math.max(prevMaxXp, sessionXp);
             const isNewMaxXp = sessionXp > (prevMaxXp || 0);
+            const prevMaxCorrectQuestions = userChapterLevel?.timeRush?.maxCorrectQuestions || 0;
+            const newMaxCorrectQuestions = Math.max(prevMaxCorrectQuestions, correctQuestions);
+
+            // Calculate progress: max(correctQuestions, maxCorrectQuestions) / required correct * 100
+            const achievedCorrect = Math.max(correctQuestions, newMaxCorrectQuestions || 0);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
+            const currentProgress = userChapterLevel?.progress || 0;
+            const progress = Math.max(calculatedProgress, currentProgress);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1440,6 +1442,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
                   completedAt: new Date(),
                   'timeRush.minTime': Math.max(finalTime, maxTime), // Store the maximum time remaining
                   'timeRush.maxXp': newMaxXp,
+                  'timeRush.maxCorrectQuestions': newMaxCorrectQuestions,
                   progress: progress
                 }
               },
@@ -1610,17 +1613,19 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               }
             });
           } else {
-            // Calculate progress: min(required score, current level scored) / required score * 100
-            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
-            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
-            const currentProgress = userChapterLevel?.progress || 0;
-            const progress = Math.max(calculatedProgress, currentProgress);
-
             // Update progress even if level not completed (don't update best time)
             const sessionXp = session.timeRush?.currentXp || 0;
             const prevMaxXp = userChapterLevel?.timeRush?.maxXp || 0;
             const newMaxXp = Math.max(prevMaxXp, sessionXp);
             const isNewMaxXp = sessionXp > (prevMaxXp || 0);
+            const prevMaxCorrectQuestions = userChapterLevel?.timeRush?.maxCorrectQuestions || 0;
+            const newMaxCorrectQuestions = Math.max(prevMaxCorrectQuestions, correctQuestions);
+
+            // Calculate progress: max(correctQuestions, maxCorrectQuestions) / required correct * 100
+            const achievedCorrect = Math.max(correctQuestions, newMaxCorrectQuestions || 0);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
+            const currentProgress = userChapterLevel?.progress || 0;
+            const progress = Math.max(calculatedProgress, currentProgress);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1631,6 +1636,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               {
                 $set: {
                   'timeRush.maxXp': newMaxXp,
+                  'timeRush.maxCorrectQuestions': newMaxCorrectQuestions,
                   progress: progress
                 }
               },
@@ -1759,17 +1765,19 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               status: true
             }).select('_id levelNumber type sectionId');
 
-            // Calculate progress: min(required correct, current correct) / required correct * 100
-            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
-            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
-            const currentProgress = userChapterLevel?.progress || 0;
-            const progress = Math.max(calculatedProgress, currentProgress);
-
             // Update UserChapterLevel for current level
             const sessionXp = session.precisionPath?.currentXp || 0;
             const prevMaxXp = userChapterLevel?.precisionPath?.maxXp || 0;
             const newMaxXp = Math.max(prevMaxXp, sessionXp);
             const isNewMaxXp = sessionXp > (prevMaxXp || 0);
+            const prevMaxCorrectQuestions = userChapterLevel?.precisionPath?.maxCorrectQuestions || 0;
+            const newMaxCorrectQuestions = Math.max(prevMaxCorrectQuestions, correctQuestions);
+            
+            // Calculate progress: max(correctQuestions, maxCorrectQuestions) / required correct * 100
+            const achievedCorrect = Math.max(correctQuestions, newMaxCorrectQuestions || 0);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
+            const currentProgress = userChapterLevel?.progress || 0;
+            const progress = Math.max(calculatedProgress, currentProgress);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1783,6 +1791,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
                   completedAt: new Date(),
                   'precisionPath.minTime': Math.min(finalTime, minTime),
                   'precisionPath.maxXp': newMaxXp,
+                  'precisionPath.maxCorrectQuestions': newMaxCorrectQuestions,
                   progress: progress
                 }
               },
@@ -1955,17 +1964,20 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               }
             });
           } else {
-            // Calculate progress: min(required correct, current correct) / required correct * 100
-            const achievedCorrect = Math.min(correctQuestions, requiredCorrectQuestions);
-            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
-            const currentProgress = userChapterLevel?.progress || 0;
-            const progress = Math.max(calculatedProgress, currentProgress);
 
             // Update progress even if level not completed
             const sessionXp = session.precisionPath?.currentXp || 0;
             const prevMaxXp = userChapterLevel?.precisionPath?.maxXp || 0;
             const newMaxXp = Math.max(prevMaxXp, sessionXp);
             const isNewMaxXp = sessionXp > (prevMaxXp || 0);
+            const prevMaxCorrectQuestions = userChapterLevel?.precisionPath?.maxCorrectQuestions || 0;
+            const newMaxCorrectQuestions = Math.max(prevMaxCorrectQuestions, correctQuestions);
+
+            // Calculate progress: max(correctQuestions, maxCorrectQuestions) / required correct * 100
+            const achievedCorrect = Math.max(correctQuestions, newMaxCorrectQuestions || 0);
+            const calculatedProgress = requiredCorrectQuestions > 0 ? Math.round((achievedCorrect / requiredCorrectQuestions) * 100) : 0;
+            const currentProgress = userChapterLevel?.progress || 0;
+            const progress = Math.max(calculatedProgress, currentProgress);
             await UserChapterLevel.findOneAndUpdate(
               {
                 userId,
@@ -1976,6 +1988,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
               {
                 $set: {
                   'precisionPath.maxXp': newMaxXp,
+                  'precisionPath.maxCorrectQuestions': newMaxCorrectQuestions,
                   progress: progress
                 }
               },
