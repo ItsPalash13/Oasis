@@ -36,39 +36,64 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
       }
     };
 
-    // Helper: save session to UserLevelSessionHistory
-    const saveSessionToHistory = async (session: any) => {
+    // Helper: update session history with final session data
+    const updateSessionHistory = async (session: any) => {
       try {
-        console.log(`\n=== Saving Session to History ===`);
+        console.log(`\n=== Updating Session History ===`);
         console.log(`Session ID: ${session._id}`);
         console.log(`User ID: ${session.userId}`);
         console.log(`Level ID: ${session.levelId}`);
         console.log(`Attempt Type: ${session.attemptType}`);
         
-        // Create a copy of the session for history
-        const sessionHistory = new UserLevelSessionHistory({
-          userChapterLevelId: session.userChapterLevelId,
-          userId: session.userId,
-          chapterId: session.chapterId,
-          levelId: session.levelId,
-          status: session.status,
-          uniqueTopics: session.uniqueTopics,
-          attemptType: session.attemptType,
-          currentQuestion: session.currentQuestion,
-          questionsAnswered: session.questionsAnswered,
-          questionsHistory: session.questionsHistory,
-          questionBank: session.questionBank,
-          currentQuestionIndex: session.currentQuestionIndex,
-          streak: session.streak,
-          timeRush: session.timeRush,
-          precisionPath: session.precisionPath
+        // Find the existing session history entry for this session
+        const existingHistory = await UserLevelSessionHistory.findOne({
+          sessionId: session._id
         });
-
-        await sessionHistory.save();
-        console.log(`✅ Successfully saved session to history with ID: ${sessionHistory._id}`);
-        console.log(`=== End Saving Session to History ===\n`);
+        
+        if (!existingHistory) {
+          console.log('No existing session history found, creating new one...');
+          // Fallback: create new entry if not found
+          const sessionHistory = new UserLevelSessionHistory({
+            userChapterLevelId: session.userChapterLevelId,
+            sessionId: session._id,
+            userId: session.userId,
+            chapterId: session.chapterId,
+            levelId: session.levelId,
+            status: session.status,
+            uniqueTopics: session.uniqueTopics,
+            attemptType: session.attemptType,
+            currentQuestion: session.currentQuestion,
+            questionsAnswered: session.questionsAnswered,
+            questionsHistory: session.questionsHistory,
+            questionBank: session.questionBank,
+            currentTime: session.currentTime,
+            currentQuestionIndex: session.currentQuestionIndex,
+            streak: session.streak,
+            timeRush: session.timeRush,
+            precisionPath: session.precisionPath
+          });
+          await sessionHistory.save();
+          console.log(`✅ Created new session history with ID: ${sessionHistory._id}`);
+        } else {
+          // Update the existing session history with final data
+          await UserLevelSessionHistory.findByIdAndUpdate(existingHistory._id, {
+            status: session.status,
+            uniqueTopics: session.uniqueTopics,
+            currentQuestion: session.currentQuestion,
+            questionsAnswered: session.questionsAnswered,
+            questionsHistory: session.questionsHistory,
+            currentTime: session.currentTime,
+            currentQuestionIndex: session.currentQuestionIndex,
+            streak: session.streak,
+            timeRush: session.timeRush,
+            precisionPath: session.precisionPath
+          });
+          console.log(`✅ Updated existing session history with ID: ${existingHistory._id}`);
+        }
+        
+        console.log(`=== End Updating Session History ===\n`);
       } catch (error) {
-        console.error('Error saving session to history:', error);
+        console.error('Error updating session history:', error);
         // Don't throw error to avoid breaking the main flow
       }
     };
@@ -964,6 +989,48 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           })
         });
 
+        // Create corresponding session history entry
+        const sessionHistory = await UserLevelSessionHistory.create({
+          userChapterLevelId: userChapterLevel?._id,
+          sessionId: session._id,
+          userId,
+          chapterId: level.chapterId,
+          levelId: level._id,
+          attemptType,
+          status: 0,
+          uniqueTopics: [],
+          currentQuestion: questionBank[0],
+          currentQuestionIndex: 0,
+          questionBank,
+          questionsAnswered: {
+            correct: [],
+            incorrect: []
+          },
+          questionsHistory: [],
+          streak: 0,
+          ...(attemptType === 'time_rush' ? {
+            timeRush: {
+              requiredCorrectQuestions: level.timeRush?.requiredCorrectQuestions || 0,
+              currentXp: 0,
+              minTime: userChapterLevel?.timeRush?.minTime || 0,
+              timeLimit: level.timeRush?.totalTime || 0,
+              currentTime: level.timeRush?.totalTime || 0,
+              totalQuestions: level.timeRush?.totalQuestions || 10
+            }
+          } : {
+            precisionPath: {
+              requiredCorrectQuestions: level.precisionPath?.requiredCorrectQuestions || 0,
+              currentXp: 0,
+              currentTime: 0,
+              minTime: userChapterLevel?.precisionPath?.minTime || Infinity,
+              totalQuestions: level.precisionPath?.totalQuestions || 10,
+              expectedTime: level.precisionPath?.expectedTime || 0
+            }
+          })
+        });
+
+        console.log(`✅ Created session history entry with ID: ${sessionHistory._id} for session: ${session._id}`);
+
         // Get the first question details
         const firstQuestion = await Question.findById(questionBank[0]);
         if (!firstQuestion) {
@@ -1512,8 +1579,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
 
-            // Save session to history before deletion
-            await saveSessionToHistory(session);
+            // Update session history with final data before deletion
+            await updateSessionHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1626,8 +1693,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
 
-            // Save session to history before deletion
-            await saveSessionToHistory(session);
+            // Update session history with final data before deletion
+            await updateSessionHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1857,8 +1924,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
 
-            // Save session to history before deletion
-            await saveSessionToHistory(session);
+            // Update session history with final data before deletion
+            await updateSessionHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);
@@ -1972,8 +2039,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
             const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
 
-            // Save session to history before deletion
-            await saveSessionToHistory(session);
+            // Update session history with final data before deletion
+            await updateSessionHistory(session);
 
             // Delete the session
             await UserLevelSession.findByIdAndDelete(userLevelSessionId);

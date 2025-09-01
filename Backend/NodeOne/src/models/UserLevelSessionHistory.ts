@@ -3,10 +3,12 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUserLevelSessionHistory extends Document {
   // Common fields
   userChapterLevelId: mongoose.Types.ObjectId;
+  sessionId: mongoose.Types.ObjectId; // Reference to the original UserLevelSession
   userId: mongoose.Types.ObjectId;
   chapterId: mongoose.Types.ObjectId;
   levelId: mongoose.Types.ObjectId;
   status: 0 | 1;
+  currentTime: number;
   uniqueTopics: mongoose.Types.ObjectId[];
   attemptType: 'time_rush' | 'precision_path';
   currentQuestion: mongoose.Types.ObjectId | null;
@@ -65,6 +67,11 @@ export const UserLevelSessionHistorySchema = new Schema<IUserLevelSessionHistory
     ref: 'UserChapterLevel',
     required: true
   },
+  sessionId: {
+    type: Schema.Types.ObjectId,
+    ref: 'UserLevelSession',
+    required: true
+  },
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -94,6 +101,10 @@ export const UserLevelSessionHistorySchema = new Schema<IUserLevelSessionHistory
     type: String,
     enum: ['time_rush', 'precision_path'],
     required: true
+  },
+  currentTime: {
+    type: Number,
+    min: 0
   },
   currentQuestion: {
     type: Schema.Types.ObjectId,
@@ -240,8 +251,9 @@ export const UserLevelSessionHistorySchema = new Schema<IUserLevelSessionHistory
   timestamps: true
 });
 
-// Index for faster queries
+// Indexes for faster queries
 UserLevelSessionHistorySchema.index({ userChapterLevelId: 1 });
+UserLevelSessionHistorySchema.index({ sessionId: 1 });
 
 
 
