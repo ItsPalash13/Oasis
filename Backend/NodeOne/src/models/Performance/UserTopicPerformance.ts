@@ -11,9 +11,14 @@ interface ITopicPerformanceEntry {
   accuracyHistory: IAccuracyPoint[];
 }
 
+interface ISectionPerformanceEntry {
+  sectionId: mongoose.Types.ObjectId;
+  topics: ITopicPerformanceEntry[];
+}
+
 export interface IUserTopicPerformance extends Document {
   userId: mongoose.Types.ObjectId;
-  topics: ITopicPerformanceEntry[];
+  sections: ISectionPerformanceEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,10 +56,10 @@ const TopicPerformanceEntrySchema = new Schema<ITopicPerformanceEntry>({
   }
 }, { _id: false });
 
-export const UserTopicPerformanceSchema = new Schema<IUserTopicPerformance>({
-  userId: {
+const SectionPerformanceEntrySchema = new Schema<ISectionPerformanceEntry>({
+  sectionId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Section',
     required: true
   },
   topics: {
@@ -62,10 +67,25 @@ export const UserTopicPerformanceSchema = new Schema<IUserTopicPerformance>({
     required: true,
     default: []
   }
+}, { _id: false });
+
+export const UserTopicPerformanceSchema = new Schema<IUserTopicPerformance>({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  sections: {
+    type: [SectionPerformanceEntrySchema],
+    required: true,
+    default: []
+  }
 }, { timestamps: true });
 
-// Helpful index for querying a user's performance on a specific topic
-UserTopicPerformanceSchema.index({ userId: 1, 'topics.topicId': 1 });
+// Helpful indexes for querying user's performance on sections and topics
+UserTopicPerformanceSchema.index({ userId: 1, 'sections.sectionId': 1 });
+UserTopicPerformanceSchema.index({ userId: 1, 'sections.topics.topicId': 1 });
+UserTopicPerformanceSchema.index({ userId: 1, 'sections.sectionId': 1, 'sections.topics.topicId': 1 });
 
 export const UserTopicPerformance = mongoose.model<IUserTopicPerformance>('UserTopicPerformance', UserTopicPerformanceSchema);
 

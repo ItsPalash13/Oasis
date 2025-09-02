@@ -1,5 +1,5 @@
 🎯 Purpose:
-A quiz app for JEE aspirants that helps students master subjects, chapters, and topics through personalized practice, smart feedback, and adaptive progression.
+A quiz app for JEE aspirants that helps students master subjects, chapters, sections, units, and topics through personalized practice, vast range of topics, detailed practice.
 
 🔍 Core Structure
 Your app is structured around:
@@ -32,3 +32,18 @@ Levels can be of 2 types
 
 🎯 Precision Path Mode // Needs Revision
 "Get n number of questions correct with h number of lives(wrongly answered) in a time(Timer)"
+
+OASIS is the only practice-first learning platform for competitive exam aspirants, where we follow a gamified approach to where chapters and topics branch like a connected tree — guiding you step by step toward exam mastery.
+Strong Points(Problems):-
+Backlogs pile up quickly — missing just a few days leaves Ravi permanently behind.
+No real feedback on progress — he solves questions but doesn’t know if he’s improving or just spinning his wheels.
+Decision fatigue — he wastes hours deciding what to study next instead of actually studying.
+Generic guidance from teachers — assignments are the same for everyone, even though students have different strengths and weaknesses.
+No structured revision — he learns new topics but forgets old ones because there’s no built-in review system.
+Low confidence from random practice — he feels like he’s working hard but still not exam-ready.
+Strong Points(Solution):-
+Backlogs pile up quickly → Guided learning tree with clear progression — Students always know exactly what to study next and can resume seamlessly after breaks.
+No real feedback on progress → Performance analytics — Instant insights on accuracy, speed, and mastery at every topic level.
+Decision fatigue → Structured progression (sections → units → levels → topics) — Removes guesswork by laying out a step-by-step learning path.
+No structured revision → Built-in review cycles — Automatic revisits to old topics to reinforce memory before moving forward.
+Low confidence from random practice → Gamified mastery system — XP, levels, and achievements make progress visible and build confidence over time.

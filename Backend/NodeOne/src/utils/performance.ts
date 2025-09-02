@@ -36,6 +36,7 @@ function computeWeightedMovingAverage(points: Array<{ timestamp: Date | string; 
 
 export async function processUserLevelSession(
   session: any,
+  level: any,
   options?: { attemptWindowSize?: number; accuracyWeight?: number }
 ): Promise<ProcessResult> {
   const attemptWindowSize = options?.attemptWindowSize ?? getEnvNumber('ATTEMPT_WINDOW_SIZE', 10);
@@ -50,24 +51,54 @@ export async function processUserLevelSession(
 
     const now = new Date();
 
+    // Get sectionId from the passed level object
+    if (!level) {
+      throw new Error('Level object is required');
+    }
+    const sectionId = level.sectionId;
+
     // Upsert or fetch the user topic performance document
     let utp = await UserTopicPerformance.findOne({ userId: snapshot.userId });
     if (!utp) {
-      utp = new UserTopicPerformance({ userId: snapshot.userId, topics: [] });
+      utp = new UserTopicPerformance({ userId: snapshot.userId, sections: [] });
+    } else {
+      // Ensure all existing sections have valid structure (backwards compatibility)
+      const invalidSections = utp.sections.filter(section => !section.sectionId || !Array.isArray(section.topics));
+      if (invalidSections.length > 0) {
+        console.log(`Found ${invalidSections.length} existing sections with invalid structure, will be cleaned up`);
+      }
     }
 
-    const topicsChangedIndexSet = new Set<number>();
+    const topicsChangedIndexSet = new Set<string>(); // Use string key: "sectionId_topicId"
     let skippedQuestions = 0;
 
-    const ensureTopicIndex = (topicId: any): number => {
-      const topics = utp!.topics as any[];
-      for (let i = 0; i < topics.length; i += 1) {
-        if (topics[i].topicId && String(topics[i].topicId) === String(topicId)) {
-          return i;
-        }
+    const ensureTopicIndex = (topicId: any, sectionId: any): string => {
+      const sections = utp!.sections as any[];
+      
+      // First, try to find the section
+      let sectionIndex = sections.findIndex(sec => sec.sectionId && String(sec.sectionId) === String(sectionId));
+      
+      if (sectionIndex === -1) {
+        // Create new section if it doesn't exist
+        sections.push({ sectionId, topics: [] });
+        sectionIndex = sections.length - 1;
       }
-      topics.push({ topicId, attemptsWindow: [], accuracyHistory: [] });
-      return topics.length - 1;
+      
+      const section = sections[sectionIndex];
+      
+      // Now find the topic within this section
+      let topicIndex = section.topics.findIndex((topic: any) => 
+        topic.topicId && String(topic.topicId) === String(topicId)
+      );
+      
+      if (topicIndex === -1) {
+        // Create new topic entry if it doesn't exist 
+        section.topics.push({ topicId, attemptsWindow: [], accuracyHistory: [] });
+        topicIndex = section.topics.length - 1;
+      }
+      
+      // Return a unique key for this section-topic combination
+      return `${sectionIndex}_${topicIndex}`;
     };
 
     for (const entry of snapshot.questionsHistory || []) {
@@ -82,21 +113,24 @@ export async function processUserLevelSession(
         const topicId = (topic as any).topicId;
         if (!topicId) continue;
 
-        const idx = ensureTopicIndex(topicId);
-        const topicEntry = (utp.topics as any[])[idx];
+        const topicKey = ensureTopicIndex(topicId, sectionId);
+        const [sectionIndex, topicIndex] = topicKey.split('_').map(Number);
+        const topicEntry = utp.sections[sectionIndex].topics[topicIndex];
 
         topicEntry.attemptsWindow.push({ timestamp: now, value: isCorrect });
         if (Array.isArray(topicEntry.attemptsWindow) && topicEntry.attemptsWindow.length > attemptWindowSize) {
           topicEntry.attemptsWindow = topicEntry.attemptsWindow.slice(-attemptWindowSize);
         }
-        topicsChangedIndexSet.add(idx);
+        topicsChangedIndexSet.add(topicKey);
       }
     }
 
     // Compute and append WMA accuracy once per touched topic
     const perTopicUpdates: TopicAccuracyUpdate[] = [];
-    for (const idx of topicsChangedIndexSet) {
-      const topicEntry = (utp.topics as any[])[idx];
+    for (const topicKey of topicsChangedIndexSet) {
+      const [sectionIndex, topicIndex] = topicKey.split('_').map(Number);
+      const topicEntry = utp.sections[sectionIndex].topics[topicIndex];
+      
       const topicIdStr = String(topicEntry.topicId);
       const history = Array.isArray(topicEntry.accuracyHistory) ? topicEntry.accuracyHistory : [];
       const previousAccuracy = history.length > 0 ? history[history.length - 1].accuracy : null;
@@ -106,6 +140,28 @@ export async function processUserLevelSession(
     }
 
     if (topicsChangedIndexSet.size > 0) {
+      // Clean up old entries without proper structure (backwards compatibility cleanup)
+      const originalSectionsCount = utp.sections.length;
+      utp.sections = utp.sections.filter(section => 
+        section && section.sectionId && Array.isArray(section.topics)
+      );
+      
+      // Clean up invalid topics within sections
+      utp.sections.forEach((section: any) => {
+        const originalTopicsCount = section.topics.length;
+        section.topics = section.topics.filter((topic: any) => 
+          topic && topic.topicId && Array.isArray(topic.attemptsWindow) && Array.isArray(topic.accuracyHistory)
+        );
+        if (section.topics.length !== originalTopicsCount) {
+          console.log(`Cleaned up ${originalTopicsCount - section.topics.length} invalid topics in section ${section.sectionId}`);
+        }
+      });
+      
+      const removedSectionsCount = originalSectionsCount - utp.sections.length;
+      if (removedSectionsCount > 0) {
+        console.log(`Cleaned up ${removedSectionsCount} invalid sections`);
+      }
+      
       await utp.save();
     }
 

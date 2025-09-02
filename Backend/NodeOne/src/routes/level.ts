@@ -21,9 +21,9 @@ import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance
 import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
 
     // Helper: compute topics accuracy updates from the in-memory session
-    const computeTopicsAccuracyUpdates = async (session: any) => {
+    const computeTopicsAccuracyUpdates = async (session: any, level: any) => {
       try {
-        const result = await processUserLevelSession(session);
+        const result = await processUserLevelSession(session, level);
         return result.topics.map(t => ({
           topicId: t.topicId,
           topicName: t.topicName || null,
@@ -1081,29 +1081,13 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         // Get topics for this chapter
         const chapterTopics = await Topic.find({ chapterId: chapterId }).select('topic').lean();
         
-        // Get latest accuracy for chapter topics
+        // Get user topic performance for section-specific accuracy
         const userTopicPerformance = await UserTopicPerformance.findOne({ userId: new mongoose.Types.ObjectId(userId) });
-        const topicAccuracyMap = new Map();
         
-        if (userTopicPerformance && userTopicPerformance.topics) {
-          for (const topicEntry of userTopicPerformance.topics) {
-            const topicId = topicEntry.topicId.toString();
-            const accuracyHistory = topicEntry.accuracyHistory || [];
-            if (accuracyHistory.length > 0) {
-              // Get the latest accuracy entry
-              const latestAccuracy = accuracyHistory.reduce((latest: any, current: any) => 
-                new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
-              );
-              topicAccuracyMap.set(topicId, latestAccuracy.accuracy);
-            }
-          }
-        }
-        
-        // Create chapter topics with accuracy data
+        // Create chapter topics without accuracy (accuracy moved to sections)
         const chapterTopicsWithAccuracy = chapterTopics.map((topic: any) => ({
           _id: topic._id,
-          topic: topic.topic,
-          accuracy: topicAccuracyMap.get(topic._id.toString()) || null
+          topic: topic.topic
         }));
 
         // Get user's sections for this chapter, then fetch units within those sections
@@ -1154,13 +1138,17 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         await initializeFirstLevel(userId, chapterId, chapterUnits);
 
         // Prepare topics for units and sections
-        const unitTopicIds = Array.from(new Set(chapterUnits.flatMap(unit => unit.topics.map(tid => tid.toString()))));
+        const unitTopicIds = Array.from(new Set(chapterUnits.flatMap(unit => 
+          (unit.topics || []).map(tid => tid?.toString()).filter(Boolean)
+        )));
 
         // Fetch sections docs for user
         const sectionDocs = sectionIds.length
           ? await Section.find({ _id: { $in: sectionIds } }).select('_id name description sectionNumber topics')
           : [];
-        const sectionTopicIds = Array.from(new Set(sectionDocs.flatMap(sec => (sec.topics || []).map((tid: any) => tid.toString()))));
+        const sectionTopicIds = Array.from(new Set(sectionDocs.flatMap(sec => 
+          (sec.topics || []).map((tid: any) => tid?.toString()).filter(Boolean)
+        )));
 
         const allTopicIds = Array.from(new Set([...unitTopicIds, ...sectionTopicIds]));
         const topicDocs = allTopicIds.length ? await Topic.find({ _id: { $in: allTopicIds } }).select('_id topic') : [];
@@ -1173,13 +1161,49 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         });
         const userUnitIds = new Set(userChapterUnits.map(ucu => ucu.unitId.toString()));
 
-        // Build sections with topic names for meta
+        // Build sections with topic names and section-specific accuracy for meta
         const sectionsWithTopicNames = sectionDocs.map((sec: any) => ({
           _id: sec._id,
           name: sec.name,
           description: sec.description,
           sectionNumber: sec.sectionNumber,
-          topics: (sec.topics || []).map((tid: any) => topicIdToName.get(tid.toString()) || tid.toString())
+          topics: (sec.topics || []).map((tid: any) => {
+            // Skip if topic ID is null or undefined
+            if (!tid) return null;
+            
+            const topicId = tid.toString();
+            const sectionId = sec._id.toString();
+            
+            // Find the specific topic performance for this section
+            let sectionSpecificAccuracy = null;
+            if (userTopicPerformance && userTopicPerformance.sections) {
+              // Find the section in userTopicPerformance
+              const sectionEntry = userTopicPerformance.sections.find(s => 
+                s && s.sectionId && String(s.sectionId) === sectionId
+              );
+              
+              if (sectionEntry && sectionEntry.topics) {
+                // Find the topic within this section
+                const topicEntry = sectionEntry.topics.find(t => 
+                  t && t.topicId && String(t.topicId) === topicId
+                );
+                
+                if (topicEntry && topicEntry.accuracyHistory && topicEntry.accuracyHistory.length > 0) {
+                  // Get the latest accuracy entry for this topic in this section
+                  const latestAccuracy = topicEntry.accuracyHistory.reduce((latest: any, current: any) => 
+                    new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
+                  );
+                  sectionSpecificAccuracy = latestAccuracy.accuracy;
+                }
+              }
+            }
+            
+            return {
+              _id: topicId,
+              topic: (topicIdToName && topicIdToName.get(topicId)) || topicId,
+              accuracy: sectionSpecificAccuracy
+            };
+          }).filter(Boolean) // Remove any null entries
         }));
 
         // Map units to include topic names and locked property
@@ -1189,7 +1213,10 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           description: unit.description,
           status: unit.status,
           unitNumber: unit.unitNumber,
-          topics: unit.topics.map(tid => topicIdToName.get(tid.toString()) || tid.toString()),
+          topics: unit.topics.map(tid => {
+            if (!tid) return null;
+            return (topicIdToName && topicIdToName.get(tid.toString())) || tid.toString();
+          }).filter(Boolean),
           locked: !userUnitIds.has((unit._id as any).toString())
         }));
 
@@ -1344,6 +1371,14 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           return res.status(404).json({
             success: false,
             error: 'Session not found'
+          });
+        }
+
+        const level = await Level.findById(session.levelId).select('sectionId name topics');
+        if (!level) {
+          return res.status(404).json({
+            success: false,
+            error: 'Level not found'
           });
         }
 
@@ -1544,8 +1579,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             );
             const xpPercentile = xpResult.percentile;
 
-            // Get level details for GPT feedback
-            const level = await Level.findById(session.levelId);
+            // Get level details for GPT feedback (using already fetched level)
             const levelTopics = level?.topics || [];
             const topicNames = await Topic.find({ _id: { $in: levelTopics } }).select('topic');
             const topicNamesList = topicNames.map(t => t.topic);
@@ -1580,7 +1614,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             // Now process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
-            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session, level);
 
             // Update session history with final data before deletion
             await updateSessionHistory(session);
@@ -1661,8 +1695,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             );
             const xpPercentile = xpResult.percentile;
 
-            // Get level details for GPT feedback
-            const level = await Level.findById(session.levelId);
+            // Get level details for GPT feedback (using already fetched level)
             const levelTopics = level?.topics || [];
             const topicNames = await Topic.find({ _id: { $in: levelTopics } }).select('topic');
             const topicNamesList = topicNames.map(t => t.topic);
@@ -1697,7 +1730,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
-            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session, level);
 
             // Update session history with final data before deletion
             await updateSessionHistory(session);
@@ -1895,8 +1928,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             );
             const xpPercentile = xpResult.percentile;
 
-            // Get level details for GPT feedback
-            const level = await Level.findById(session.levelId);
+            // Get level details for GPT feedback (using already fetched level)
             const levelTopics = level?.topics || [];
             const topicNames = await Topic.find({ _id: { $in: levelTopics } }).select('topic');
             const topicNamesList = topicNames.map(t => t.topic);
@@ -1931,7 +1963,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
-            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session, level);
 
             // Update session history with final data before deletion
             await updateSessionHistory(session);
@@ -2014,8 +2046,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             );
             const xpPercentile = xpResult.percentile;
 
-            // Get level details for GPT feedback
-            const level = await Level.findById(session.levelId);
+            // Get level details for GPT feedback (using already fetched level)
             const levelTopics = level?.topics || [];
             const topicNames = await Topic.find({ _id: { $in: levelTopics } }).select('topic');
             const topicNamesList = topicNames.map(t => t.topic);
@@ -2050,7 +2081,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             // Before deleting the session, process badges
             await processBadgesAfterQuiz(userLevelSessionId);
 
-            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session);
+            const topicsAccuracyUpdates = await computeTopicsAccuracyUpdates(session, level);
 
             // Update session history with final data before deletion
             await updateSessionHistory(session);

@@ -8,10 +8,10 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 import { useTheme } from '@mui/material/styles';
 import { colors, themeColors } from '../../theme/colors';
 
-// Props: { topicIds: string[], topicIdToName?: Record<string,string>, startDate?: string, endDate?: string }
-const Topics = ({ topicIds = [], topicIdToName = {}, startDate, endDate, chapterId }) => {
-  const { data: latestData, isLoading: latestLoading } = useGetTopicsAccuracyLatestQuery({ topicIds, chapterId }, { skip: !topicIds.length && !chapterId });
-  const { data: historyData, isLoading: historyLoading } = useGetTopicsAccuracyHistoryQuery({ topicIds, chapterId, startDate, endDate }, { skip: !topicIds.length && !chapterId });
+// Props: { topicIds: string[], topicIdToName?: Record<string,string>, startDate?: string, endDate?: string, sectionId?: string }
+const Topics = ({ topicIds = [], topicIdToName = {}, startDate, endDate, chapterId, sectionId }) => {
+  const { data: latestData, isLoading: latestLoading } = useGetTopicsAccuracyLatestQuery({ topicIds, sectionId }, { skip: !topicIds.length && !sectionId });
+  const { data: historyData, isLoading: historyLoading } = useGetTopicsAccuracyHistoryQuery({ topicIds, sectionId, startDate, endDate }, { skip: !topicIds.length && !sectionId });
 
   const [openTopicId, setOpenTopicId] = useState(null);
 

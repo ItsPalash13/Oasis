@@ -120,6 +120,7 @@ const Levels: React.FC = () => {
   const [showTopicsPerformance, setShowTopicsPerformance] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [selectedLevelForDetails, setSelectedLevelForDetails] = useState<Level | null>(null);
+  const [selectedSectionForTopics, setSelectedSectionForTopics] = useState<any>(null);
   const { chapterId } = useParams<{ chapterId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -569,55 +570,23 @@ const Levels: React.FC = () => {
                 <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
                   {chapter.name}
                 </Typography>
-                <Tooltip title="Topics Accuracy">
-                  <IconButton
-                    onClick={() => setShowTopicsPerformance(true)}
-                    size="small"
-                    sx={{
-                      color: theme => theme.palette.mode === 'dark'
-                        ? colors.ui.dark.buttonSecondary
-                        : colors.ui.light.buttonSecondary,
-                      ml: 0
-                    }}
-                  >
-                    <TimelineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
               </Box>
             </Box>
-            {/* Chapter Topics */}
+            {/* Chapter Topics - removed accuracy display (moved to sections) */}
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
               {chapter.topics && chapter.topics.length > 0 ? (
                 chapter.topics.map((topic, index) => {
-                  // Handle both old string format and new object format with accuracy
+                  // Handle both old string format and new object format
                   const topicName = typeof topic === 'string' ? topic : topic.topic;
-                  const accuracy = typeof topic === 'object' && topic.accuracy !== undefined ? topic.accuracy : null;
                   
-                  // Determine background color based on accuracy
-                  const getBackgroundColor = (acc: number | null) => {
-                    if (acc === null) {
-                      return (theme: any) => theme.palette.mode === 'dark' ? "#0C0C0C" : "#FAFAFA";
-                    }
-                    if (acc >= 0.75) return colors.success.main;
-                    if (acc >= 0.5) return colors.warning.main;
-                    return colors.error.main;
-                  };
-                  
-                  // Determine text color based on accuracy
-                  const getTextColor = (acc: number | null) => {
-                    if (acc === null) {
-                      return (theme: any) => theme.palette.mode === 'dark' ? '#F8F9FF' : '#111111';
-                    }
-                    return 'white'; // White text for colored backgrounds
-                  };
-                  
-                  const TopicBox = (
+                  return (
                     <Box
+                      key={index}
                       sx={{
                         px: 1,
                         py: 0.25,
-                        backgroundColor: getBackgroundColor(accuracy),
-                        color: getTextColor(accuracy),
+                        backgroundColor: (theme: any) => theme.palette.mode === 'dark' ? "#0C0C0C" : "#FAFAFA",
+                        color: (theme: any) => theme.palette.mode === 'dark' ? '#F8F9FF' : '#111111',
                         borderRadius: 0.75,
                         fontSize: '0.75rem',
                         fontWeight: 500,
@@ -630,27 +599,6 @@ const Levels: React.FC = () => {
                       }}
                     >
                       {topicName}
-                    </Box>
-                  );
-                  
-                  // Only show tooltip if accuracy data exists
-                  if (accuracy !== null) {
-                    const accuracyPercentage = Math.round(accuracy * 100);
-                    return (
-                      <Tooltip 
-                        key={index}
-                        title={`Accuracy: ${accuracyPercentage}%`}
-                        arrow
-                        placement="top"
-                      >
-                        {TopicBox}
-                      </Tooltip>
-                    );
-                  }
-                  
-                  return (
-                    <Box key={index}>
-                      {TopicBox}
                     </Box>
                   );
                 })
@@ -691,29 +639,96 @@ const Levels: React.FC = () => {
             {sections.map((section) => (
               <Box key={section._id} sx={{ mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Section {section.sectionNumber}: {section.name}
-                </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  {(section.topics || []).map((topic: any, idx: number) => (
-                    <Box
-                      key={idx}
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Section {section.sectionNumber}: {section.name}
+                  </Typography>
+                  <Tooltip title="Section Topics Accuracy">
+                    <IconButton
+                      onClick={() => {
+                        setSelectedSectionForTopics(section);
+                        setShowTopicsPerformance(true);
+                      }}
+                      size="small"
                       sx={{
-                        px: 1,
-                        py: 0.25,
-                        backgroundColor: '#FFD54F',
-                        color: '#111',
-                        borderRadius: 0.75,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                        color: theme => theme.palette.mode === 'dark'
+                          ? colors.ui.dark.buttonSecondary
+                          : colors.ui.light.buttonSecondary,
+                        ml: 0
                       }}
                     >
-                      {typeof topic === 'string' ? topic : topic.topic}
-                    </Box>
-                  ))}
+                      <TimelineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+
+                {/* Section Topics with Accuracy */}
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {(section.topics || []).map((topic: any, idx: number) => {
+                    // Handle both old string format and new object format with accuracy
+                    const topicName = typeof topic === 'string' ? topic : topic.topic;
+                    const accuracy = typeof topic === 'object' && topic.accuracy !== undefined ? topic.accuracy : null;
+                    
+                    // Determine background color based on accuracy
+                    const getBackgroundColor = (acc: number | null) => {
+                      if (acc === null) {
+                        return (theme: any) => theme.palette.mode === 'dark' ? "#0C0C0C" : "#FAFAFA";
+                      }
+                      if (acc >= 0.75) return colors.success.main;
+                      if (acc >= 0.5) return colors.warning.main;
+                      return colors.error.main;
+                    };
+                    
+                    // Determine text color based on accuracy
+                    const getTextColor = (acc: number | null) => {
+                      if (acc === null) {
+                        return (theme: any) => theme.palette.mode === 'dark' ? '#F8F9FF' : '#111111';
+                      }
+                      return 'white'; // White text for colored backgrounds
+                    };
+                    
+                    const TopicBox = (
+                      <Box
+                        sx={{
+                          px: 1,
+                          py: 0.25,
+                          backgroundColor: getBackgroundColor(accuracy),
+                          color: getTextColor(accuracy),
+                          borderRadius: 0.75,
+                          fontSize: '0.75rem',
+                          fontWeight: 500,
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+                          }
+                        }}
+                      >
+                        {topicName}
+                      </Box>
+                    );
+                    
+                    // Only show tooltip if accuracy data exists
+                    if (accuracy !== null) {
+                      const accuracyPercentage = Math.round(accuracy * 100);
+                      return (
+                        <Tooltip 
+                          key={idx}
+                          title={`Accuracy: ${accuracyPercentage}%`}
+                          arrow
+                          placement="top"
+                        >
+                          {TopicBox}
+                        </Tooltip>
+                      );
+                    }
+                    
+                    return (
+                      <Box key={idx}>
+                        {TopicBox}
+                      </Box>
+                    );
+                  })}
                 </Box>
               </Box>
             ))}
@@ -832,10 +847,13 @@ const Levels: React.FC = () => {
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6" sx={{ color: themeColors.text.primary }}>
-              Topics Accuracy
+              {selectedSectionForTopics ? `Section ${selectedSectionForTopics.sectionNumber}: ${selectedSectionForTopics.name} - Topics Accuracy` : 'Topics Accuracy'}
             </Typography>
             <IconButton 
-              onClick={() => setShowTopicsPerformance(false)}
+              onClick={() => {
+                setShowTopicsPerformance(false);
+                setSelectedSectionForTopics(null);
+              }}
               sx={{ color: themeColors.text.secondary }}
             >
               <ArrowBackIcon />
@@ -848,12 +866,16 @@ const Levels: React.FC = () => {
         }}>
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="text.secondary">
-            Shows your accuracy of topics, with recent answers weighed more than older ones.
+              {selectedSectionForTopics 
+                ? `Shows your accuracy of topics in Section ${selectedSectionForTopics.sectionNumber}, with recent answers weighed more than older ones.`
+                : 'Shows your accuracy of topics, with recent answers weighed more than older ones.'
+              }
             </Typography>
           </Box>
           <Topics 
             chapterId={chapterId as any}
             topicIdToName={chapterTopicIdToName as any}
+            sectionId={selectedSectionForTopics?._id}
           />
         </DialogContent>
       </Dialog>

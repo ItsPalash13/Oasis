@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { Topic } from '../models/Topic';
+import { Section } from '../models/Section';
 import { UserTopicPerformance } from '../models/Performance/UserTopicPerformance';
 import authMiddleware from '../middleware/authMiddleware';
 
@@ -10,22 +11,27 @@ export default router;
 
 // New APIs: User topic accuracy history (WMA) from UserTopicPerformance
 
-// GET /api/performance/topics-accuracy-history?topicIds=a,b,c&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+// GET /api/performance/topics-accuracy-history?topicIds=a,b,c&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&sectionId=xyz
 router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const topicIdsParam = req.query.topicIds as string | undefined;
-    const chapterId = req.query.chapterId as string | undefined;
+    const sectionId = req.query.sectionId as string | undefined;
     const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
 
     let topicIds: string[] = [];
     if (topicIdsParam && topicIdsParam.length > 0) {
       topicIds = topicIdsParam.split(',').map(id => id.trim()).filter(Boolean);
-    } else if (chapterId) {
-      const chapterTopics = await Topic.find({ chapterId }).select('_id');
-      topicIds = chapterTopics.map((t: any) => t._id.toString());
+    } else if (sectionId) {
+      // If no topicIds but sectionId is provided, get topics from that section
+      const section = await Section.findById(sectionId).select('topics');
+      if (section && section.topics) {
+        topicIds = section.topics.map((t: any) => t.toString());
+      } else {
+        return res.json({ data: [], meta: { topicIds: [], sectionId, startDate: startDate || null, endDate: endDate || null, totalTopics: 0 } });
+      }
     } else {
-      return res.status(400).json({ error: 'Provide topicIds or chapterId' });
+      return res.status(400).json({ error: 'Provide topicIds or sectionId' });
     }
 
     const utp = await UserTopicPerformance.findOne({ userId });
@@ -45,10 +51,26 @@ router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
     const topicNameMap = new Map((topicsDocs as any[]).map((t: any) => [t._id.toString(), t.topic]));
 
     const topicIdSet = new Set(topicIds.map(id => id.toString()));
-    const data = (utp.topics || [])
-      .filter((t: any) => topicIdSet.has(t.topicId.toString()))
-      .map((t: any) => {
-        const history = Array.isArray(t.accuracyHistory) ? t.accuracyHistory : [];
+    const data = (utp.sections || [])
+      .flatMap(section => {
+        if (!section || !section.sectionId || !Array.isArray(section.topics)) {
+          return []; // Skip invalid sections
+        }
+        return (section.topics || []).map(topic => ({ ...topic, section }));
+      })
+      .filter((item: any) => {
+        if (!item || !item.section || !item.topicId) {
+          return false; // Skip invalid items
+        }
+        const matchesToopic = topicIdSet.has(item.topicId.toString());
+        const matchesSection = !sectionId || (item.section.sectionId && item.section.sectionId.toString() === sectionId);
+        return matchesToopic && matchesSection;
+      })
+      .map((item: any) => {
+        if (!item || !item.section) {
+          return null; // Skip invalid items
+        }
+        const history = Array.isArray(item.accuracyHistory) ? item.accuracyHistory : [];
         const filtered = history.filter((p: any) => {
           const ts = new Date(p.timestamp);
           if (start && ts < start) return false;
@@ -56,20 +78,23 @@ router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
           return true;
         }).sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
         return {
-          topicId: t.topicId.toString(),
-          topicName: topicNameMap.get(t.topicId.toString()) || null,
+          topicId: item.topicId.toString(),
+          topicName: topicNameMap.get(item.topicId.toString()) || null,
+          sectionId: item.section.sectionId?.toString() || null,
           accuracyHistory: filtered.map((p: any) => ({
             timestamp: p.timestamp,
             accuracy: p.accuracy
           }))
         };
-      });
+      })
+      .filter(Boolean); // Remove null entries
 
     return res.json({
       data,
       meta: {
         topicIds,
-        chapterId: chapterId || null,
+        chapterId: null, // No longer applicable
+        sectionId: sectionId || null,
         startDate: startDate || null,
         endDate: endDate || null,
         totalTopics: data.length
@@ -81,20 +106,25 @@ router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/performance/topics-accuracy-latest?topicIds=a,b,c
+// GET /api/performance/topics-accuracy-latest?topicIds=a,b,c&sectionId=xyz
 router.get('/topics-accuracy-latest', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const topicIdsParam = req.query.topicIds as string | undefined;
-    const chapterId = req.query.chapterId as string | undefined;
+    const sectionId = req.query.sectionId as string | undefined;
     let topicIds: string[] = [];
     if (topicIdsParam && topicIdsParam.length > 0) {
       topicIds = topicIdsParam.split(',').map(id => id.trim()).filter(Boolean);
-    } else if (chapterId) {
-      const chapterTopics = await Topic.find({ chapterId }).select('_id');
-      topicIds = chapterTopics.map((t: any) => t._id.toString());
+    } else if (sectionId) {
+      // If no topicIds but sectionId is provided, get topics from that section
+      const section = await Section.findById(sectionId).select('topics');
+      if (section && section.topics) {
+        topicIds = section.topics.map((t: any) => t.toString());
+      } else {
+        return res.json({ data: [], meta: { topicIds: [], sectionId, totalTopics: 0 } });
+      }
     } else {
-      return res.status(400).json({ error: 'Provide topicIds or chapterId' });
+      return res.status(400).json({ error: 'Provide topicIds or sectionId' });
     }
 
     const utp = await UserTopicPerformance.findOne({ userId });
@@ -106,23 +136,42 @@ router.get('/topics-accuracy-latest', async (req: Request, res: Response) => {
     const topicNameMap = new Map((topicsDocs as any[]).map((t: any) => [t._id.toString(), t.topic]));
 
     const topicIdSet = new Set(topicIds.map(id => id.toString()));
-    const data = (utp.topics || [])
-      .filter((t: any) => topicIdSet.has(t.topicId.toString()))
-      .map((t: any) => {
-        const history = Array.isArray(t.accuracyHistory) ? t.accuracyHistory : [];
+    const data = (utp.sections || [])
+      .flatMap(section => {
+        if (!section || !section.sectionId || !Array.isArray(section.topics)) {
+          return []; // Skip invalid sections
+        }
+        return (section.topics || []).map(topic => ({ ...topic, section }));
+      })
+      .filter((item: any) => {
+        if (!item || !item.section || !item.topicId) {
+          return false; // Skip invalid items
+        }
+        const matchesToopic = topicIdSet.has(item.topicId.toString());
+        const matchesSection = !sectionId || (item.section.sectionId && item.section.sectionId.toString() === sectionId);
+        return matchesToopic && matchesSection;
+      })
+      .map((item: any) => {
+        if (!item || !item.section) {
+          return null; // Skip invalid items
+        }
+        const history = Array.isArray(item.accuracyHistory) ? item.accuracyHistory : [];
         const latest = history.length > 0 ? history.reduce((a: any, b: any) => new Date(a.timestamp) > new Date(b.timestamp) ? a : b) : null;
         return {
-          topicId: t.topicId.toString(),
-          topicName: topicNameMap.get(t.topicId.toString()) || null,
+          topicId: item.topicId.toString(),
+          topicName: topicNameMap.get(item.topicId.toString()) || null,
+          sectionId: item.section.sectionId?.toString() || null,
           latest: latest ? { timestamp: latest.timestamp, accuracy: latest.accuracy } : null
         };
-      });
+      })
+      .filter(Boolean); // Remove null entries
     
     return res.json({
       data,
       meta: {
         topicIds,
-        chapterId: chapterId || null,
+        chapterId: null, // No longer applicable
+        sectionId: sectionId || null,
         totalTopics: data.length
       }
     });

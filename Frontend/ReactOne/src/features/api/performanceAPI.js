@@ -9,19 +9,19 @@ export const performanceApi = createApi({
   tagTypes: ['Performance'],
   endpoints: (builder) => ({
     getTopicsAccuracyLatest: builder.query({
-      query: ({ topicIds, chapterId }) => ({
+      query: ({ topicIds, sectionId }) => ({
         url: topicIds && topicIds.length
           ? `/api/performance/topics-accuracy-latest?topicIds=${topicIds.join(',')}`
-          : `/api/performance/topics-accuracy-latest?chapterId=${chapterId}`,
+          : `/api/performance/topics-accuracy-latest?sectionId=${sectionId}`,
         method: 'GET',
       }),
       providesTags: ['Performance'],
     }),
     getTopicsAccuracyHistory: builder.query({
-      query: ({ topicIds, chapterId, startDate, endDate }) => ({
+      query: ({ topicIds, sectionId, startDate, endDate }) => ({
         url: topicIds && topicIds.length
           ? `/api/performance/topics-accuracy-history?topicIds=${topicIds.join(',')}${startDate ? `&startDate=${startDate}` : ''}${endDate ? `&endDate=${endDate}` : ''}`
-          : `/api/performance/topics-accuracy-history?chapterId=${chapterId}${startDate ? `&startDate=${startDate}` : ''}${endDate ? `&endDate=${endDate}` : ''}`,
+          : `/api/performance/topics-accuracy-history?sectionId=${sectionId}${startDate ? `&startDate=${startDate}` : ''}${endDate ? `&endDate=${endDate}` : ''}`,
         method: 'GET',
       }),
       providesTags: ['Performance'],
