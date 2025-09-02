@@ -608,7 +608,7 @@ const Levels: React.FC = () => {
                 </Typography>
               )}
             </Box>
-            {/* Chapter Progress Bar */}
+            {/* Chapter Progress Bar 
             <Box sx={{ mb: 3 }}>
               {levels.length > 0 && (
                 (() => {
@@ -631,6 +631,7 @@ const Levels: React.FC = () => {
                 })()
               )}
             </Box>
+            */}
           </Box>
         )}
         {/* Sections Display */}

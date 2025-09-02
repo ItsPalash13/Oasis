@@ -38,7 +38,7 @@ router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
     if (!utp) {
       return res.json({ data: [], meta: { topicIds, startDate: startDate || null, endDate: endDate || null } });
     }
-
+    
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
     // If end is a date-only string, include the full day by setting to 23:59:59.999
@@ -51,19 +51,36 @@ router.get('/topics-accuracy-history', async (req: Request, res: Response) => {
     const topicNameMap = new Map((topicsDocs as any[]).map((t: any) => [t._id.toString(), t.topic]));
 
     const topicIdSet = new Set(topicIds.map(id => id.toString()));
+    console.log('Topic IDs to find:', topicIds.length);
+    console.log('Section ID requested:', sectionId);
+    
     const data = (utp.sections || [])
       .flatMap(section => {
         if (!section || !section.sectionId || !Array.isArray(section.topics)) {
           return []; // Skip invalid sections
         }
-        return (section.topics || []).map(topic => ({ ...topic, section }));
+        const mappedTopics = (section.topics || []).map(topic => {
+          // Extract the actual topic data from Mongoose subdocument
+          const topicData = {
+            topicId: topic.topicId,
+            attemptsWindow: topic.attemptsWindow || [],
+            accuracyHistory: topic.accuracyHistory || [],
+            section: section
+          };
+          return topicData;
+        });
+        return mappedTopics;
       })
       .filter((item: any) => {
         if (!item || !item.section || !item.topicId) {
           return false; // Skip invalid items
         }
+        
         const matchesToopic = topicIdSet.has(item.topicId.toString());
-        const matchesSection = !sectionId || (item.section.sectionId && item.section.sectionId.toString() === sectionId);
+        const itemSectionId = item.section.sectionId?.toString();
+        const requestedSectionIdStr = sectionId?.toString();
+        const matchesSection = !sectionId || (itemSectionId && itemSectionId === requestedSectionIdStr);
+        
         return matchesToopic && matchesSection;
       })
       .map((item: any) => {
@@ -136,19 +153,40 @@ router.get('/topics-accuracy-latest', async (req: Request, res: Response) => {
     const topicNameMap = new Map((topicsDocs as any[]).map((t: any) => [t._id.toString(), t.topic]));
 
     const topicIdSet = new Set(topicIds.map(id => id.toString()));
+    console.log('Topic IDs to find:', topicIds.length);
+    console.log('Section ID requested:', sectionId);
+    
     const data = (utp.sections || [])
       .flatMap(section => {
         if (!section || !section.sectionId || !Array.isArray(section.topics)) {
           return []; // Skip invalid sections
         }
-        return (section.topics || []).map(topic => ({ ...topic, section }));
+        console.log('Processing section:', {
+          sectionId: section.sectionId.toString(),
+          topicsCount: section.topics.length
+        });
+        const mappedTopics = (section.topics || []).map(topic => {
+          // Extract the actual topic data from Mongoose subdocument
+          const topicData = {
+            topicId: topic.topicId,
+            attemptsWindow: topic.attemptsWindow || [],
+            accuracyHistory: topic.accuracyHistory || [],
+            section: section
+          };
+          return topicData;
+        });
+        return mappedTopics;
       })
       .filter((item: any) => {
         if (!item || !item.section || !item.topicId) {
           return false; // Skip invalid items
         }
+        
         const matchesToopic = topicIdSet.has(item.topicId.toString());
-        const matchesSection = !sectionId || (item.section.sectionId && item.section.sectionId.toString() === sectionId);
+        const itemSectionId = item.section.sectionId?.toString();
+        const requestedSectionIdStr = sectionId?.toString();
+        const matchesSection = !sectionId || (itemSectionId && itemSectionId === requestedSectionIdStr);
+        
         return matchesToopic && matchesSection;
       })
       .map((item: any) => {
