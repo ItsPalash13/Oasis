@@ -37,7 +37,8 @@ import {
   useDeleteQuestionMutation,
   useGetChaptersQuery,
   useGetTopicsQuery,
-  useGetUnitsQuery
+  useGetSectionsQuery,
+  useBulkAssignSectionMutation
 } from '../../features/api/adminAPI';
 import { useUploadQuestionImageMutation } from '../../features/api/adminAPI';
 import { saveAs } from 'file-saver';
@@ -47,14 +48,14 @@ const Questions = () => {
   const [openMultiAddDialog, setOpenMultiAddDialog] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [selectedChapter, setSelectedChapter] = useState('');
-  const [selectedUnit, setSelectedUnit] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTopicFilters, setSelectedTopicFilters] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [multiAddData, setMultiAddData] = useState({
     questions: '',
     chapterId: '',
-    unitId: '',
+    sectionId: '',
     topicIds: [],
     xpCorrect: 2,
     xpIncorrect: 0,
@@ -64,9 +65,9 @@ const Questions = () => {
   });
 
   const { data: chaptersData } = useGetChaptersQuery();
-  const { data: unitsData } = useGetUnitsQuery(selectedChapter, { skip: !selectedChapter });
+  const { data: sectionsData } = useGetSectionsQuery(selectedChapter, { skip: !selectedChapter });
   const { data: questionsData, isLoading } = useGetQuestionsQuery(
-    { chapterId: selectedChapter, unitId: selectedUnit }, 
+    { chapterId: selectedChapter, sectionId: selectedSection }, 
     { skip: !selectedChapter }
   );
   const { data: topicsData } = useGetTopicsQuery(selectedChapter, { skip: !selectedChapter });
@@ -103,14 +104,31 @@ const Questions = () => {
       });
     }
     
+    // Apply section filter (if a section is selected)
+    if (selectedSection) {
+      filtered = filtered.filter(question => {
+        const questionSectionId = question.sectionId?._id || question.sectionId;
+        if (selectedSection === 'no-section') {
+          return !questionSectionId;
+        }
+        return questionSectionId === selectedSection;
+      });
+    }
+    
     return filtered;
-  }, [questionsData?.data, searchQuery, selectedTopicFilters]);
+  }, [questionsData?.data, searchQuery, selectedTopicFilters, selectedSection]);
   
   const [createQuestion] = useCreateQuestionMutation();
   const [multiAddQuestions] = useMultiAddQuestionsMutation();
   const [updateQuestion] = useUpdateQuestionMutation();
   const [deleteQuestion] = useDeleteQuestionMutation();
   const [uploadQuestionImage] = useUploadQuestionImageMutation();
+  const [bulkAssignSection] = useBulkAssignSectionMutation();
+
+  // Bulk assign section dialog state
+  const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
+  const [selectedSectionForBulk, setSelectedSectionForBulk] = useState('');
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
 
   // Image upload dialog state
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -159,7 +177,7 @@ const Questions = () => {
     options: ['', '', '', ''],
     correct: 0,
     chapterId: '',
-    unitId: '',
+    sectionId: '',
     topics: [],
     solution: '',
     solutionType: 'text'
@@ -173,7 +191,7 @@ const Questions = () => {
         options: question.options,
         correct: question.correct,
         chapterId: question.chapterId?._id || question.chapterId,
-        unitId: question.unitId?._id || question.unitId || '',
+        sectionId: question.sectionId?._id || question.sectionId || '',
         topics: question.topics || [],
         solution: question.solution || '',
         solutionType: question.solutionType || 'text'
@@ -185,7 +203,7 @@ const Questions = () => {
         options: ['', '', '', ''],
         correct: 0,
         chapterId: selectedChapter,
-        unitId: selectedUnit,
+        sectionId: selectedSection,
         topics: [],
         solution: '',
         solutionType: 'text'
@@ -202,7 +220,7 @@ const Questions = () => {
       options: ['', '', '', ''],
       correct: 0,
       chapterId: '',
-      unitId: '',
+      sectionId: '',
       topics: [],
       solution: '',
       solutionType: 'text'
@@ -247,6 +265,37 @@ const Questions = () => {
       } catch (error) {
         console.error('Error deleting questions:', error);
       }
+    }
+  };
+
+  const handleBulkAssignSection = async () => {
+    if (selectedRows.length === 0) {
+      alert('Please select questions to assign section');
+      return;
+    }
+
+    if (!selectedSectionForBulk) {
+      alert('Please select a section');
+      return;
+    }
+
+    try {
+      setIsBulkAssigning(true);
+      await bulkAssignSection({
+        questionIds: selectedRows,
+        sectionId: selectedSectionForBulk === 'no-section' ? null : selectedSectionForBulk,
+        chapterId: selectedChapter
+      }).unwrap();
+      
+      setBulkAssignDialogOpen(false);
+      setSelectedSectionForBulk('');
+      setSelectedRows([]); // Clear selection after successful assignment
+      alert(`Successfully assigned section to ${selectedRows.length} questions`);
+    } catch (error) {
+      console.error('Error bulk assigning section:', error);
+      alert('Error assigning section to questions');
+    } finally {
+      setIsBulkAssigning(false);
     }
   };
 
@@ -367,7 +416,7 @@ const Questions = () => {
       await multiAddQuestions({
         questions: parsedQuestions,
         chapterId: selectedChapter,
-        unitId: multiAddData.unitId || undefined,
+        sectionId: multiAddData.sectionId || undefined,
         topicIds: multiAddData.topicIds,
         xpCorrect: multiAddData.xpCorrect,
         xpIncorrect: multiAddData.xpIncorrect,
@@ -380,7 +429,7 @@ const Questions = () => {
       setMultiAddData({
         questions: '',
         chapterId: '',
-        unitId: '',
+        sectionId: '',
         topicIds: [],
         xpCorrect: 2,
         xpIncorrect: 0,
@@ -509,8 +558,8 @@ const Questions = () => {
       )
     },
     { 
-      field: 'unitId', 
-      headerName: 'Unit', 
+      field: 'sectionId', 
+      headerName: 'Section', 
       width: 120,
       renderCell: (params) => (
         <Typography>
@@ -636,7 +685,7 @@ const Questions = () => {
             value={selectedChapter}
             onChange={(e) => {
               setSelectedChapter(e.target.value);
-              setSelectedUnit(''); // Reset unit when chapter changes
+              setSelectedSection(''); // Reset section when chapter changes
             }}
           >
             {chaptersData?.data?.map((chapter) => (
@@ -647,19 +696,20 @@ const Questions = () => {
           </Select>
         </FormControl>
         <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="unit-select-label">Unit (Optional)</InputLabel>
+          <InputLabel id="section-select-label">Section (Optional)</InputLabel>
           <Select
-            labelId="unit-select-label"
-            label="Unit (Optional)"
-            value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
+            labelId="section-select-label"
+            label="Section (Optional)"
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            title="Filter questions by section"
           >
             <MenuItem value="">
-              <em>All Units</em>
+              <em>All Sections</em>
             </MenuItem>
-            {unitsData?.data?.map((unit) => (
-              <MenuItem key={unit._id} value={unit._id}>
-                {unit.name}
+            {sectionsData?.data?.map((section) => (
+              <MenuItem key={section._id} value={section._id}>
+                {section.name}
               </MenuItem>
             ))}
           </Select>
@@ -726,6 +776,16 @@ const Questions = () => {
             Delete Selected ({selectedRows.length})
           </Button>
         )}
+        {selectedRows.length > 0 && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setBulkAssignDialogOpen(true)}
+            disabled={selectedRows.length === 0}
+          >
+            Assign Section ({selectedRows.length})
+          </Button>
+        )}
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -736,7 +796,130 @@ const Questions = () => {
         </Button>
       </Box>
 
-      <Box height={600}>
+      {/* Filter Summary */}
+      {(selectedChapter || selectedSection || selectedTopicFilters.length > 0) && (
+        <Box sx={{ 
+          mb: 2, 
+          p: 2, 
+          bgcolor: 'background.paper', 
+          borderRadius: 1, 
+          border: '1px solid', 
+          borderColor: 'divider' 
+        }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+            Active Filters:
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {selectedChapter && (
+              <Chip
+                label={`Chapter: ${chaptersData?.data?.find(c => c._id === selectedChapter)?.name}`}
+                color="primary"
+                variant="outlined"
+                onDelete={() => setSelectedChapter('')}
+                deleteIcon={<span style={{ cursor: 'pointer' }}>×</span>}
+              />
+            )}
+            {selectedSection && (
+              <Chip
+                label={`Section: ${sectionsData?.data?.find(s => s._id === selectedSection)?.name}`}
+                color="secondary"
+                variant="outlined"
+                onDelete={() => setSelectedSection('')}
+                deleteIcon={<span style={{ cursor: 'pointer' }}>×</span>}
+              />
+            )}
+            {selectedTopicFilters.map((topic, index) => (
+              <Chip
+                key={index}
+                label={`Topic: ${topic}`}
+                color="info"
+                variant="outlined"
+                onDelete={() => {
+                  const newFilters = selectedTopicFilters.filter((_, i) => i !== index);
+                  setSelectedTopicFilters(newFilters);
+                }}
+                deleteIcon={<span style={{ cursor: 'pointer' }}>×</span>}
+              />
+            ))}
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => {
+                setSelectedChapter('');
+                setSelectedSection('');
+                setSelectedTopicFilters([]);
+                setSearchQuery('');
+              }}
+              sx={{ ml: 1 }}
+            >
+              Clear All Filters
+            </Button>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Showing {filteredQuestions.length} of {questionsData?.data?.length || 0} questions
+          </Typography>
+        </Box>
+      )}
+
+      {/* Section Overview - Show when chapter is selected but no specific section */}
+      {selectedChapter && !selectedSection && questionsData?.data && (
+        <Box sx={{ 
+          mb: 2, 
+          p: 2, 
+          bgcolor: 'primary.50', 
+          borderRadius: 1, 
+          border: '1px solid', 
+          borderColor: 'primary.200',
+          '& .MuiChip-root': {
+            '&:hover': {
+              bgcolor: 'primary.100',
+            }
+          }
+        }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.800' }}>
+            Questions by Section:
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {sectionsData?.data?.map((section) => {
+              const questionCount = questionsData.data.filter(q => {
+                const questionSectionId = q.sectionId?._id || q.sectionId;
+                return questionSectionId === section._id;
+              }).length;
+              
+              return (
+                <Chip
+                  key={section._id}
+                  label={`${section.name}: ${questionCount} questions`}
+                  color={questionCount > 0 ? "primary" : "default"}
+                  variant={questionCount > 0 ? "filled" : "outlined"}
+                  onClick={() => setSelectedSection(section._id)}
+                  sx={{ cursor: 'pointer' }}
+                />
+              );
+            })}
+            <Chip
+              label={`No Section: ${questionsData.data.filter(q => !q.sectionId?._id && !q.sectionId).length} questions`}
+              color="default"
+              variant="outlined"
+              onClick={() => setSelectedSection('no-section')}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Box>
+          <Typography variant="caption" color="primary.700" sx={{ mt: 1, display: 'block' }}>
+            Click on a section to filter questions by that section
+          </Typography>
+        </Box>
+      )}
+
+      <Box>
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''} 
+            {selectedSection && selectedSection !== 'no-section' && ` in ${sectionsData?.data?.find(s => s._id === selectedSection)?.name}`}
+            {selectedSection === 'no-section' && ' without section'}
+            {selectedTopicFilters.length > 0 && ` matching ${selectedTopicFilters.length} topic filter${selectedTopicFilters.length !== 1 ? 's' : ''}`}
+          </Typography>
+        </Box>
         <DataGrid
           rows={filteredQuestions}
           columns={columns}
@@ -767,6 +950,21 @@ const Questions = () => {
             },
           }}
           pageSizeOptions={[10, 25, 50]}
+          sx={{
+            minHeight: 400,
+            '& .MuiDataGrid-root': {
+              border: 'none',
+            },
+            '& .MuiDataGrid-cell': {
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            },
+            '& .MuiDataGrid-columnHeaders': {
+              backgroundColor: 'background.paper',
+              borderBottom: '2px solid',
+              borderColor: 'divider',
+            },
+          }}
         />
       </Box>
 
@@ -796,18 +994,18 @@ const Questions = () => {
 
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel>Unit (Optional)</InputLabel>
+                <InputLabel>Section (Optional)</InputLabel>
                 <Select
-                  value={formData.unitId}
-                  onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-                  label="Unit (Optional)"
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                  label="Section (Optional)"
                 >
                   <MenuItem value="">
-                    <em>No Unit</em>
+                    <em>No Section</em>
                   </MenuItem>
-                  {unitsData?.data?.map((unit) => (
-                    <MenuItem key={unit._id} value={unit._id}>
-                      {unit.name}
+                  {sectionsData?.data?.map((section) => (
+                    <MenuItem key={section._id} value={section._id}>
+                      {section.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1008,18 +1206,18 @@ const Questions = () => {
 
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel>Unit (Optional)</InputLabel>
+                <InputLabel>Section (Optional)</InputLabel>
                 <Select
-                  value={multiAddData.unitId}
-                  onChange={(e) => setMultiAddData({ ...multiAddData, unitId: e.target.value })}
-                  label="Unit (Optional)"
+                  value={multiAddData.sectionId}
+                  onChange={(e) => setMultiAddData({ ...multiAddData, sectionId: e.target.value })}
+                  label="Section (Optional)"
                 >
                   <MenuItem value="">
-                    <em>No Unit</em>
+                    <em>No Section</em>
                   </MenuItem>
-                  {unitsData?.data?.map((unit) => (
-                    <MenuItem key={unit._id} value={unit._id}>
-                      {unit.name}
+                  {sectionsData?.data?.map((section) => (
+                    <MenuItem key={section._id} value={section._id}>
+                      {section.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1164,6 +1362,60 @@ const Questions = () => {
           <Button onClick={closeImageDialog} disabled={isUploadingImage}>Cancel</Button>
           <Button onClick={attachImage} variant="contained" disabled={!selectedImageFile || isUploadingImage}>
             {isUploadingImage ? 'Uploading...' : 'Attach'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Assign Section Dialog */}
+      <Dialog open={bulkAssignDialogOpen} onClose={() => setBulkAssignDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Assign Section to Selected Questions</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              You are about to assign a section to {selectedRows.length} selected question{selectedRows.length !== 1 ? 's' : ''}.
+            </Typography>
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Select Section</InputLabel>
+              <Select
+                value={selectedSectionForBulk}
+                onChange={(e) => setSelectedSectionForBulk(e.target.value)}
+                label="Select Section"
+              >
+                <MenuItem value="">
+                  <em>No Section</em>
+                </MenuItem>
+                {sectionsData?.data?.map((section) => (
+                  <MenuItem key={section._id} value={section._id}>
+                    {section.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Alert severity="info">
+              <Typography variant="body2">
+                <strong>Note:</strong> This action will update all selected questions to have the same section assignment.
+                {selectedSectionForBulk && selectedSectionForBulk !== 'no-section' && 
+                  ` Questions will be assigned to "${sectionsData?.data?.find(s => s._id === selectedSectionForBulk)?.name}".`
+                }
+                {selectedSectionForBulk === 'no-section' && 
+                  ' Questions will have no section assignment.'
+                }
+              </Typography>
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkAssignDialogOpen(false)} disabled={isBulkAssigning}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleBulkAssignSection} 
+            variant="contained" 
+            disabled={!selectedSectionForBulk || isBulkAssigning}
+          >
+            {isBulkAssigning ? 'Assigning...' : 'Assign Section'}
           </Button>
         </DialogActions>
       </Dialog>

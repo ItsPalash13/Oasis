@@ -3,7 +3,7 @@ import { Question } from '../../models/Questions';
 import { QuestionTs } from '../../models/QuestionTs';
 import { Chapter } from '../../models/Chapter';
 import { Topic } from '../../models/Topic';
-import { Unit } from '../../models/Units';
+import { Section } from '../../models/Section';
 import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import multer from 'multer';
@@ -18,7 +18,7 @@ const upload = multer({
 // Create question
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
+    const { ques, options, correct, chapterId, sectionId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
 
     // Validate required fields
     if (!ques || !options || correct === undefined || !chapterId) {
@@ -39,11 +39,11 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    // Validate unit exists if provided
-    if (unitId) {
-      const unit = await Unit.findById(unitId);
-      if (!unit) {
-        return res.status(404).json({ error: 'Unit not found' });
+    // Validate section exists if provided
+    if (sectionId) {
+      const section = await Section.findById(sectionId);
+      if (!section) {
+        return res.status(404).json({ error: 'Section not found' });
       }
     }
 
@@ -53,7 +53,7 @@ router.post('/', async (req: Request, res: Response) => {
       options,
       correct,
       chapterId: new mongoose.Types.ObjectId(chapterId),
-      unitId: unitId ? new mongoose.Types.ObjectId(unitId) : undefined,
+      sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
       topics: topics || [],
       solution: solution || '',
       solutionType: solutionType || 'text'
@@ -88,7 +88,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Multi-add questions endpoint
 router.post('/multi-add', async (req: Request, res: Response) => {
   try {
-    const { questions, chapterId, unitId, topicIds, xpCorrect, xpIncorrect, mu, sigma, solutionType } = req.body;
+    const { questions, chapterId, sectionId, topicIds, xpCorrect, xpIncorrect, mu, sigma, solutionType } = req.body;
 
     // Validate required fields
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -121,11 +121,11 @@ router.post('/multi-add', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Chapter not found' });
     }
 
-    // Validate unit exists if provided
-    if (unitId) {
-      const unit = await Unit.findById(unitId);
-      if (!unit) {
-        return res.status(404).json({ error: 'Unit not found' });
+    // Validate section exists if provided
+    if (sectionId) {
+      const section = await Section.findById(sectionId);
+      if (!section) {
+        return res.status(404).json({ error: 'Section not found' });
       }
     }
 
@@ -172,7 +172,7 @@ router.post('/multi-add', async (req: Request, res: Response) => {
         options: [option1.trim(), option2.trim(), option3.trim(), option4.trim()],
         correct: correctIndex,
         chapterId: new mongoose.Types.ObjectId(chapterId),
-        unitId: unitId ? new mongoose.Types.ObjectId(unitId) : undefined,
+        sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
         topics: topicIds.map(id => ({
           id: new mongoose.Types.ObjectId(id),
           name: topicMap[id]
@@ -270,7 +270,7 @@ router.post('/:id/image', upload.single('file'), async (req: Request & { file?: 
 // Get all questions
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { chapterId, unitId, topicId } = req.query;
+    const { chapterId, sectionId, topicId } = req.query;
 
     let query: any = {};
     
@@ -278,8 +278,8 @@ router.get('/', async (req: Request, res: Response) => {
       query.chapterId = chapterId;
     }
 
-    if (unitId) {
-      query.unitId = unitId;
+    if (sectionId) {
+      query.sectionId = sectionId;
     }
 
     if (topicId) {
@@ -288,7 +288,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const questions = await Question.find(query)
       .populate('chapterId', 'name')
-      .populate('unitId', 'name')
+      .populate('sectionId', 'name')
       .sort({ createdAt: -1 });
 
     // Get QuestionTs data for each question
@@ -322,7 +322,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const question = await Question.findById(req.params.id)
       .populate('chapterId', 'name')
-      .populate('unitId', 'name')
+      .populate('sectionId', 'name')
       .populate('topics.id', 'name');
 
     if (!question) {
@@ -337,10 +337,68 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Bulk assign section to multiple questions
+router.put('/bulk-assign-section', async (req: Request, res: Response) => {
+  try {
+    const { questionIds, sectionId, chapterId } = req.body;
+
+    // Validate required fields
+    if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
+      return res.status(400).json({ error: 'Question IDs array is required and must not be empty' });
+    }
+
+    if (!chapterId) {
+      return res.status(400).json({ error: 'Chapter ID is required' });
+    }
+
+    // Validate chapter exists
+    const chapter = await Chapter.findById(chapterId);
+    if (!chapter) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+
+    // Validate section exists if provided
+    if (sectionId) {
+      const section = await Section.findById(sectionId);
+      if (!section) {
+        return res.status(404).json({ error: 'Section not found' });
+      }
+    }
+
+    // Validate all questions exist and belong to the specified chapter
+    const questions = await Question.find({ 
+      _id: { $in: questionIds },
+      chapterId: chapterId
+    });
+
+    if (questions.length !== questionIds.length) {
+      return res.status(400).json({ 
+        error: 'Some questions not found or do not belong to the specified chapter' 
+      });
+    }
+
+    // Update all questions with the new section ID
+    const updateResult = await Question.updateMany(
+      { _id: { $in: questionIds } },
+      { sectionId: sectionId || null }
+    );
+
+    return res.json({
+      message: `Successfully assigned section to ${updateResult.modifiedCount} questions`,
+      modifiedCount: updateResult.modifiedCount,
+      sectionId: sectionId || null
+    });
+
+  } catch (error) {
+    console.error('Error bulk assigning section:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update question
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, unitId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
+    const { ques, options, correct, chapterId, sectionId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
 
     const question = await Question.findById(req.params.id);
     if (!question) {
@@ -352,7 +410,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (options) question.options = options;
     if (correct !== undefined) question.correct = correct;
     if (chapterId) question.chapterId = chapterId;
-    if (unitId !== undefined) question.unitId = unitId || null;
+    if (sectionId !== undefined) question.sectionId = sectionId || null;
     if (topics) question.topics = topics;
     if (solution !== undefined) question.solution = solution;
     if (solutionType !== undefined) question.solutionType = solutionType;

@@ -107,8 +107,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         console.log(`Level ID: ${session.levelId}`);
         console.log(`Attempt Type: ${session.attemptType}`);
         
-        // Resolve unitId from levelId for UserChapterUnit updates
-        const levelDoc = await Level.findById(session.levelId).select('_id unitId');
+        // Resolve sectionId from levelId for UserChapterSection updates
+        const levelDoc = await Level.findById(session.levelId).select('_id sectionId');
         if (!levelDoc) {
           console.log('Level not found while updating question history');
           return;
@@ -131,51 +131,65 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         console.log(`Correct question IDs: [${correctQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${correctQuestionIds.length > 3 ? '...' : ''}]`);
         console.log(`Incorrect question IDs: [${incorrectQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${incorrectQuestionIds.length > 3 ? '...' : ''}]`);
 
-        // Update UserChapterUnit with question history
+        // Update UserChapterSection with question history
         const updateOperation: any = {};
 
-        // Add correct questions to correctQuestions array (avoid duplicates)
+        // First, remove any questions from wrongQuestions that are now in correctQuestions
         if (correctQuestionIds.length > 0) {
-          updateOperation.$addToSet = {
-            ...(updateOperation.$addToSet || {}),
-            correctQuestions: { $each: correctQuestionIds }
-          };
-        }
-
-        // Add incorrect questions to wrongQuestions array (avoid duplicates)
-        if (incorrectQuestionIds.length > 0) {
-          updateOperation.$addToSet = {
-            ...(updateOperation.$addToSet || {}),
-            wrongQuestions: { $each: incorrectQuestionIds }
-          };
-        }
-
-        // Remove any questions from wrongQuestions that are now in correctQuestions
-        if (correctQuestionIds.length > 0) {
-          updateOperation.$pull = {
-            ...(updateOperation.$pull || {}),
-            wrongQuestions: { $in: correctQuestionIds }
-          };
-        }
-
-        if (Object.keys(updateOperation).length > 0) {
-          console.log(`\n--- Database Update Operation ---`);
-          console.log(`Update operation:`, JSON.stringify(updateOperation, null, 2));
-          
-          await UserChapterUnit.findOneAndUpdate(
+          // Remove correct questions from wrongQuestions first
+          await UserChapterSection.findOneAndUpdate(
             {
               userId: new mongoose.Types.ObjectId(userId),
               chapterId: session.chapterId,
-              unitId: levelDoc.unitId
+              sectionId: levelDoc.sectionId
             },
-            updateOperation,
+            {
+              $pull: {
+                wrongQuestions: { $in: correctQuestionIds }
+              }
+            },
             { upsert: true }
           );
+        }
 
-          console.log(`✅ Successfully updated question history for user ${userId}:`);
-          console.log(`- Added ${correctQuestionIds.length} correct questions`);
-          console.log(`- Added ${incorrectQuestionIds.length} wrong questions`);
-          console.log(`- Removed ${correctQuestionIds.length} questions from wrongQuestions (if they were there)`);
+        // Then, add new questions to their respective arrays
+        if (correctQuestionIds.length > 0 || incorrectQuestionIds.length > 0) {
+          const addOperation: any = {};
+
+          // Add correct questions to correctQuestions array (avoid duplicates)
+          if (correctQuestionIds.length > 0) {
+            addOperation.$addToSet = {
+              correctQuestions: { $each: correctQuestionIds }
+            };
+          }
+
+          // Add incorrect questions to wrongQuestions array (avoid duplicates)
+          if (incorrectQuestionIds.length > 0) {
+            addOperation.$addToSet = {
+              ...addOperation.$addToSet,
+              wrongQuestions: { $each: incorrectQuestionIds }
+            };
+          }
+
+          if (Object.keys(addOperation).length > 0) {
+            console.log(`\n--- Database Update Operation (Adding Questions) ---`);
+            console.log(`Add operation:`, JSON.stringify(addOperation, null, 2));
+            
+            await UserChapterSection.findOneAndUpdate(
+              {
+                userId: new mongoose.Types.ObjectId(userId),
+                chapterId: session.chapterId,
+                sectionId: levelDoc.sectionId
+              },
+              addOperation,
+              { upsert: true }
+            );
+
+            console.log(`✅ Successfully updated question history for user ${userId}:`);
+            console.log(`- Added ${correctQuestionIds.length} correct questions`);
+            console.log(`- Added ${incorrectQuestionIds.length} wrong questions`);
+            console.log(`- Removed ${correctQuestionIds.length} correct questions from wrongQuestions (if they were there)`);
+          }
         } else {
           console.log(`No update operation needed - no new questions to add`);
         }
@@ -492,15 +506,17 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
       };
     };
 
-    // Function to create question bank based on level's unitId
-    const createQuestionBankByUnit = async (level: any, attemptType: string, userId?: string): Promise<any[]> => {
+
+
+    // Function to create question bank based on level's sectionId
+    const createQuestionBankBySection = async (level: any, attemptType: string, userId?: string): Promise<any[]> => {
       try {
-        console.log(`\n=== Starting createQuestionBankByUnit ===`);
+        console.log(`\n=== Starting createQuestionBankBySection ===`);
         console.log(`Level ID: ${level._id}`);
         console.log(`Level Name: ${level.name}`);
         console.log(`Attempt Type: ${attemptType}`);
         console.log(`User ID: ${userId || 'No user ID provided'}`);
-        console.log(`Unit ID: ${level.unitId}`);
+        console.log(`Section ID: ${level.sectionId}`);
         console.log(`Level Topics: ${level.topics?.join(', ') || 'No topics'}`);
 
         // Determine number of questions for the session
@@ -512,41 +528,41 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         }
         console.log(`Required questions: ${numQuestions}`);
 
-        // Get user's question history for this unit
-        let userChapterUnit = null;
+        // Get user's question history for this section
+        let userChapterSection = null;
         let correctQuestions: string[] = [];
         let wrongQuestions: string[] = [];
 
-        if (userId) {
-          console.log(`\n--- Fetching user question history (Unit) ---`);
-          userChapterUnit = await UserChapterUnit.findOne({
+        if (userId && level.sectionId) {
+          console.log(`\n--- Fetching user question history (Section) ---`);
+          userChapterSection = await UserChapterSection.findOne({
             userId: new mongoose.Types.ObjectId(userId),
             chapterId: level.chapterId,
-            unitId: level.unitId
+            sectionId: level.sectionId
           });
 
-          if (userChapterUnit) {
-            correctQuestions = (userChapterUnit.correctQuestions || []).map(id => id.toString());
-            wrongQuestions = (userChapterUnit.wrongQuestions || []).map(id => id.toString());
-            console.log(`Found user chapter unit: ${userChapterUnit._id}`);
+          if (userChapterSection) {
+            correctQuestions = (userChapterSection.correctQuestions || []).map(id => id.toString());
+            wrongQuestions = (userChapterSection.wrongQuestions || []).map(id => id.toString());
+            console.log(`Found user chapter section: ${userChapterSection._id}`);
             console.log(`Previous correct questions: ${correctQuestions.length}`);
             console.log(`Previous wrong questions: ${wrongQuestions.length}`);
             console.log(`Correct question IDs: [${correctQuestions.slice(0, 5).join(', ')}${correctQuestions.length > 5 ? '...' : ''}]`);
             console.log(`Wrong question IDs: [${wrongQuestions.slice(0, 5).join(', ')}${wrongQuestions.length > 5 ? '...' : ''}]`);
           } else {
-            console.log(`No previous user chapter unit found for this user/chapter/unit combination`);
+            console.log(`No previous user chapter section found for this user/chapter/section combination`);
           }
         } else {
-          console.log(`No user ID provided - proceeding without user history`);
+          console.log(`No user ID or section ID provided - proceeding without user history`);
         }
 
-        // Get all available questions for this unit and topics
+        // Get all available questions for this section and topics
         console.log(`\n--- Fetching questions from database ---`);
-        console.log(`Querying questions for unitId: ${level.unitId}`);
+        console.log(`Querying questions for sectionId: ${level.sectionId}`);
         console.log(`Topic filter: excluding questions without required topics`);
         
         const allQuestions = await Question.find({
-          unitId: level.unitId,
+          sectionId: level.sectionId,
           "topics": {
             $not: {
               $elemMatch: {
@@ -559,10 +575,10 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         console.log(`Total questions found in database: ${allQuestions.length}`);
 
         if (!allQuestions.length) {
-          throw new Error('No questions found for this unit with the required topics');
+          throw new Error('No questions found for this section with the required topics');
         }
 
-                // Convert questions to array with string IDs for easier comparison
+        // Convert questions to array with string IDs for easier comparison
         const questionPool = allQuestions.map(q => ({
           ...q.toObject(),
           _id: (q._id as any).toString()
@@ -624,9 +640,9 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         console.log(`- Correct questions used: ${correctQuestionsUsed} (${((correctQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
         console.log(`- Random questions used: ${randomQuestionsUsed} (${((randomQuestionsUsed/numQuestions)*100).toFixed(1)}%)`);
         
-        // Update UserChapterUnit to remove used questions from arrays
-        if (userId && (wrongQuestionsToRemove.length > 0 || correctQuestionsToRemove.length > 0)) {
-          console.log(`\n--- Updating UserChapterUnit (Removing Used Questions) ---`);
+        // Update UserChapterSection to remove used questions from arrays
+        if (userId && level.sectionId && (wrongQuestionsToRemove.length > 0 || correctQuestionsToRemove.length > 0)) {
+          console.log(`\n--- Updating UserChapterSection (Removing Used Questions) ---`);
           const updateOperation: any = {};
 
           if (wrongQuestionsToRemove.length > 0) {
@@ -646,24 +662,24 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           }
 
           if (Object.keys(updateOperation).length > 0) {
-            await UserChapterUnit.findOneAndUpdate(
+            await UserChapterSection.findOneAndUpdate(
               {
                 userId: new mongoose.Types.ObjectId(userId),
                 chapterId: level.chapterId,
-                unitId: level.unitId
+                sectionId: level.sectionId
               },
               updateOperation,
               { upsert: false }
             );
-            console.log(`✅ Successfully removed used questions from UserChapterUnit arrays`);
+            console.log(`✅ Successfully removed used questions from UserChapterSection arrays`);
           }
         }
 
-        console.log(`=== End createQuestionBankByUnit ===\n`);
+        console.log(`=== End createQuestionBankBySection ===\n`);
 
         return result;
       } catch (error) {
-        console.error('Error creating question bank by Unit:', error);
+        console.error('Error creating question bank by Section:', error);
         throw error;
       }
     };
@@ -673,8 +689,8 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
       const questionFetchStrategy = process.env.QUESTION_FETCH || '0';
       
       if (questionFetchStrategy === '1') {
-        console.log('Using Unit-based question fetching strategy');
-        return await createQuestionBankByUnit(level, attemptType, userId);
+        console.log('Using Section-based question fetching strategy');
+        return await createQuestionBankBySection(level, attemptType, userId);
       } else {
         console.log('Using MU-based question fetching strategy');
         return await createQuestionBankByMu(level, attemptType);
@@ -869,6 +885,27 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
             new: true
           }
         );
+
+        // Check if UserChapterSection exists for this level's section, create if not found
+        if (level.sectionId) {
+          await UserChapterSection.findOneAndUpdate(
+            {
+              userId,
+              chapterId: level.chapterId,
+              sectionId: level.sectionId
+            },
+            {
+              $setOnInsert: {
+                status: 'in_progress',
+                startedAt: new Date()
+              }
+            },
+            {
+              upsert: true,
+              new: true
+            }
+          );
+        }
         
         // Deduct 1 health when starting a level (never go below 0)
         await UserProfile.findOneAndUpdate(

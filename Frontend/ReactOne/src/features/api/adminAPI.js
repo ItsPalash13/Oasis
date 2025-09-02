@@ -156,6 +156,10 @@ export const adminApi = createApi({
       },
       invalidatesTags: ['Question'],
     }),
+    bulkAssignSection: builder.mutation({
+      query: (body) => ({ url: '/api/admin/questions/bulk-assign-section', method: 'PUT', body }),
+      invalidatesTags: ['Question'],
+    }),
     getQuestionsMuByTopics: builder.mutation({
       query: (topics) => ({
         url: '/api/admin/questions/mu-by-topics',
@@ -375,6 +379,7 @@ export const {
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
   useUploadQuestionImageMutation,
+  useBulkAssignSectionMutation,
   useGetQuestionsMuByTopicsMutation,
   useGetLevelsQuery,
   useGetLevelsByChapterQuery,

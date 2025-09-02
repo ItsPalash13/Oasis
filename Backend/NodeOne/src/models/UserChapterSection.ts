@@ -5,6 +5,8 @@ interface IUserChapterSection extends Document {
     chapterId: mongoose.Types.ObjectId;
     sectionId: mongoose.Types.ObjectId;
     status: 'not_started' | 'in_progress' | 'completed';
+    correctQuestions: mongoose.Types.ObjectId[];
+    wrongQuestions: mongoose.Types.ObjectId[];
 }
 
 const UserChapterSectionSchema = new Schema<IUserChapterSection>({
@@ -27,6 +29,16 @@ const UserChapterSectionSchema = new Schema<IUserChapterSection>({
         type: String,
         enum: ['not_started', 'in_progress', 'completed'],     
         default: 'not_started'
+    },
+    correctQuestions: {
+        type: [Schema.Types.ObjectId],
+        ref: 'Question',
+        default: []
+    },
+    wrongQuestions: {
+        type: [Schema.Types.ObjectId],
+        ref: 'Question',
+        default: []
     }
 });
 

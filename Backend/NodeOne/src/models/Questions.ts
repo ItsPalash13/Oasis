@@ -8,7 +8,7 @@ interface IQuestion extends Document {
   solution: string;
   solutionType: string;
   chapterId: mongoose.Types.ObjectId; 
-  unitId?: mongoose.Types.ObjectId;
+  sectionId?: mongoose.Types.ObjectId;
   topics: Array<{ id: mongoose.Types.ObjectId | string; name: string }>;
 }
 
@@ -44,9 +44,9 @@ const QuestionSchema = new Schema<IQuestion>({
     ref: 'Chapter',
     required: true
   },
-  unitId: {
+  sectionId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Unit'
+    ref: 'Section'
   },
   topics: [{
     id: {
