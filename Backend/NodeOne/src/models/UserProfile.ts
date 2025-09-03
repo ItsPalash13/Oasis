@@ -20,8 +20,9 @@ interface UserProfileDocument extends Document {
   userId: string;
   username: string;
   email: string;
-  role: string;
+  role: string | 'student' | 'teacher' | 'admin';
   fullName?: string;
+  organizationId?: mongoose.Types.ObjectId; // Added organization field (optional)
   health: number;
   totalCoins: number;
   bio?: string;
@@ -46,8 +47,9 @@ const UserProfileSchema: Schema = new Schema(
     userId: { type: String, required: true, unique: true, index: true },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    role: { type: String, default: 'student' },
+    role: { type: String, default: 'student', enum: ['student', 'teacher', 'admin'] },
     fullName: { type: String },
+    organizationId: { type: Schema.Types.ObjectId, ref: 'Organization' }, // Added organization field
     bio: { type: String },
     dob: { type: Date }, // Added date of birth field
     avatar: { type: String }, // Added avatar field
@@ -75,6 +77,7 @@ const UserProfileSchema: Schema = new Schema(
 );
 
 UserProfileSchema.index({ userId: 1, monthlyXp: 1 }, { unique: true });
+UserProfileSchema.index({ organizationId: 1 }); // Index for organization queries
 
 // Create the Mongoose model for UserProfile
 const UserProfile = mongoose.model<UserProfileDocument>('UserProfile', UserProfileSchema);

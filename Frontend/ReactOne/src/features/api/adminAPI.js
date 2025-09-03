@@ -394,6 +394,15 @@ export const adminApi = createApi({
       }),
       providesTags: ['User'],
     }),
+    // Search users by organization for batch assignment
+    searchUsersByOrganization: builder.query({
+      query: ({ orgId, q }) => ({ 
+        url: `/api/admin/organizations/${orgId}/users/search`, 
+        method: 'GET',
+        params: { q }
+      }),
+      providesTags: ['User'],
+    }),
   }),
 });
 
@@ -488,4 +497,6 @@ export const {
   useDeleteBatchMutation,
   // User search hook
   useSearchUsersByEmailQuery,
+  // Organization user search hook
+  useSearchUsersByOrganizationQuery,
 } = adminApi;

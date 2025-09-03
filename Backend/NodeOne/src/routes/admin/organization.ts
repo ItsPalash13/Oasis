@@ -4,6 +4,8 @@ import { Batch } from '../../models/Organization/Batch';
 import { UserProfile } from '../../models/UserProfile';
 import authMiddleware from '../../middleware/authMiddleware';
 import { requireAdmin } from '../../middleware/rolesMiddleware';
+import { Response } from 'express';
+import { Request } from 'express';
 
 const router = express.Router();
 
@@ -12,24 +14,113 @@ router.use(authMiddleware);
 router.use(requireAdmin);
 
 // Organization routes
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response) => {
+ console.log('Fetching organizations', req.body);
   try {
     const organizations = await Organization.find().sort({ createdAt: -1 });
-    res.json(organizations);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching organizations', error: error.message });
+    return res.json(organizations);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error fetching organizations', error: error.message });
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const organization = await Organization.findById(req.params.id);
     if (!organization) {
       return res.status(404).json({ message: 'Organization not found' });
     }
-    res.json(organization);
+    return res.json(organization);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching organization', error: error.message });
+    return res.status(500).json({ message: 'Error fetching organization', error: error.message });
+  }
+});
+
+// GET users by organization
+router.get('/:id/users', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { search } = req.query;
+    
+    // Verify organization exists
+    const organization = await Organization.findById(id);
+    if (!organization) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+    
+    let filter: any = { organizationId: id };
+    
+    if (search && typeof search === 'string') {
+      // Add search filter for username, email, or fullName
+      filter.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      UserProfile.find(filter)
+        .select('userId username email fullName role createdAt')
+        .sort({ createdAt: -1 }),
+      UserProfile.countDocuments(filter)
+    ]);
+
+    return res.json({
+      success: true,
+      data: users,
+      total,
+      organization: {
+        _id: organization._id,
+        name: organization.name,
+        description: organization.description
+      }
+    });
+  } catch (error: any) {
+    return res.status(500).json({ 
+      message: 'Error fetching users by organization', 
+      error: error.message 
+    });
+  }
+});
+
+// GET users by organization for batch assignment (with search)
+router.get('/:id/users/search', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { q } = req.query; // search query
+    
+    // Verify organization exists
+    const organization = await Organization.findById(id);
+    if (!organization) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+    
+    let filter: any = { organizationId: id };
+    
+    if (q && typeof q === 'string') {
+      // Search by username, email, or fullName
+      filter.$or = [
+        { username: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { fullName: { $regex: q, $options: 'i' } }
+      ];
+    }
+
+    const users = await UserProfile.find(filter)
+      .select('userId username email fullName role')
+      .sort({ username: 1 })
+      .limit(20);
+
+    return res.json({
+      success: true,
+      data: users
+    });
+  } catch (error: any) {
+    return res.status(500).json({ 
+      message: 'Error searching users by organization', 
+      error: error.message 
+    });
   }
 });
 
@@ -49,13 +140,13 @@ router.post('/', async (req, res) => {
     const organization = new Organization({ name, description });
     await organization.save();
     
-    res.status(201).json(organization);
+    return res.status(201).json(organization);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating organization', error: error.message });
+    return res.status(500).json({ message: 'Error creating organization', error: error.message });
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
     
@@ -78,13 +169,13 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Organization not found' });
     }
 
-    res.json(organization);
+    return res.json(organization);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating organization', error: error.message });
+    return res.status(500).json({ message: 'Error updating organization', error: error.message });
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     // Check if organization has batches
     const batches = await Batch.find({ orgId: req.params.id });
@@ -99,14 +190,14 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Organization not found' });
     }
 
-    res.json({ message: 'Organization deleted successfully' });
+    return res.json({ message: 'Organization deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting organization', error: error.message });
+    return res.status(500).json({ message: 'Error deleting organization', error: error.message });
   }
 });
 
 // Batch routes
-router.get('/:orgId/batches', async (req, res) => {
+router.get('/:orgId/batches', async (req: Request, res: Response) => {
   try {
     const batches = await Batch.find({ orgId: req.params.orgId })
       .populate('orgId', 'name')
@@ -125,6 +216,7 @@ router.get('/:orgId/batches', async (req, res) => {
           users.forEach(user => {
             userMap[user.userId] = user;
           });
+          console.log('User map', userMap);
           
           // Replace userIds with user objects
           const populatedUserIds = batch.userIds.map(userId => userMap[userId] || { userId });
@@ -138,13 +230,13 @@ router.get('/:orgId/batches', async (req, res) => {
       })
     );
     
-    res.json(populatedBatches);
+    return res.json(populatedBatches);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching batches', error: error.message });
+    return res.status(500).json({ message: 'Error fetching batches', error: error.message });
   }
 });
 
-router.get('/batch/:id', async (req, res) => {
+router.get('/batch/:id', async (req: Request, res: Response) => {
   try {
     const batch = await Batch.findById(req.params.id)
       .populate('orgId', 'name');
@@ -171,16 +263,16 @@ router.get('/batch/:id', async (req, res) => {
         userIds: populatedUserIds
       };
       
-      res.json(populatedBatch);
+      return res.json(populatedBatch);
     } else {
-      res.json(batch);
-    }
+      return res.json(batch);
+    }   
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching batch', error: error.message });
+    return res.status(500).json({ message: 'Error fetching batch', error: error.message });
   }
 });
 
-router.post('/batch', async (req, res) => {
+router.post('/batch', async (req: Request, res: Response) => {
   try {
     const { name, description, orgId, userIds } = req.body;
     
@@ -220,17 +312,17 @@ router.post('/batch', async (req, res) => {
         userIds: populatedUserIds
       };
       
-      res.status(201).json(populatedBatch);
+      return res.status(201).json(populatedBatch);
     } else {
       const populatedBatch = await batch.populate('orgId', 'name');
-      res.status(201).json(populatedBatch);
+      return res.status(201).json(populatedBatch);
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error creating batch', error: error.message });
+    return res.status(500).json({ message: 'Error creating batch', error: error.message });
   }
 });
 
-router.put('/batch/:id', async (req, res) => {
+router.put('/batch/:id', async (req: Request, res: Response) => {
   try {
     const { name, description, orgId, userIds } = req.body;
     
@@ -272,25 +364,25 @@ router.put('/batch/:id', async (req, res) => {
         userIds: populatedUserIds
       };
       
-      res.json(populatedBatch);
+      return res.json(populatedBatch);
     } else {
-      res.json(batch);
+      return res.json(batch);
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error updating batch', error: error.message });
+    return res.status(500).json({ message: 'Error updating batch', error: error.message });
   }
 });
 
-router.delete('/batch/:id', async (req, res) => {
+router.delete('/batch/:id', async (req: Request, res: Response) => {
   try {
     const batch = await Batch.findByIdAndDelete(req.params.id);
     if (!batch) {
       return res.status(404).json({ message: 'Batch not found' });
     }
 
-    res.json({ message: 'Batch deleted successfully' });
+    return res.json({ message: 'Batch deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting batch', error: error.message });
+    return res.status(500).json({ message: 'Error deleting batch', error: error.message });
   }
 });
 

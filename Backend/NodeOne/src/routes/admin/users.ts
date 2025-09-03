@@ -53,18 +53,34 @@ router.get('/profiles', async (req: Request, res: Response) => {
     const { search } = req.query;
     
     let filter = {};
-    if (search) {
-      filter = {
-        $or: [
-          { username: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { fullName: { $regex: search, $options: 'i' } }
-        ]
-      };
+    if (search && typeof search === 'string') {
+      // Check if it's a role filter
+      if (search.startsWith('role:')) {
+        const role = search.substring(5); // Remove 'role:' prefix
+        if (['student', 'teacher', 'admin'].includes(role)) {
+          filter = { role };
+        }
+      } else if (search.startsWith('org:')) {
+        // Check if it's an organization filter
+        const orgId = search.substring(4); // Remove 'org:' prefix
+        if (orgId) {
+          filter = { organizationId: orgId };
+        }
+      } else {
+        // Regular text search
+        filter = {
+          $or: [
+            { username: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } },
+            { fullName: { $regex: search, $options: 'i' } }
+          ]
+        };
+      }
     }
 
     const [profiles, total] = await Promise.all([
       UserProfile.find(filter)
+        .populate('organizationId', 'name')
         .sort({ createdAt: -1 }),
       UserProfile.countDocuments(filter)
     ]);
@@ -84,11 +100,51 @@ router.get('/profiles', async (req: Request, res: Response) => {
   }
 });
 
+// GET users by organization
+router.get('/profiles/organization/:organizationId', async (req: Request, res: Response) => {
+  try {
+    const { organizationId } = req.params;
+    const { search } = req.query;
+    
+    let filter: any = { organizationId };
+    
+    if (search && typeof search === 'string') {
+      // Add search filter for username, email, or fullName
+      filter.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const [profiles, total] = await Promise.all([
+      UserProfile.find(filter)
+        .populate('organizationId', 'name')
+        .sort({ createdAt: -1 }),
+      UserProfile.countDocuments(filter)
+    ]);
+
+    return res.json({
+      success: true,
+      data: profiles,
+      total
+    });
+  } catch (error) {
+    console.error('Error fetching users by organization:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users by organization',
+      error: error.message
+    });
+  }
+});
+
 // GET user profile by ID
 router.get('/profiles/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const profile = await UserProfile.findById(id);
+    const profile = await UserProfile.findById(id)
+      .populate('organizationId', 'name');
     
     if (!profile) {
       return res.status(404).json({
@@ -114,13 +170,21 @@ router.get('/profiles/:id', async (req: Request, res: Response) => {
 // POST create user profile
 router.post('/profiles', async (req: Request, res: Response) => {
   try {
-    const { userId, username, email, fullName, bio, dob, health, totalCoins } = req.body;
+    const { userId, username, email, fullName, bio, dob, health, totalCoins, role, organizationId } = req.body;
 
     // Validate required fields
     if (!userId || !username || !email) {
       return res.status(400).json({
         success: false,
         message: 'userId, username, and email are required'
+      });
+    }
+
+    // Validate role if provided
+    if (role && !['student', 'teacher', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be student, teacher, or admin'
       });
     }
 
@@ -144,7 +208,9 @@ router.post('/profiles', async (req: Request, res: Response) => {
       bio,
       dob: dob ? new Date(dob) : undefined,
       health: health || 6,
-      totalCoins: totalCoins || 0
+      totalCoins: totalCoins || 0,
+      role: role || 'student',
+      organizationId: organizationId || undefined
     });
 
     await profile.save();
@@ -169,7 +235,7 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
-      username, email, fullName, bio, dob, health, totalCoins,
+      username, email, fullName, bio, dob, health, totalCoins, role, organizationId,
       dailyAttemptsStreak, lastAttemptDate, uniqueCorrectQuestions, uniqueTopics
     } = req.body;
 
@@ -202,6 +268,14 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
       }
     }
 
+    // Validate role if provided
+    if (role && !['student', 'teacher', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be student, teacher, or admin'
+      });
+    }
+
     // Build update object
     const updateObj: any = {
       username,
@@ -212,6 +286,8 @@ router.put('/profiles/:id', async (req: Request, res: Response) => {
       health,
       totalCoins
     };
+    if (role !== undefined) updateObj.role = role;
+    if (organizationId !== undefined) updateObj.organizationId = organizationId;
     if (dailyAttemptsStreak !== undefined) updateObj.dailyAttemptsStreak = dailyAttemptsStreak;
     if (lastAttemptDate !== undefined) updateObj.lastAttemptDate = lastAttemptDate ? new Date(lastAttemptDate) : null;
     if (uniqueCorrectQuestions !== undefined) updateObj.uniqueCorrectQuestions = uniqueCorrectQuestions;

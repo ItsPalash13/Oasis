@@ -36,7 +36,7 @@ import {
   useCreateBatchMutation,
   useUpdateBatchMutation,
   useDeleteBatchMutation,
-  useSearchUsersByEmailQuery
+  useSearchUsersByOrganizationQuery
 } from '../../features/api/adminAPI';
 
 function TabPanel({ children, value, index }) {
@@ -84,10 +84,13 @@ export default function OrganizationAdmin() {
   const [updateBatch] = useUpdateBatchMutation();
   const [deleteBatch] = useDeleteBatchMutation();
 
-  // User search query
-  const { data: searchResults, isLoading: searchLoading } = useSearchUsersByEmailQuery(userSearchEmail, {
-    skip: !userSearchEmail || userSearchEmail.length < 3
-  });
+  // User search query - only search within selected organization
+  const { data: searchResults, isLoading: searchLoading } = useSearchUsersByOrganizationQuery(
+    { orgId: selectedOrg?._id || selectedOrg?.id, q: userSearchEmail },
+    {
+      skip: !selectedOrg || !userSearchEmail || userSearchEmail.length < 2
+    }
+  );
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
@@ -497,6 +500,13 @@ export default function OrganizationAdmin() {
           {editingBatch ? 'Edit Batch' : 'Add Batch'}
         </DialogTitle>
         <DialogContent>
+          {selectedOrg && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Organization Restriction:</strong> Only users who are members of "{selectedOrg.name}" can be added to batches in this organization.
+              </Typography>
+            </Alert>
+          )}
           <TextField
             autoFocus
             margin="dense"
@@ -592,15 +602,17 @@ export default function OrganizationAdmin() {
 
           {/* Add User Section */}
           <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Add Users:</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Add Users (from {selectedOrg?.name || 'selected organization'}):
+            </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <TextField
                 size="small"
-                placeholder="Search by email..."
+                placeholder="Search by name, email, or username..."
                 value={userSearchEmail}
                 onChange={(e) => {
                   setUserSearchEmail(e.target.value);
-                  setShowUserSearch(e.target.value.length >= 3);
+                  setShowUserSearch(e.target.value.length >= 2);
                 }}
                 sx={{ flexGrow: 1 }}
               />
@@ -612,77 +624,86 @@ export default function OrganizationAdmin() {
                 {showUserSearch ? 'Hide' : 'Search'}
               </Button>
             </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              Only users who are members of this organization can be added to batches
+            </Typography>
           </Box>
 
           {/* Search Results */}
-          {showUserSearch && userSearchEmail.length >= 3 && (
+          {showUserSearch && userSearchEmail.length >= 2 && (
             <Box sx={{ mb: 2 }}>
               {searchLoading ? (
                 <Typography variant="body2" color="text.secondary">Searching...</Typography>
               ) : searchResults?.data && searchResults.data.length > 0 ? (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Search Results:</Typography>
-                                     <Box sx={{ 
-                     maxHeight: 200, 
-                     overflowY: 'auto', 
-                     border: '1px solid',
-                     borderColor: 'divider',
-                     borderRadius: 1, 
-                     p: 1,
-                     backgroundColor: 'background.paper'
-                   }}>
-                     {searchResults.data.map((user) => (
-                       <Box
-                         key={user.userId}
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Search Results (Organization: {selectedOrg?.name}):
+                  </Typography>
+                  <Box sx={{ 
+                    maxHeight: 200, 
+                    overflowY: 'auto', 
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1, 
+                    p: 1,
+                    backgroundColor: 'background.paper'
+                  }}>
+                    {searchResults.data.map((user) => (
+                      <Box
+                        key={user.userId}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          p: 1.5,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          '&:last-child': { borderBottom: 'none' },
+                          '&:hover': {
+                            backgroundColor: 'action.hover'
+                          }
+                        }}
+                      >
+                       <Box>
+                         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                           {user.fullName || user.username}
+                         </Typography>
+                         <Typography variant="caption" color="text.secondary">
+                           {user.email} • {user.role}
+                         </Typography>
+                       </Box>
+                       <Button
+                         size="small"
+                         variant="contained"
+                         onClick={() => addUserToBatch(user)}
+                         disabled={isUserInBatch(user.userId)}
                          sx={{
-                           display: 'flex',
-                           justifyContent: 'space-between',
-                           alignItems: 'center',
-                           p: 1.5,
-                           borderBottom: '1px solid',
-                           borderColor: 'divider',
-                           '&:last-child': { borderBottom: 'none' },
+                           backgroundColor: isUserInBatch(user.userId) 
+                             ? 'success.main' 
+                             : 'primary.main',
+                           color: 'white',
                            '&:hover': {
-                             backgroundColor: 'action.hover'
+                             backgroundColor: isUserInBatch(user.userId) 
+                               ? 'success.dark' 
+                               : 'primary.dark'
+                           },
+                           '&:disabled': {
+                             backgroundColor: 'success.main',
+                             color: 'white'
                            }
                          }}
                        >
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                            {user.fullName || user.username}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {user.email} • {user.role}
-                          </Typography>
-                        </Box>
-                                                 <Button
-                           size="small"
-                           variant="contained"
-                           onClick={() => addUserToBatch(user)}
-                           disabled={isUserInBatch(user.userId)}
-                           sx={{
-                             backgroundColor: isUserInBatch(user.userId) ? 'success.main' : 'primary.main',
-                             color: 'white',
-                             '&:hover': {
-                               backgroundColor: isUserInBatch(user.userId) ? 'success.dark' : 'primary.dark'
-                             },
-                             '&:disabled': {
-                               backgroundColor: 'success.main',
-                               color: 'white'
-                             }
-                           }}
-                         >
-                           {isUserInBatch(user.userId) ? 'Added' : 'Add'}
-                         </Button>
+                         {isUserInBatch(user.userId) ? 'Added' : 'Add'}
+                       </Button>
                       </Box>
                     ))}
                   </Box>
                 </Box>
-              ) : (
+              ) : userSearchEmail.length >= 2 && !searchLoading ? (
                 <Typography variant="body2" color="text.secondary">
-                  No users found with that email.
+                  No users found in this organization matching your search.
                 </Typography>
-              )}
+              ) : null}
             </Box>
           )}
         </DialogContent>

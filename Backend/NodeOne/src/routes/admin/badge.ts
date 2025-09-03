@@ -53,7 +53,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Get all Badges
-router.get('/', async (res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  console.log('Fetching badges', req.body);
   try {
     const badges = await Badge.find();
     return res.json(badges);

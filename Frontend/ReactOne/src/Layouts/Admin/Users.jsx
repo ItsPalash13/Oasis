@@ -60,6 +60,8 @@ import {
   useGetAllUnitsQuery,
   useGetLevelsQuery,
   useGetLevelsByChapterQuery,
+  // Organization hooks
+  useGetOrganizationsQuery,
 } from '../../features/api/adminAPI';
 
 function TabPanel(props) {
@@ -207,6 +209,27 @@ function UserChapterSectionsTab() {
           return `${params.value.username} (${params.value.email})`;
         }
         return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'userProfile',
+      headerName: 'Role',
+      width: 100,
+      renderCell: (params) => {
+        if (params.value && params.value.role) {
+          return (
+            <Chip
+              label={params.value.role}
+              color={
+                params.value.role === 'admin' ? 'error' : 
+                params.value.role === 'teacher' ? 'warning' : 'primary'
+              }
+              size="small"
+              variant="outlined"
+            />
+          );
+        }
+        return 'N/A';
       },
     },
     {
@@ -381,6 +404,7 @@ function UserProfilesTab() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: profilesData, isLoading } = useGetUserProfilesQuery({ search: searchQuery });
+  const { data: organizationsData, isLoading: orgsLoading, error: orgsError } = useGetOrganizationsQuery();
   const [createProfile] = useCreateUserProfileMutation();
   const [updateProfile] = useUpdateUserProfileMutation();
   const [deleteProfile] = useDeleteUserProfileMutation();
@@ -394,6 +418,8 @@ function UserProfilesTab() {
     dob: '',
     health: 6,
     totalCoins: 0,
+    role: 'student',
+    organizationId: '',
     dailyAttemptsStreak: 0,
     lastAttemptDate: '',
     uniqueCorrectQuestions: [],
@@ -412,6 +438,8 @@ function UserProfilesTab() {
         dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : '',
         health: profile.health || 6,
         totalCoins: profile.totalCoins || 0,
+        role: profile.role || 'student',
+        organizationId: profile.organizationId?._id || profile.organizationId || '',
         dailyAttemptsStreak: profile.dailyAttemptsStreak || 0,
         lastAttemptDate: profile.lastAttemptDate ? new Date(profile.lastAttemptDate).toISOString().split('T')[0] : '',
         uniqueCorrectQuestions: profile.uniqueCorrectQuestions || [],
@@ -428,6 +456,8 @@ function UserProfilesTab() {
         dob: '',
         health: 6,
         totalCoins: 0,
+        role: 'student',
+        organizationId: '',
         dailyAttemptsStreak: 0,
         lastAttemptDate: '',
         uniqueCorrectQuestions: [],
@@ -488,6 +518,28 @@ function UserProfilesTab() {
     { field: 'username', headerName: 'Username', width: 150 },
     { field: 'email', headerName: 'Email', width: 200 },
     { field: 'fullName', headerName: 'Full Name', width: 150 },
+    {
+      field: 'role',
+      headerName: 'Role',
+      width: 120,
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          color={
+            params.value === 'admin' ? 'error' : 
+            params.value === 'teacher' ? 'warning' : 'primary'
+          }
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      field: 'organizationId',
+      headerName: 'Organization',
+      width: 150,
+      renderCell: (params) => params.value?.name || 'No Organization',
+    },
     { field: 'health', headerName: 'Health', width: 100 },
     { field: 'totalCoins', headerName: 'Total Coins', width: 120 },
     {
@@ -520,12 +572,66 @@ function UserProfilesTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <TextField
-          label="Search users"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ width: 300 }}
-        />
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            label="Search users"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ width: 300 }}
+            placeholder="Search by username, email, or full name..."
+          />
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Filter by Role</InputLabel>
+            <Select
+              value={searchQuery.includes('role:') ? searchQuery.split('role:')[1] : ''}
+              onChange={(e) => {
+                const role = e.target.value;
+                if (role) {
+                  setSearchQuery(`role:${role}`);
+                } else {
+                  setSearchQuery('');
+                }
+              }}
+              label="Filter by Role"
+            >
+              <MenuItem value="">All Roles</MenuItem>
+              <MenuItem value="student">Student</MenuItem>
+              <MenuItem value="teacher">Teacher</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel>Filter by Organization</InputLabel>
+            <Select
+              value={searchQuery.includes('org:') ? searchQuery.split('org:')[1] : ''}
+              onChange={(e) => {
+                const orgId = e.target.value;
+                if (orgId) {
+                  setSearchQuery(`org:${orgId}`);
+                } else {
+                  setSearchQuery('');
+                }
+              }}
+              label="Filter by Organization"
+              disabled={orgsLoading}
+            >
+              <MenuItem value="">All Organizations</MenuItem>
+              {orgsLoading ? (
+                <MenuItem disabled>Loading...</MenuItem>
+              ) : orgsError ? (
+                <MenuItem disabled>Error loading</MenuItem>
+              ) : organizationsData?.length === 0 ? (
+                <MenuItem disabled>No organizations</MenuItem>
+              ) : (
+                organizationsData?.map((org) => (
+                  <MenuItem key={org._id || org.id} value={org._id || org.id}>
+                    {org.name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -534,6 +640,8 @@ function UserProfilesTab() {
           Add User Profile
         </Button>
       </Box>
+      
+
 
       <DataGrid
         rows={profilesData?.data || []}
@@ -589,6 +697,47 @@ function UserProfilesTab() {
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  label="Role"
+                >
+                  <MenuItem value="student">Student</MenuItem>
+                  <MenuItem value="teacher">Teacher</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Organization</InputLabel>
+                <Select
+                  value={formData.organizationId}
+                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                  label="Organization"
+                  disabled={orgsLoading}
+                >
+                  <MenuItem value="">No Organization</MenuItem>
+                  {orgsLoading ? (
+                    <MenuItem disabled>Loading organizations...</MenuItem>
+                  ) : orgsError ? (
+                    <MenuItem disabled>Error loading organizations</MenuItem>
+                  ) : organizationsData?.length === 0 ? (
+                    <MenuItem disabled>No organizations available</MenuItem>
+                  ) : (
+                    organizationsData?.map((org) => (
+                      <MenuItem key={org._id || org.id} value={org._id || org.id}>
+                        {org.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
+
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -764,6 +913,27 @@ function UserChapterUnitsTab() {
           return `${params.value.username} (${params.value.email})`;
         }
         return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'userProfile',
+      headerName: 'Role',
+      width: 100,
+      renderCell: (params) => {
+        if (params.value && params.value.role) {
+          return (
+            <Chip
+              label={params.value.role}
+              color={
+                params.value.role === 'admin' ? 'error' : 
+                params.value.role === 'teacher' ? 'warning' : 'primary'
+              }
+              size="small"
+              variant="outlined"
+            />
+          );
+        }
+        return 'N/A';
       },
     },
     {
@@ -1032,6 +1202,27 @@ function UserChapterLevelsTab() {
       },
     },
     {
+      field: 'userProfile',
+      headerName: 'Role',
+      width: 100,
+      renderCell: (params) => {
+        if (params.value && params.value.role) {
+          return (
+            <Chip
+              label={params.value.role}
+              color={
+                params.value.role === 'admin' ? 'error' : 
+                params.value.role === 'teacher' ? 'warning' : 'primary'
+              }
+              size="small"
+              variant="outlined"
+            />
+          );
+        }
+        return 'N/A';
+      },
+    },
+    {
       field: 'chapterId',
       headerName: 'Chapter',
       width: 150,
@@ -1276,6 +1467,27 @@ function UserLevelSessionsTab() {
       },
     },
     {
+      field: 'userProfile',
+      headerName: 'Role',
+      width: 100,
+      renderCell: (params) => {
+        if (params.value && params.value.role) {
+          return (
+            <Chip
+              label={params.value.role}
+              color={
+                params.value.role === 'admin' ? 'error' : 
+                params.value.role === 'teacher' ? 'warning' : 'primary'
+              }
+              size="small"
+              variant="outlined"
+            />
+          );
+        }
+        return 'N/A';
+      },
+    },
+    {
       field: 'chapterId',
       headerName: 'Chapter',
       width: 150,
@@ -1450,6 +1662,27 @@ function UserLevelSessionHistoryTab() {
           return `${params.value.username} (${params.value.email})`;
         }
         return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'userProfile',
+      headerName: 'Role',
+      width: 100,
+      renderCell: (params) => {
+        if (params.value && params.value.role) {
+          return (
+            <Chip
+              label={params.value.role}
+              color={
+                params.value.role === 'admin' ? 'error' : 
+                params.value.role === 'teacher' ? 'warning' : 'primary'
+              }
+              size="small"
+              variant="outlined"
+            />
+          );
+        }
+        return 'N/A';
       },
     },
     {
