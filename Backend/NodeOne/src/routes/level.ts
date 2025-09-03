@@ -131,8 +131,6 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         console.log(`Correct question IDs: [${correctQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${correctQuestionIds.length > 3 ? '...' : ''}]`);
         console.log(`Incorrect question IDs: [${incorrectQuestionIds.slice(0, 3).map((id: mongoose.Types.ObjectId) => id.toString()).join(', ')}${incorrectQuestionIds.length > 3 ? '...' : ''}]`);
 
-        // Update UserChapterSection with question history
-        const updateOperation: any = {};
 
         // First, remove any questions from wrongQuestions that are now in correctQuestions
         if (correctQuestionIds.length > 0) {

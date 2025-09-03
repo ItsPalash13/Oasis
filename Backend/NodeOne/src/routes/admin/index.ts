@@ -8,6 +8,7 @@ import adminLevelRoutes from './levels';
 import adminUserRoutes from './users';
 import adminBadgeRoutes from './badge';
 import adminSectionRoutes from './section';
+import adminOrganizationRoutes from './organization';
 import { requireAdmin } from '../../middleware/rolesMiddleware';
 import authMiddleware from '../../middleware/authMiddleware';
 
@@ -26,5 +27,6 @@ router.use('/levels', adminLevelRoutes);
 router.use('/users', adminUserRoutes);
 router.use('/badges', adminBadgeRoutes);
 router.use('/sections', adminSectionRoutes);
+router.use('/organizations', adminOrganizationRoutes);
 
 export default router;

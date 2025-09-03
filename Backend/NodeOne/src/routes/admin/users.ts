@@ -15,6 +15,38 @@ const router = express.Router();
 
 // ==================== USER PROFILES ====================
 
+// GET search users by email (for batch assignment)
+router.get('/search', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Email parameter is required'
+      });
+    }
+
+    const users = await UserProfile.find({
+      email: { $regex: email, $options: 'i' }
+    })
+    .select('userId username email fullName role')
+    .limit(10);
+
+    return res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to search users',
+      error: error.message
+    });
+  }
+});
+
 // GET all user profiles
 router.get('/profiles', async (req: Request, res: Response) => {
   try {

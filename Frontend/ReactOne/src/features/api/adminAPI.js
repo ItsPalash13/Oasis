@@ -4,7 +4,7 @@ import { baseQueryWithAuth } from './baseQuery';
 export const adminApi = createApi({
   reducerPath: 'adminApi',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Subject', 'Chapter', 'Topic', 'Section', 'Question', 'Level', 'User', 'Badge'],
+  tagTypes: ['Subject', 'Chapter', 'Topic', 'Section', 'Question', 'Level', 'User', 'Badge', 'Organization', 'Batch'],
   endpoints: (builder) => ({
     // Subject endpoints
     getSubjects: builder.query({
@@ -343,6 +343,57 @@ export const adminApi = createApi({
       query: (id) => ({ url: `/api/admin/badges/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Badge'],
     }),
+    // Organization endpoints
+    getOrganizations: builder.query({
+      query: () => ({ url: '/api/admin/organizations', method: 'GET' }),
+      providesTags: ['Organization'],
+    }),
+    getOrganizationById: builder.query({
+      query: (id) => ({ url: `/api/admin/organizations/${id}`, method: 'GET' }),
+      providesTags: ['Organization'],
+    }),
+    createOrganization: builder.mutation({
+      query: (body) => ({ url: '/api/admin/organizations', method: 'POST', body }),
+      invalidatesTags: ['Organization'],
+    }),
+    updateOrganization: builder.mutation({
+      query: ({ id, ...body }) => ({ url: `/api/admin/organizations/${id}`, method: 'PUT', body }),
+      invalidatesTags: ['Organization'],
+    }),
+    deleteOrganization: builder.mutation({
+      query: (id) => ({ url: `/api/admin/organizations/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Organization'],
+    }),
+    // Batch endpoints
+    getBatchesByOrg: builder.query({
+      query: (orgId) => ({ url: `/api/admin/organizations/${orgId}/batches`, method: 'GET' }),
+      providesTags: ['Batch'],
+    }),
+    getBatchById: builder.query({
+      query: (id) => ({ url: `/api/admin/organizations/batch/${id}`, method: 'GET' }),
+      providesTags: ['Batch'],
+    }),
+    createBatch: builder.mutation({
+      query: (body) => ({ url: '/api/admin/organizations/batch', method: 'POST', body }),
+      invalidatesTags: ['Batch'],
+    }),
+    updateBatch: builder.mutation({
+      query: ({ id, ...body }) => ({ url: `/api/admin/organizations/batch/${id}`, method: 'PUT', body }),
+      invalidatesTags: ['Batch'],
+    }),
+    deleteBatch: builder.mutation({
+      query: (id) => ({ url: `/api/admin/organizations/batch/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Batch'],
+    }),
+    // User search for batch assignment
+    searchUsersByEmail: builder.query({
+      query: (email) => ({ 
+        url: `/api/admin/users/search`, 
+        method: 'GET',
+        params: { email }
+      }),
+      providesTags: ['User'],
+    }),
   }),
 });
 
@@ -423,4 +474,18 @@ export const {
   useCreateBadgeMutation,
   useUpdateBadgeMutation,
   useDeleteBadgeMutation,
+  // Organization hooks
+  useGetOrganizationsQuery,
+  useGetOrganizationByIdQuery,
+  useCreateOrganizationMutation,
+  useUpdateOrganizationMutation,
+  useDeleteOrganizationMutation,
+  // Batch hooks
+  useGetBatchesByOrgQuery,
+  useGetBatchByIdQuery,
+  useCreateBatchMutation,
+  useUpdateBatchMutation,
+  useDeleteBatchMutation,
+  // User search hook
+  useSearchUsersByEmailQuery,
 } = adminApi;
