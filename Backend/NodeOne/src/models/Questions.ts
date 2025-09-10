@@ -1,12 +1,33 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+interface IQuestionImage {
+  file?: File;
+  url: string;
+  caption: string;
+  width: number;
+  height: number;
+  lockRatio: boolean;
+  originalRatio: number;
+}
+
+interface IQuestionImage {
+  url: string;
+  caption: string;
+  width: number;
+  height: number;
+  lockRatio: boolean;
+  originalRatio: number;
+}
+
 interface IQuestion extends Document {
-  ques: string;
-  options: string[];
-  correct: number;
-  quesImage: string;
+  ques?: string;
+  options: (string | undefined)[];
+  correct: number[];
+  quesImages?: IQuestionImage[];
+  optionImages?: IQuestionImage[][];
+  solutionImages?: IQuestionImage[];
+  gridSize?: { xs: number; sm: number; md: number };
   solution: string;
-  solutionType: string;
   chapterId: mongoose.Types.ObjectId; 
   sectionId?: mongoose.Types.ObjectId;
   topics: Array<{ id: mongoose.Types.ObjectId | string; name: string }>;
@@ -15,31 +36,96 @@ interface IQuestion extends Document {
 const QuestionSchema = new Schema<IQuestion>({
   ques: { 
     type: String, 
-    required: true 
+    required: false 
   },
   options: [{ 
     type: String, 
-    required: true 
+    required: false 
   }],
-  correct: { 
+  correct: [{ 
     type: Number, 
     required: true,
     min: 0,
     max: 3  // Since options are 0-based index
-  },
-  quesImage: {
-    type: String,
-    required: false
+  }],
+  quesImages: [{
+    url: {
+      type: String,
+    },
+    caption: {
+      type: String,
+    },
+    width: {
+      type: Number,
+    },
+    height: {
+      type: Number,
+    },
+    lockRatio: {
+      type: Boolean,
+    },
+    originalRatio: {
+      type: Number,
+    }
+  }],
+  optionImages: [[{
+    url: {
+      type: String,
+    },
+    caption: {
+      type: String,
+    },
+    width: {
+      type: Number,
+    },
+    height: {
+      type: Number,
+    },
+    lockRatio: {
+      type: Boolean,
+    },
+    originalRatio: {
+      type: Number,
+    }
+  }]],
+  solutionImages: [{
+    url: {
+      type: String,
+    },
+    caption: {
+      type: String,
+    },
+    width: {
+      type: Number,
+    },
+    height: {
+      type: Number,
+    },
+    lockRatio: {
+      type: Boolean,
+    },
+    originalRatio: {
+      type: Number,
+    }
+  }],
+  gridSize: {
+    xs: {
+      type: Number,
+      default: 12
+    },
+    sm: {
+      type: Number,
+      default: 6
+    },
+    md: {
+      type: Number,
+      default: 3
+    }
   },
   solution: {
     type: String
   },
-  solutionType: {
-    type: String,
-    required: true,
-    enum: ['text', 'latex']
-  },
-    chapterId: {
+  chapterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Chapter',
     required: true

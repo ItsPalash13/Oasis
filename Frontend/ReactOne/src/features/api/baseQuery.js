@@ -15,7 +15,11 @@ console.log('Vite Environment Variables:', {
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_BACKEND_URL,
   credentials: 'include', // Ensures cookies are sent with requests
-  prepareHeaders: async (headers) => {
+  prepareHeaders: async (headers, { getState }) => {
+    // Don't set Content-Type for FormData requests - browser will set it with boundary
+    if (getState()?.currentRequest?.formData) {
+      return headers;
+    }
     // try {
     //   const session = await authClient.getSession();
     //   const token = session?.data?.session?.token;

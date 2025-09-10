@@ -28,7 +28,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Help as HelpIcon,
-  Favorite as HealthIcon
+  Favorite as HealthIcon,
+  Fullscreen as FullscreenIcon
 } from '@mui/icons-material';
 import { 
   QuizContainer,
@@ -52,11 +53,13 @@ import { useStartLevelMutation } from '../../features/api/levelAPI';
 import SOUND_FILES from '../../assets/sound/soundFiles';
 import { StreakNotification, BonusNotifications } from './Achievements';
 import ConfettiFireworks from '../../components/magicui/ConfettiFireworks';
+import { renderTextWithLatex } from '../../utils/quesUtils.jsx';
 import Results from './Results/Results';
 import AIFeedback from '../../components/AI Feedback/AIFeedback';
 import AccuracySnackbars from './Topics/Accuracy';
 import Solution from './Solution/Solution';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import ImageDialog from '../../components/ImageDialog';
 
 
 
@@ -101,6 +104,8 @@ const Quiz = ({ socket }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [selectedAnswers, setSelectedAnswers] = useState([]);
+  const [isMultiCorrect, setIsMultiCorrect] = useState(false);
   const [answerResult, setAnswerResult] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const levelSession = useSelector((state) => state.levelSession.session);
@@ -137,6 +142,14 @@ const Quiz = ({ socket }) => {
   const [topicAccVisible, setTopicAccVisible] = useState(false);
   const [topicAccItems, setTopicAccItems] = useState([]);
   const [showSolutions, setShowSolutions] = useState(false);
+  
+  // Image dialog state
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [imageDialogData, setImageDialogData] = useState({
+    src: '',
+    alt: '',
+    caption: ''
+  });
   
   // Next Level countdown states
   const [showNextLevelCountdown, setShowNextLevelCountdown] = useState(false);
@@ -235,9 +248,16 @@ const Quiz = ({ socket }) => {
   };
 
   const handleAnswerSubmit = () => {
-    if (selectedAnswer === '') {
-      setQuizMessage('Please select an answer');
-      return;
+    if (isMultiCorrect) {
+      if (selectedAnswers.length === 0) {
+        setQuizMessage('Please select at least one answer');
+        return;
+      }
+    } else {
+      if (selectedAnswer === '') {
+        setQuizMessage('Please select an answer');
+        return;
+      }
     }
     
     // Set answer submitted state
@@ -246,9 +266,13 @@ const Quiz = ({ socket }) => {
     // Calculate time spent on this question
     const timeSpent = questionStartTime ? Date.now() - questionStartTime : 0;
     
+    // For multi-correct questions, we need to handle multiple answers
+    // For now, we'll send the first selected answer and handle the rest in the backend
+    const answerToSend = isMultiCorrect ? selectedAnswers[0] : parseInt(selectedAnswer);
+    
     socket.emit('answer', {
       userLevelSessionId: levelSession?._id,
-      answer: parseInt(selectedAnswer),
+      answer: answerToSend,
       currentTime: currentTime,
       timeSpent: timeSpent
     });
@@ -274,17 +298,52 @@ const Quiz = ({ socket }) => {
   };
 
   const getOptionClass = (index) => {
-    if (!answerResult) return selectedAnswer === index.toString() ? 'selected' : '';
+    if (!answerResult) {
+      if (isMultiCorrect) {
+        return selectedAnswers.includes(index) ? 'selected' : '';
+      } else {
+        return selectedAnswer === index.toString() ? 'selected' : '';
+      }
+    }
     
-    if (index === answerResult.correctAnswer) {
+    // Handle correct answer highlighting for both single and multi-correct
+    const correctAnswers = Array.isArray(answerResult.correctAnswer) ? 
+      answerResult.correctAnswer : [answerResult.correctAnswer];
+    
+    if (correctAnswers.includes(index)) {
       return 'correct-answer';
     }
     
-    if (index.toString() === selectedAnswer) {
-      return answerResult.isCorrect ? 'correct' : 'wrong';
+    // Handle user selection highlighting
+    if (isMultiCorrect) {
+      if (selectedAnswers.includes(index)) {
+        return answerResult.isCorrect ? 'correct' : 'wrong';
+      }
+    } else {
+      if (index.toString() === selectedAnswer) {
+        return answerResult.isCorrect ? 'correct' : 'wrong';
+      }
     }
     
     return '';
+  };
+
+  const handleOptionClick = (index) => {
+    if (answerResult) return; // Don't allow selection after answer is submitted
+    
+    if (isMultiCorrect) {
+      setSelectedAnswers(prev => {
+        if (prev.includes(index)) {
+          // Remove if already selected
+          return prev.filter(i => i !== index);
+        } else {
+          // Add if not selected
+          return [...prev, index];
+        }
+      });
+    } else {
+      setSelectedAnswer(index.toString());
+    }
   };
 
   const handleBack = () => {
@@ -443,6 +502,8 @@ const Quiz = ({ socket }) => {
       setAnswerResult(null);
       setCurrentQuestion(data);
       setSelectedAnswer('');
+      setSelectedAnswers([]);
+      setIsMultiCorrect(data.isMultiCorrect || false);
       setIsLoading(false);
       // Note the time when question is initialized
       setQuestionStartTime(Date.now());
@@ -645,6 +706,8 @@ const Quiz = ({ socket }) => {
         // Reset all quiz state for next level
         setCurrentQuestion(null);
         setSelectedAnswer('');
+        setSelectedAnswers([]);
+        setIsMultiCorrect(false);
         setShowAnswerDrawer(false);
         // Reset answerResult after drawer closes with a small delay
         setTimeout(() => {
@@ -729,6 +792,8 @@ const Quiz = ({ socket }) => {
               // Reset all quiz state for retry
         setCurrentQuestion(null);
         setSelectedAnswer('');
+        setSelectedAnswers([]);
+        setIsMultiCorrect(false);
         setShowAnswerDrawer(false);
         // Reset answerResult after drawer closes with a small delay
         setTimeout(() => {
@@ -798,6 +863,15 @@ const Quiz = ({ socket }) => {
   const sendQuizEnd = (userLevelSessionId) => {
     socket.emit('sendQuizEnd', { userLevelSessionId: userLevelSessionId });
     setShowError(false);
+  };
+
+  const handleImageClick = (src, alt, caption) => {
+    setImageDialogData({
+      src,
+      alt,
+      caption
+    });
+    setImageDialogOpen(true);
   };
 
   return (
@@ -885,6 +959,14 @@ const Quiz = ({ socket }) => {
                     size="small" 
                     sx={quizStyles.questionChip}
                   />
+                  {isMultiCorrect && (
+                    <Chip 
+                      label="Multiple Correct" 
+                      size="small" 
+                      color="primary"
+                      variant="outlined"
+                    />
+                  )}
                   {/* Show question number for both modes 
                   {totalQuestions > 0 && (
                     <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
@@ -912,22 +994,125 @@ const Quiz = ({ socket }) => {
                     ))}
                   </Box>
                 )}
-                <Typography 
-                  variant="h5" 
-                  component="h2" 
-                  gutterBottom
-                  sx={quizStyles.questionTitle}
-                >
-                  {currentQuestion.question}
-                </Typography>
-                {/* Optional question image */}
-                {currentQuestion?.questionImage && (
-                  <Box sx={{ mt: 1 }}>
-                    <img
-                      src={currentQuestion.questionImage}
-                      alt="question"
-                      style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8 }}
-                    />
+                {(() => {
+                  const hasQuestionText = currentQuestion.question && currentQuestion.question.trim() !== '';
+                  const hasQuestionImages = currentQuestion?.quesImages?.some(img => img.url && img.url.trim() !== '');
+                  
+                  if (hasQuestionText || hasQuestionImages) {
+                    return hasQuestionText ? (
+                      <Typography 
+                        variant="subtile1" 
+                        gutterBottom
+                        sx={quizStyles.questionTitle}
+                      >
+                        {renderTextWithLatex(currentQuestion.question)}
+                      </Typography>
+                    ) : (
+                      <Typography 
+                        variant="h5" 
+                        component="h2" 
+                        gutterBottom
+                        sx={{
+                          ...quizStyles.questionTitle,
+                          color: 'text.secondary',
+                          fontStyle: 'italic'
+                        }}
+                      >
+                        [Image-only question]
+                      </Typography>
+                    );
+                  } else {
+                    return (
+                      <Typography 
+                        variant="h5" 
+                        component="h2" 
+                        gutterBottom
+                        sx={{
+                          ...quizStyles.questionTitle,
+                          color: 'text.secondary',
+                          fontStyle: 'italic'
+                        }}
+                      >
+                        Please add question text or images
+                      </Typography>
+                    );
+                  }
+                })()}
+                {/* Question Images */}
+                {currentQuestion?.quesImages?.some(img => img.url) && (
+                  <Box sx={{ mt: 2 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 2, 
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-start'
+                    }}>
+                      {currentQuestion.quesImages.map((image, index) => (
+                        image.url && (
+                          <Box key={index} sx={{ 
+                            flex: '0 0 auto',
+                            width: `${image.width}px`,
+                            height: `${image.height}px`,
+                            minWidth: '50px',
+                            minHeight: '50px',
+                            position: 'relative',
+                            '&:hover .fullscreen-icon': {
+                              opacity: 1
+                            }
+                          }}>
+                            <img
+                              src={image.url}
+                              alt={image.caption || `Question image ${index + 1}`}
+                              style={{ 
+                                width: '100%', 
+                                height: '100%',
+                                objectFit: 'cover', 
+                                borderRadius: 8
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                            <IconButton
+                              className="fullscreen-icon"
+                              onClick={() => handleImageClick(image.url, image.caption || `Question image ${index + 1}`, image.caption)}
+                              sx={{
+                                position: 'absolute',
+                                top: 8,
+                                right: 8,
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: 'white',
+                                opacity: 0,
+                                transition: 'opacity 0.2s ease-in-out',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                                },
+                                width: 32,
+                                height: 32
+                              }}
+                            >
+                              <FullscreenIcon fontSize="small" />
+                            </IconButton>
+                            {image.caption && image.caption.trim() && (
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary" 
+                                sx={{ 
+                                  display: 'block', 
+                                  mt: 1, 
+                                  fontStyle: 'italic',
+                                  textAlign: 'center',
+                                  fontSize: '0.75rem',
+                                  lineHeight: 1
+                                }}
+                              >
+                                {image.caption}
+                              </Typography>
+                            )}
+                          </Box>
+                        )
+                      ))}
+                    </Box>
                   </Box>
                 )}
               </CardContent>
@@ -935,16 +1120,129 @@ const Quiz = ({ socket }) => {
 
             <Grid container spacing={3} sx={{ mt: 2 }}>
               {currentQuestion?.options?.map((option, index) => (
-                <Grid size={{xs:12,sm:6,md:3}} key={index}>
+                <Grid size={currentQuestion?.gridSize || {xs:12,sm:6,md:3}} key={index}>
                   <OptionCard
-                    selected={selectedAnswer === index.toString()}
+                    selected={isMultiCorrect ? selectedAnswers.includes(index) : selectedAnswer === index.toString()}
                     className={getOptionClass(index)}
-                    onClick={() => !answerResult && setSelectedAnswer(index.toString())}
+                    onClick={() => handleOptionClick(index)}
                   >
                     <CardContent>
-                      <Typography variant="body1" align="center">
-                        {option}
-                      </Typography>
+                      {(() => {
+                        const hasOptionText = option && option.trim() !== '';
+                        const hasOptionImages = currentQuestion?.optionImages?.[index]?.some(img => img.url && img.url.trim() !== '');
+                        
+                        if (hasOptionText || hasOptionImages) {
+                          return hasOptionText ? (
+                            <Typography 
+                              variant="subtitle1" 
+                              align="center"
+                              sx={{
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                '& .katex': {
+                                  fontSize: '1em'
+                                }
+                              }}
+                            >
+                              {renderTextWithLatex(option)}
+                            </Typography>
+                          ) : (
+                            <></>
+                          );
+                        } else {
+                          return (
+                            <Typography 
+                              variant="body1" 
+                              align="center"
+                              sx={{ 
+                                color: 'text.secondary',
+                                fontStyle: 'italic' 
+                              }}
+                            >
+                              Please add option text or images
+                            </Typography>
+                          );
+                        }
+                      })()}
+
+                      {/* Option Images */}
+                      {currentQuestion?.optionImages?.[index]?.some(img => img.url) && (
+                        <Box sx={{ mt: 2 }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            gap: 1, 
+                            flexWrap: 'wrap',
+                            alignItems: 'flex-start',
+                            justifyContent: 'center'
+                          }}>
+                            {currentQuestion.optionImages[index].map((image, imageIndex) => (
+                              image.url && (
+                                <Box key={imageIndex} sx={{ 
+                                  flex: '0 0 auto',
+                                  width: `${image.width}px`,
+                                  height: `${image.height}px`,
+                                  minWidth: '50px',
+                                  minHeight: '50px',
+                                  position: 'relative',
+                                  '&:hover .fullscreen-icon': {
+                                    opacity: 1
+                                  }
+                                }}>
+                                  <img
+                                    src={image.url}
+                                    alt={image.caption || `Option ${index + 1} image ${imageIndex + 1}`}
+                                    style={{ 
+                                      width: '100%', 
+                                      height: '100%',
+                                      objectFit: 'cover', 
+                                      borderRadius: 8
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                  <IconButton
+                                    className="fullscreen-icon"
+                                    onClick={() => handleImageClick(image.url, image.caption || `Option ${index + 1} image ${imageIndex + 1}`, image.caption)}
+                                    sx={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      right: 4,
+                                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                      color: 'white',
+                                      opacity: 0,
+                                      transition: 'opacity 0.2s ease-in-out',
+                                      '&:hover': {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                                      },
+                                      width: 28,
+                                      height: 28
+                                    }}
+                                  >
+                                    <FullscreenIcon sx={{ fontSize: '0.875rem' }} />
+                                  </IconButton>
+                                  {image.caption && image.caption.trim() && (
+                                    <Typography 
+                                      variant="caption" 
+                                      color="text.secondary" 
+                                      sx={{ 
+                                        display: 'block', 
+                                        mt: 0.5, 
+                                        fontStyle: 'italic',
+                                        textAlign: 'center',
+                                        fontSize: '0.7rem',
+                                        lineHeight: 1
+                                      }}
+                                    >
+                                      {image.caption}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
                     </CardContent>
                   </OptionCard>
                 </Grid>
@@ -957,7 +1255,7 @@ const Quiz = ({ socket }) => {
                   variant="contained"
                   size="large"
                   onClick={handleAnswerSubmit}
-                  disabled={selectedAnswer === '' || answerSubmitted}
+                  disabled={(isMultiCorrect ? selectedAnswers.length === 0 : selectedAnswer === '') || answerSubmitted}
                   sx={{
                     backgroundColor: theme => theme.palette.mode === 'dark' ? '#444' : '#1F1F1F',
                     color: theme => theme.palette.mode === 'dark' ? 'white' : 'white',
@@ -972,7 +1270,7 @@ const Quiz = ({ socket }) => {
                       Submitting...
                     </>
                   ) : (
-                    'Submit Answer'
+                    isMultiCorrect ? 'Submit Answers' : 'Submit Answer'
                   )}
                 </StyledButton>
               ) : (
@@ -1021,9 +1319,17 @@ const Quiz = ({ socket }) => {
                 borderColor: theme => theme.palette.mode === 'dark' ? '#FFFFFF' : '#1F1F1F',
               }
             }}
-            title={showCorrectAnswer ? `Answer: ${currentQuestion.correctAnswer}` : "Show correct answer"}
+            title={showCorrectAnswer ? 
+              (Array.isArray(currentQuestion.correctAnswer) ? 
+                `Answers: ${currentQuestion.correctAnswer.map(ans => ans + 1).join(', ')}` : 
+                `Answer: ${currentQuestion.correctAnswer + 1}`) : 
+              "Show correct answer"}
           >
-            {showCorrectAnswer ? currentQuestion.correctAnswer+1 : <HelpIcon />}
+            {showCorrectAnswer ? 
+              (Array.isArray(currentQuestion.correctAnswer) ? 
+                currentQuestion.correctAnswer.map(ans => ans + 1).join(',') : 
+                currentQuestion.correctAnswer + 1) : 
+              <HelpIcon />}
           </FloatingButton>
         )}
 
@@ -1430,6 +1736,15 @@ const Quiz = ({ socket }) => {
           isVisible={topicAccVisible}
           onClose={() => setTopicAccVisible(false)}
           bottomOffset={0}
+        />
+
+        {/* Image Dialog */}
+        <ImageDialog
+          open={imageDialogOpen}
+          onClose={() => setImageDialogOpen(false)}
+          imageSrc={imageDialogData.src}
+          imageAlt={imageDialogData.alt}
+          caption={imageDialogData.caption}
         />
       </QuizContainer>
   );

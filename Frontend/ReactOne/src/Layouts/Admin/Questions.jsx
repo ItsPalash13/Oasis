@@ -25,15 +25,18 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Tabs,
+  Tab,
+  Tooltip
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
 import {
   useGetQuestionsQuery,
   useCreateQuestionMutation,
-  useMultiAddQuestionsMutation,
   useUpdateQuestionMutation,
+  useMultiAddQuestionsMutation,
   useDeleteQuestionMutation,
   useGetChaptersQuery,
   useGetTopicsQuery,
@@ -42,16 +45,17 @@ import {
 } from '../../features/api/adminAPI';
 import { useUploadQuestionImageMutation } from '../../features/api/adminAPI';
 import { saveAs } from 'file-saver';
+import QuesEditor from '../../components/QuesEditor';
 
 const Questions = () => {
-  const [openDialog, setOpenDialog] = useState(false);
   const [openMultiAddDialog, setOpenMultiAddDialog] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
   const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTopicFilters, setSelectedTopicFilters] = useState([]);
+  const [selectedTopicsForEditor, setSelectedTopicsForEditor] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
+  const [editingQuestion, setEditingQuestion] = useState(null);
   const [multiAddData, setMultiAddData] = useState({
     questions: '',
     chapterId: '',
@@ -60,8 +64,7 @@ const Questions = () => {
     xpCorrect: 2,
     xpIncorrect: 0,
     mu: 0,
-    sigma: 1,
-    solutionType: 'text'
+    sigma: 1
   });
 
   const { data: chaptersData } = useGetChaptersQuery();
@@ -95,10 +98,11 @@ const Questions = () => {
     }
     
     // Apply topic filter
-    if (selectedTopicFilters.length > 0) {
+    if (selectedTopicsForEditor.length > 0) {
       filtered = filtered.filter(question => {
         const questionTopics = question.topics?.map(topic => topic.name || topic.topic || '') || [];
-        return selectedTopicFilters.every(selectedTopic => 
+        const selectedTopicNames = selectedTopicsForEditor.map(topic => topic.topic);
+        return selectedTopicNames.every(selectedTopic => 
           questionTopics.includes(selectedTopic)
         );
       });
@@ -116,11 +120,11 @@ const Questions = () => {
     }
     
     return filtered;
-  }, [questionsData?.data, searchQuery, selectedTopicFilters, selectedSection]);
+  }, [questionsData?.data, searchQuery, selectedTopicsForEditor, selectedSection]);
   
   const [createQuestion] = useCreateQuestionMutation();
-  const [multiAddQuestions] = useMultiAddQuestionsMutation();
   const [updateQuestion] = useUpdateQuestionMutation();
+  const [multiAddQuestions] = useMultiAddQuestionsMutation();
   const [deleteQuestion] = useDeleteQuestionMutation();
   const [uploadQuestionImage] = useUploadQuestionImageMutation();
   const [bulkAssignSection] = useBulkAssignSectionMutation();
@@ -172,73 +176,6 @@ const Questions = () => {
     }
   };
 
-  const [formData, setFormData] = useState({
-    ques: '',
-    options: ['', '', '', ''],
-    correct: 0,
-    chapterId: '',
-    sectionId: '',
-    topics: [],
-    solution: '',
-    solutionType: 'text'
-  });
-
-  const handleOpenDialog = (question = null) => {
-    if (question) {
-      setEditingQuestion(question);
-      setFormData({
-        ques: question.ques,
-        options: question.options,
-        correct: question.correct,
-        chapterId: question.chapterId?._id || question.chapterId,
-        sectionId: question.sectionId?._id || question.sectionId || '',
-        topics: question.topics || [],
-        solution: question.solution || '',
-        solutionType: question.solutionType || 'text'
-      });
-    } else {
-      setEditingQuestion(null);
-      setFormData({
-        ques: '',
-        options: ['', '', '', ''],
-        correct: 0,
-        chapterId: selectedChapter,
-        sectionId: selectedSection,
-        topics: [],
-        solution: '',
-        solutionType: 'text'
-      });
-    }
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setEditingQuestion(null);
-    setFormData({
-      ques: '',
-      options: ['', '', '', ''],
-      correct: 0,
-      chapterId: '',
-      sectionId: '',
-      topics: [],
-      solution: '',
-      solutionType: 'text'
-    });
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (editingQuestion) {
-        await updateQuestion({ id: editingQuestion._id, ...formData }).unwrap();
-      } else {
-        await createQuestion(formData).unwrap();
-      }
-      handleCloseDialog();
-    } catch (error) {
-      console.error('Error saving question:', error);
-    }
-  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this question?')) {
@@ -297,6 +234,12 @@ const Questions = () => {
     } finally {
       setIsBulkAssigning(false);
     }
+  };
+
+  const handleRowClick = (params) => {
+    // Set the question to edit and switch to editor tab
+    setEditingQuestion(params.row);
+    setActiveTab(1);
   };
 
   // Helper function to parse CSV line
@@ -377,7 +320,7 @@ const Questions = () => {
         option4: parts[4] || '',
         correctIndex: parts[5] || '',
         solution: parts[6] || '',
-        isValid: parts.length >= 6 && parts[0] && parts[1] && parts[2] && parts[3] && parts[4]
+        isValid: parts.length >= 6 && parts[0] && parts[1] && parts[2] && parts[3] && parts[4] && parts[5]
       };
     });
   };
@@ -410,7 +353,11 @@ const Questions = () => {
         option3 = extractContent(option3);
         option4 = extractContent(option4);
         solution = solution ? extractContent(solution) : '';
-        return [question, option1, option2, option3, option4, parseInt(correctIndex), solution];
+        // Parse correct index(es) - handle both single and multiple
+        const correctAnswers = correctIndex.includes(';') ? 
+          correctIndex.split(';').map(idx => parseInt(idx.trim())) : 
+          [parseInt(correctIndex)];
+        return [question, option1, option2, option3, option4, correctAnswers, solution];
       });
 
       await multiAddQuestions({
@@ -421,8 +368,7 @@ const Questions = () => {
         xpCorrect: multiAddData.xpCorrect,
         xpIncorrect: multiAddData.xpIncorrect,
         mu: multiAddData.mu,
-        sigma: multiAddData.sigma,
-        solutionType: multiAddData.solutionType
+        sigma: multiAddData.sigma
       }).unwrap();
 
       setOpenMultiAddDialog(false);
@@ -434,8 +380,7 @@ const Questions = () => {
         xpCorrect: 2,
         xpIncorrect: 0,
         mu: 0,
-        sigma: 1,
-        solutionType: 'text'
+        sigma: 1
       });
     } catch (error) {
       console.error('Error multi-adding questions:', error);
@@ -465,23 +410,21 @@ const Questions = () => {
       // Options (ensure 4, each wrapped as /"option"/)
       const options = (q.options || []).map(opt => escapeCSV(`/"${opt}"/`)).slice(0, 4);
       while (options.length < 4) options.push(escapeCSV('/""/'));
-      // Correct index
-      const correctIndex = escapeCSV(q.correct);
+      // Correct index(es) - handle both single and multiple correct answers
+      const correctIndex = Array.isArray(q.correct) ? q.correct.join(';') : q.correct;
       // Mu and Sigma
       const mu = escapeCSV(q.questionTs?.difficulty?.mu ?? '');
       const sigma = escapeCSV(q.questionTs?.difficulty?.sigma ?? '');
       // Solution
       const solution = escapeCSV(`/"${q.solution || ''}"/`);
-      // Solution Type
-      const solutionType = escapeCSV(q.solutionType || 'text');
       // Topics as JSON array of topic names
       const topicsArr = (q.topics || []).map(t => t.name || t.topic || '').filter(Boolean);
       const topicsJson = escapeCSV(JSON.stringify(topicsArr));
       // Join all fields
-      return [question, ...options, correctIndex, mu, sigma, solution, solutionType, topicsJson].join(',');
+      return [question, ...options, correctIndex, mu, sigma, solution, topicsJson].join(',');
     });
     // Add header
-    const header = '/question/,option1,option2,option3,option4,correctIndex,mu,sigma,solution,solutionType,topics';
+    const header = '/question/,option1,option2,option3,option4,correctIndex(es),mu,sigma,solution,topics';
     const csvContent = [header, ...csvRows].join('\n');
     // Download as file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -502,8 +445,12 @@ const Questions = () => {
               key={index} 
               label={`${index + 1}. ${option}`} 
               size="small" 
-              variant={params.row.correct === index ? "filled" : "outlined"}
-              color={params.row.correct === index ? "success" : "default"}
+              variant={Array.isArray(params.row.correct) ? 
+                (params.row.correct.includes(index) ? "filled" : "outlined") : 
+                (params.row.correct === index ? "filled" : "outlined")}
+              color={Array.isArray(params.row.correct) ? 
+                (params.row.correct.includes(index) ? "success" : "default") : 
+                (params.row.correct === index ? "success" : "default")}
               sx={{ mr: 0.5, mb: 0.5 }}
             />
           ))}
@@ -511,41 +458,125 @@ const Questions = () => {
       )
     },
     {
-      field: 'quesImage',
-      headerName: 'Image',
-      width: 120,
+      field: 'quesImages',
+      headerName: 'Images',
+      width: 200,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {params.value ? (
-            <img src={params.value} alt="question" style={{ width: 56, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+          {params.value?.length > 0 ? (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap', overflow: 'hidden' }}>
+              {params.value.map((img, idx) => (
+                <Box key={idx} sx={{ position: 'relative' }}>
+                  <img 
+                    src={img.url} 
+                    alt={img.caption || `image ${idx + 1}`} 
+                    style={{ 
+                      width: 56, 
+                      height: 40, 
+                      objectFit: 'cover', 
+                      borderRadius: 4 
+                    }} 
+                  />
+                  {img.caption && (
+                    <Tooltip title={img.caption}>
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          position: 'absolute', 
+                          bottom: 0, 
+                          left: 0, 
+                          right: 0, 
+                          bgcolor: 'rgba(0,0,0,0.6)', 
+                          color: 'white', 
+                          textAlign: 'center',
+                          fontSize: '0.6rem',
+                          borderBottomLeftRadius: 4,
+                          borderBottomRightRadius: 4
+                        }}
+                      >
+                        {img.caption.slice(0, 10)}{img.caption.length > 10 ? '...' : ''}
+                      </Typography>
+                    </Tooltip>
+                  )}
+                </Box>
+              ))}
+              {params.value.length > 2 && (
+                <Chip 
+                  label={`+${params.value.length - 2}`} 
+                  size="small" 
+                  sx={{ height: 40 }}
+                />
+              )}
+            </Box>
           ) : (
-            <Typography variant="caption" color="text.secondary">None</Typography>
+            <Typography variant="caption" color="text.secondary">No images</Typography>
           )}
         </Box>
       )
     },
     {
-      field: 'quesImageUrl',
-      headerName: 'Image URL',
-      flex: 1,
-      minWidth: 260,
+      field: 'optionImages',
+      headerName: 'Option Images',
+      width: 200,
       renderCell: (params) => (
-        params.row.quesImage ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-            <a href={params.row.quesImage} target="_blank" rel="noreferrer" style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              display: 'inline-block',
-              maxWidth: '100%'
-            }}>
-              {params.row.quesImage}
-            </a>
-          </Box>
-        ) : (
-          <Typography variant="caption" color="text.secondary">N/A</Typography>
-        )
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {params.value?.some(arr => arr.length > 0) ? (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap' }}>
+              {params.value.map((optImgs, optIdx) => 
+                optImgs.length > 0 && (
+                  <Box key={optIdx} sx={{ position: 'relative' }}>
+                    <Chip 
+                      avatar={
+                        <img 
+                          src={optImgs[0].url} 
+                          alt={`option ${optIdx + 1}`}
+                          style={{ 
+                            width: 24, 
+                            height: 24, 
+                            objectFit: 'cover',
+                            borderRadius: '50%'
+                          }}
+                        />
+                      }
+                      label={`Opt ${optIdx + 1}: ${optImgs.length}`}
+                      size="small"
+                    />
+                  </Box>
+                )
+              )}
+            </Box>
+          ) : (
+            <Typography variant="caption" color="text.secondary">No images</Typography>
+          )}
+        </Box>
       )
+    },
+    {
+      field: 'gridSize',
+      headerName: 'Layout',
+      width: 150,
+      renderCell: (params) => {
+        const grid = params.value || { xs: 12, sm: 6, md: 3 };
+        return (
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Chip 
+              label={`xs: ${12/grid.xs}`} 
+              size="small" 
+              variant="outlined"
+            />
+            <Chip 
+              label={`sm: ${12/grid.sm}`} 
+              size="small" 
+              variant="outlined"
+            />
+            <Chip 
+              label={`md: ${12/grid.md}`} 
+              size="small" 
+              variant="outlined"
+            />
+          </Box>
+        );
+      }
     },
     { 
       field: 'chapterId', 
@@ -641,28 +672,12 @@ const Questions = () => {
         </Typography>
       )
     },
-    { 
-      field: 'solutionType', 
-      headerName: 'Solution Type', 
-      width: 120,
-      renderCell: (params) => (
-        <Chip 
-          label={params.value || 'text'} 
-          size="small" 
-          color={params.value === 'latex' ? 'secondary' : 'default'}
-          variant={params.value === 'latex' ? 'filled' : 'outlined'}
-        />
-      )
-    },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 220,
+      width: 120,
       renderCell: (params) => (
         <Box>
-          <IconButton onClick={() => handleOpenDialog(params.row)} size="small">
-            <EditIcon />
-          </IconButton>
           <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error">
             <DeleteIcon />
           </IconButton>
@@ -676,7 +691,8 @@ const Questions = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+      {/* High Level Filters */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel id="chapter-select-label">Chapter</InputLabel>
           <Select
@@ -686,6 +702,7 @@ const Questions = () => {
             onChange={(e) => {
               setSelectedChapter(e.target.value);
               setSelectedSection(''); // Reset section when chapter changes
+              setSelectedTopicsForEditor([]); // Reset topics when chapter changes
             }}
           >
             {chaptersData?.data?.map((chapter) => (
@@ -695,6 +712,7 @@ const Questions = () => {
             ))}
           </Select>
         </FormControl>
+
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel id="section-select-label">Section (Optional)</InputLabel>
           <Select
@@ -702,10 +720,10 @@ const Questions = () => {
             label="Section (Optional)"
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
-            title="Filter questions by section"
+            disabled={!selectedChapter}
           >
             <MenuItem value="">
-              <em>All Sections</em>
+              <em>No Section</em>
             </MenuItem>
             {sectionsData?.data?.map((section) => (
               <MenuItem key={section._id} value={section._id}>
@@ -714,90 +732,145 @@ const Questions = () => {
             ))}
           </Select>
         </FormControl>
+
         <FormControl sx={{ minWidth: 300 }}>
-          <InputLabel id="topic-filter-label">Filter by Topics</InputLabel>
+          <InputLabel id="topics-label">Topics</InputLabel>
           <Select
-            labelId="topic-filter-label"
-            label="Filter by Topics"
+            labelId="topics-label"
+            label="Topics"
             multiple
-            value={selectedTopicFilters}
-            onChange={(e) => setSelectedTopicFilters(e.target.value)}
+            value={selectedTopicsForEditor}
+            onChange={(e) => {
+              setSelectedTopicsForEditor(e.target.value);
+            }}
+            disabled={!selectedChapter}
             renderValue={(selected) => (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((value) => (
-                  <Chip key={value} label={value} size="small" />
+                {selected.map((topic) => (
+                  <Chip key={topic._id} label={topic.topic} size="small" />
                 ))}
               </Box>
             )}
           >
             {topicsData?.data?.map((topic) => (
-              <MenuItem key={topic._id} value={topic.topic}>
+              <MenuItem key={topic._id} value={topic}>
                 {topic.topic}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
-        <TextField
-          placeholder="Search questions, options, or topics..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ minWidth: 300 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<UploadIcon />}
-          onClick={() => setOpenMultiAddDialog(true)}
-          disabled={!selectedChapter}
-        >
-          Multi Add
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={downloadFilteredQuestionsCSV}
-          disabled={filteredQuestions.length === 0}
-          sx={{ ml: 1 }}
-        >
-          Download CSV
-        </Button>
-        {selectedRows.length > 0 && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleMultiDelete}
-            disabled={selectedRows.length === 0}
-          >
-            Delete Selected ({selectedRows.length})
-          </Button>
+
+        {!selectedChapter && (
+          <Alert severity="info" sx={{ flex: 1 }}>
+            Please select a chapter to start adding or editing questions
+          </Alert>
         )}
-        {selectedRows.length > 0 && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setBulkAssignDialogOpen(true)}
-            disabled={selectedRows.length === 0}
-          >
-            Assign Section ({selectedRows.length})
-          </Button>
-        )}
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-          disabled={!selectedChapter}
-        >
-          Add Question
-        </Button>
       </Box>
 
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="Questions List" />
+          <Tab label="Question Editor" disabled={!selectedChapter} />
+        </Tabs>
+      </Box>
+      {activeTab === 1 ? (
+        
+        <QuesEditor 
+          selectedChapter={selectedChapter}
+          selectedSection={selectedSection}
+          selectedTopics={selectedTopicsForEditor}
+          editingQuestion={editingQuestion}
+          onSave={async (formData, files) => {
+            try {
+              // If we received raw data and files instead of FormData
+              if (!(formData instanceof FormData)) {
+                const newFormData = new FormData();
+                newFormData.append('data', JSON.stringify(formData));
+                if (files && Array.isArray(files)) {
+                  files.forEach(file => {
+                    newFormData.append('files', file);
+                  });
+                }
+                formData = newFormData;
+              }
+
+              if (editingQuestion) {
+                // For updates, we need to pass the ID and formData
+                // For updates, send the ID in the URL and formData directly
+                await updateQuestion({
+                  id: editingQuestion._id,
+                  method: 'PUT',
+                  body: formData,
+                  formData: true // Signal to RTK Query that this is FormData
+                }).unwrap();
+              } else {
+                await createQuestion(formData).unwrap();
+              }
+              
+              setActiveTab(0); // Switch back to list view after save
+              setEditingQuestion(null); // Clear editing question
+            } catch (error) {
+              console.error('Error saving question:', error);
+            }
+          }}
+        />
+      ) : (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <TextField
+              placeholder="Search questions, options, or topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              sx={{ minWidth: 300 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              onClick={() => setOpenMultiAddDialog(true)}
+              disabled={!selectedChapter}
+            >
+              Multi Add
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={downloadFilteredQuestionsCSV}
+              disabled={filteredQuestions.length === 0}
+              sx={{ ml: 1 }}
+            >
+              Download CSV
+            </Button>
+            {selectedRows.length > 0 && (
+              <Button
+                variant="contained"
+                color="error"
+                onClick={handleMultiDelete}
+                disabled={selectedRows.length === 0}
+              >
+                Delete Selected ({selectedRows.length})
+              </Button>
+            )}
+            {selectedRows.length > 0 && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setBulkAssignDialogOpen(true)}
+                disabled={selectedRows.length === 0}
+              >
+                Assign Section ({selectedRows.length})
+              </Button>
+            )}
+          </Box>
+
       {/* Filter Summary */}
-      {(selectedChapter || selectedSection || selectedTopicFilters.length > 0) && (
+      {(selectedChapter || selectedSection || selectedTopicsForEditor.length > 0) && (
         <Box sx={{ 
           mb: 2, 
           p: 2, 
@@ -828,15 +901,15 @@ const Questions = () => {
                 deleteIcon={<span style={{ cursor: 'pointer' }}>×</span>}
               />
             )}
-            {selectedTopicFilters.map((topic, index) => (
+            {selectedTopicsForEditor.map((topic, index) => (
               <Chip
-                key={index}
-                label={`Topic: ${topic}`}
+                key={topic._id}
+                label={`Topic: ${topic.topic}`}
                 color="info"
                 variant="outlined"
                 onDelete={() => {
-                  const newFilters = selectedTopicFilters.filter((_, i) => i !== index);
-                  setSelectedTopicFilters(newFilters);
+                  const newTopics = selectedTopicsForEditor.filter((_, i) => i !== index);
+                  setSelectedTopicsForEditor(newTopics);
                 }}
                 deleteIcon={<span style={{ cursor: 'pointer' }}>×</span>}
               />
@@ -847,7 +920,7 @@ const Questions = () => {
               onClick={() => {
                 setSelectedChapter('');
                 setSelectedSection('');
-                setSelectedTopicFilters([]);
+                setSelectedTopicsForEditor([]);
                 setSearchQuery('');
               }}
               sx={{ ml: 1 }}
@@ -917,7 +990,7 @@ const Questions = () => {
             {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''} 
             {selectedSection && selectedSection !== 'no-section' && ` in ${sectionsData?.data?.find(s => s._id === selectedSection)?.name}`}
             {selectedSection === 'no-section' && ' without section'}
-            {selectedTopicFilters.length > 0 && ` matching ${selectedTopicFilters.length} topic filter${selectedTopicFilters.length !== 1 ? 's' : ''}`}
+            {selectedTopicsForEditor.length > 0 && ` matching ${selectedTopicsForEditor.length} topic filter${selectedTopicsForEditor.length !== 1 ? 's' : ''}`}
           </Typography>
         </Box>
         <DataGrid
@@ -940,9 +1013,9 @@ const Questions = () => {
             },
           }}
           onRowSelectionModelChange={(newSelectionModel) => {
-            console.log('Selected rows changed:', newSelectionModel.ids);
             setSelectedRows([...newSelectionModel.ids]);
           }}
+          onRowClick={handleRowClick}
           selectionModel={selectedRows}
           initialState={{
             pagination: {
@@ -964,149 +1037,24 @@ const Questions = () => {
               borderBottom: '2px solid',
               borderColor: 'divider',
             },
+            '& .MuiDataGrid-row': {
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            },
           }}
         />
       </Box>
 
-      {/* Single Question Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingQuestion ? 'Edit Question' : 'Add New Question'}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Question"
-                multiline
-                rows={3}
-                value={formData.ques}
-                onChange={(e) => setFormData({ ...formData, ques: e.target.value })}
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                Chapter: {chaptersData?.data?.find(c => c._id === selectedChapter)?.name}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Section (Optional)</InputLabel>
-                <Select
-                  value={formData.sectionId}
-                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                  label="Section (Optional)"
-                >
-                  <MenuItem value="">
-                    <em>No Section</em>
-                  </MenuItem>
-                  {sectionsData?.data?.map((section) => (
-                    <MenuItem key={section._id} value={section._id}>
-                      {section.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Autocomplete
-                multiple
-                options={topicsData?.data || []}
-                getOptionLabel={(option) => option.topic}
-                value={formData.topics}
-                onChange={(e, newValue) => setFormData({ ...formData, topics: newValue })}
-                renderInput={(params) => (
-                  <TextField {...params} label="Topics" />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      label={option.name}
-                      {...getTagProps({ index })}
-                      key={option._id}
-                    />
-                  ))
-                }
-              />
-            </Grid>
-
-            {formData.options.map((option, index) => (
-              <Grid item xs={12} key={index}>
-                <TextField
-                  fullWidth
-                  label={`Option ${index + 1}`}
-                  value={option}
-                  onChange={(e) => {
-                    const newOptions = [...formData.options];
-                    newOptions[index] = e.target.value;
-                    setFormData({ ...formData, options: newOptions });
-                  }}
-                />
-              </Grid>
-            ))}
-
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Correct Answer</InputLabel>
-                <Select
-                  value={formData.correct}
-                  onChange={(e) => setFormData({ ...formData, correct: e.target.value })}
-                >
-                  {formData.options.map((option, index) => (
-                    <MenuItem key={index} value={index}>
-                      Option {index + 1}: {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Solution (Optional)"
-                multiline
-                rows={3}
-                value={formData.solution}
-                onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
-                placeholder="Provide detailed explanation for the correct answer..."
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Solution Type</InputLabel>
-                <Select
-                  value={formData.solutionType}
-                  onChange={(e) => setFormData({ ...formData, solutionType: e.target.value })}
-                  label="Solution Type"
-                >
-                  <MenuItem value="text">Text</MenuItem>
-                  <MenuItem value="latex">LaTeX</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {editingQuestion ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Multi Add Dialog */}
       <Dialog open={openMultiAddDialog} onClose={() => setOpenMultiAddDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Multi Add Questions</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>
-            Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/ (one per line)<br/>
-            Note: Solution is optional. You can omit it or leave it empty by using /""/. Mu and Sigma values are set below for all questions.
+            Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex(es),/"solution"/ (one per line)<br/>
+            Note: Solution is optional. You can omit it or leave it empty by using /""/. For multiple correct answers, separate indices with semicolon (e.g., 0;2). Mu and Sigma values are set below for all questions.
           </Alert>
           
           <Grid container spacing={2}>
@@ -1118,7 +1066,7 @@ const Questions = () => {
                 rows={10}
                 value={multiAddData.questions}
                 onChange={(e) => setMultiAddData({ ...multiAddData, questions: e.target.value })}
-                placeholder={'Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/'}
+                placeholder={'Format: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex(es),/"solution"/'}
               />
             </Grid>
 
@@ -1169,11 +1117,16 @@ const Questions = () => {
                             {row.option4}
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={row.correctIndex} 
-                              size="small" 
-                              color={row.correctIndex >= 0 && row.correctIndex <= 3 ? "success" : "error"}
-                            />
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              {row.correctIndex.split(';').map((idx, i) => (
+                                <Chip 
+                                  key={i}
+                                  label={idx.trim()} 
+                                  size="small" 
+                                  color={parseInt(idx.trim()) >= 0 && parseInt(idx.trim()) <= 3 ? "success" : "error"}
+                                />
+                              ))}
+                            </Box>
                           </TableCell>
                           <TableCell sx={{ maxWidth: 150, wordBreak: 'break-word' }}>
                             {row.solution || 'No solution'}
@@ -1192,7 +1145,7 @@ const Questions = () => {
                 </TableContainer>
                 {csvPreviewData.some(row => !row.isValid) && (
                   <Alert severity="warning" sx={{ mt: 1 }}>
-                    Some rows have invalid format. Each row should have: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex,/"solution"/
+                    Some rows have invalid format. Each row should have: /"question"/,/"option1"/,/"option2"/,/"option3"/,/"option4"/,correctIndex(es),/"solution"/
                   </Alert>
                 )}
               </Grid>
@@ -1291,19 +1244,6 @@ const Questions = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Solution Type</InputLabel>
-                <Select
-                  value={multiAddData.solutionType}
-                  onChange={(e) => setMultiAddData({ ...multiAddData, solutionType: e.target.value })}
-                  label="Solution Type"
-                >
-                  <MenuItem value="text">Text</MenuItem>
-                  <MenuItem value="latex">LaTeX</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -1419,6 +1359,8 @@ const Questions = () => {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 };

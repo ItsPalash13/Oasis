@@ -47,7 +47,12 @@ export const quizSessionHandlers = (socket: ExtendedSocket) => {
             ques: question.ques,
             options: question.options,
             correct: question.correct,
-            topics: question.topics?.map((t: any) => t.name) || []
+            isMultiCorrect: Array.isArray(question.correct) && question.correct.length > 1,
+            topics: question.topics?.map((t: any) => t.name) || [],
+            quesImages: question.quesImages || [],
+            optionImages: question.optionImages || [],
+            solutionImages: question.solutionImages || [],
+            gridSize: question.gridSize || { xs: 12, sm: 6, md: 3 }
           };
         }
       }

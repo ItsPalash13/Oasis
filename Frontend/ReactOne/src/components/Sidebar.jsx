@@ -22,6 +22,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
   Menu as MenuIcon,
+  LibraryBooks as LibraryBooksIcon,
 } from '@mui/icons-material';
 import { 
   StyledDrawer, 
@@ -52,6 +53,12 @@ const Sidebar = ({ open, onToggle, devicePixelRatio }) => {
     // Only show Admin link for admin users
     if (userRole === 'admin') {
       baseItems.push({ text: 'Admin', icon: <SettingsIcon fontSize="small" />, path: '/admin' });
+    }
+
+    // Show Quiz Bank for teachers
+    if (userRole === 'teacher') {
+      baseItems.push({ text: 'Question Bank', icon: <QuizIcon fontSize="small" />, path: '/quesbank' });
+      baseItems.push({ text: 'Tests', icon: <LibraryBooksIcon fontSize="small" />, path: '/tests' });
     }
 
     return baseItems;

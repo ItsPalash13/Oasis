@@ -40,7 +40,7 @@ const pushQuestionHistoryEntry = async (
     question: questionDoc.ques,
     options: questionDoc.options,
     userOptionChoice,
-    correctOption: (questionDoc as any).correct,
+    correctOption: Array.isArray((questionDoc as any).correct) ? (questionDoc as any).correct : [(questionDoc as any).correct],
     topics: Array.isArray((questionDoc as any).topics)
       ? (questionDoc as any).topics.map((t: any) => ({
           topicId: (t.id?._id ?? t.id ?? t._id),
@@ -48,7 +48,7 @@ const pushQuestionHistoryEntry = async (
         }))
       : [],
     solution: (questionDoc as any).solution,
-    solutionType: (questionDoc as any).solutionType || 'text'
+    solutionImages: (questionDoc as any).solutionImages || []
   });
 
   await session.save();
@@ -276,8 +276,12 @@ export const quizQuestionHandlers = (socket: Socket) => {
         question: question?.ques,
         options: question?.options,
         correctAnswer: question?.correct,
+        isMultiCorrect: Array.isArray(question?.correct) && question.correct.length > 1,
         topics: question?.topics?.map(t => t.name) || [],
-        questionImage: question?.quesImage,
+        quesImages: question?.quesImages || [],
+        optionImages: question?.optionImages || [],
+        solutionImages: question?.solutionImages || [],
+        gridSize: question?.gridSize || { xs: 12, sm: 6, md: 3 },
         currentQuestionIndex: session.currentQuestionIndex,
         totalQuestions: session.questionBank.length,
         currentStreak: session.streak || 0
@@ -337,7 +341,10 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         throw new Error('Question not found');
       }
 
-      const isCorrect = answer === question.correct;
+      // Handle both single and multi-correct answers
+      const isCorrect = Array.isArray(question.correct) ? 
+        question.correct.includes(answer) : 
+        answer === question.correct;
       
       // Persist question snapshot with user's choice
       try {
@@ -620,6 +627,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,
+          isMultiCorrect: Array.isArray(question.correct) && question.correct.length > 1,
           xpEarned: Number(xpEarned),
           currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
           currentCorrectQuestions: correctQuestions,
@@ -704,6 +712,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,
+          isMultiCorrect: Array.isArray(question.correct) && question.correct.length > 1,
           xpEarned: Number(xpEarned),
           currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
           currentCorrectQuestions: correctQuestions,
@@ -788,6 +797,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,
+          isMultiCorrect: Array.isArray(question.correct) && question.correct.length > 1,
           xpEarned: Number(xpEarned),
           currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
           currentCorrectQuestions: correctQuestions,
@@ -845,6 +855,7 @@ socket.on('answer', async ({ userLevelSessionId, answer, currentTime, timeSpent 
         socket.emit('answerResult', {
           isCorrect,
           correctAnswer: question.correct,
+          isMultiCorrect: Array.isArray(question.correct) && question.correct.length > 1,
           xpEarned: Number(xpEarned),
           currentXp: session.attemptType === 'time_rush' ? session.timeRush.currentXp : session.precisionPath.currentXp,
           currentCorrectQuestions: correctQuestions,

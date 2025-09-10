@@ -137,7 +137,15 @@ export const adminApi = createApi({
       invalidatesTags: ['Question'],
     }),
     updateQuestion: builder.mutation({
-      query: ({ id, ...body }) => ({ url: `/api/admin/questions/${id}`, method: 'PUT', body }),
+      query: ({ id, body }) => {
+        // If body is FormData, don't spread it
+        return {
+          url: `/api/admin/questions/${id}`,
+          method: 'PUT',
+          body,
+          formData: body instanceof FormData
+        };
+      },
       invalidatesTags: ['Question'],
     }),
     deleteQuestion: builder.mutation({

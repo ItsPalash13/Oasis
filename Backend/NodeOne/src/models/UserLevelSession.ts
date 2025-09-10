@@ -21,13 +21,12 @@ export interface IUserLevelSession extends Document {
     question: string;
     options: string[];
     userOptionChoice: number;
-    correctOption: number;
+    correctOption: number[];
     topics?: Array<{
       topicId: mongoose.Types.ObjectId | string;
       topicName: string;
     }>;
     solution?: string;
-    solutionType?: string;
   }>;
 
   // Question Bank fields
@@ -131,11 +130,11 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
       required: true,
       min: 0
     },
-    correctOption: {
+    correctOption: [{
       type: Number,
       required: false,
       min: 0
-    },
+    }],
     topics: [{
       topicId: {
         type: Schema.Types.ObjectId,
@@ -150,11 +149,6 @@ export const UserLevelSessionSchema = new Schema<IUserLevelSession>({
     solution: {
       type: String,
       required: false
-    },
-    solutionType: {
-      type: String,
-      required: false,
-      enum: ['text', 'latex']
     }
   }],
   streak: {

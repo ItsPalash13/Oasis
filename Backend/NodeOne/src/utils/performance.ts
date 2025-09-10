@@ -107,7 +107,9 @@ export async function processUserLevelSession(
         continue;
       }
 
-      const isCorrect = entry.userOptionChoice === entry.correctOption ? 1 : 0;
+      // Handle both single and multi-correct answers
+      const correctOptions = Array.isArray(entry.correctOption) ? entry.correctOption : [entry.correctOption];
+      const isCorrect = correctOptions.includes(entry.userOptionChoice) ? 1 : 0;
 
       for (const topic of entry.topics || []) {
         const topicId = (topic as any).topicId;

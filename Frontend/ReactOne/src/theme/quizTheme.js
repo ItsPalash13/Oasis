@@ -289,8 +289,6 @@ export const quizStyles = {
     fontWeight: 'bold',
   },
   questionTitle: {
-    fontWeight: 600,
-    lineHeight: 1.4,
     color: getThemeColor(colors.text.light.primary, colors.text.dark.primary),
   },
   correctChip: {

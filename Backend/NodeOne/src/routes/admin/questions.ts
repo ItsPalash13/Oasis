@@ -16,21 +16,51 @@ const upload = multer({
 });
 
 // Create question
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', upload.array('files'), async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, sectionId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
+    const { 
+      ques, options, correct, chapterId, sectionId, topics, 
+      xpCorrect, xpIncorrect, mu, sigma, solution,
+      quesImages, optionImages, solutionImages, gridSize
+    } = JSON.parse(req.body.data);
 
     // Validate required fields
-    if (!ques || !options || correct === undefined || !chapterId) {
-      return res.status(400).json({ error: 'Question text, options, correct answer, and chapter are required' });
+    if (!options || correct === undefined || !chapterId) {
+      return res.status(400).json({ error: 'Options, correct answer, and chapter are required' });
+    }
+
+    // Validate that question has content (either text or images)
+    const hasQuestionText = ques && ques.trim() !== '';
+    const hasQuestionImages = quesImages && Array.isArray(quesImages) && quesImages.some(img => 
+      (img.url && img.url.trim() !== '') || (img.existingUrl && img.existingUrl.trim() !== '') || img.isModified
+    );
+    
+    if (!hasQuestionText && !hasQuestionImages) {
+      return res.status(400).json({ error: 'Question must have either text content or images' });
+    }
+
+    // Validate that all options have content (either text or images)
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i];
+      const hasOptionText = option && option.trim() !== '';
+      const hasOptionImages = optionImages && Array.isArray(optionImages) && 
+        Array.isArray(optionImages[i]) && optionImages[i].some((img: any) => 
+          (img.url && img.url.trim() !== '') || (img.existingUrl && img.existingUrl.trim() !== '') || img.isModified
+        );
+      
+      if (!hasOptionText && !hasOptionImages) {
+        return res.status(400).json({ error: `Option ${i + 1} must have either text content or images` });
+      }
     }
 
     if (!Array.isArray(options) || options.length !== 4) {
       return res.status(400).json({ error: 'Exactly 4 options are required' });
     }
 
-    if (correct < 0 || correct > 3) {
-      return res.status(400).json({ error: 'Correct answer must be 0, 1, 2, or 3' });
+    // Validate correct answers - can be single number or array
+    const correctAnswers = Array.isArray(correct) ? correct : [correct];
+    if (!correctAnswers.every(ans => ans >= 0 && ans <= 3)) {
+      return res.status(400).json({ error: 'Correct answers must be 0, 1, 2, or 3' });
     }
 
     // Validate chapter exists
@@ -47,7 +77,21 @@ router.post('/', async (req: Request, res: Response) => {
       }
     }
 
-    // Create question
+    // Validate topics if provided
+    if (topics && Array.isArray(topics)) {
+      for (const topic of topics) {
+        if (!topic.id || !topic.name) {
+          return res.status(400).json({ error: 'Each topic must have both id and name fields' });
+        }
+        // Validate topic exists
+        const topicExists = await Topic.findById(topic.id);
+        if (!topicExists) {
+          return res.status(404).json({ error: `Topic with id ${topic.id} not found` });
+        }
+      }
+    }
+
+    // Create question first to get the ID for organizing images
     const question = new Question({
       ques,
       options,
@@ -56,10 +100,281 @@ router.post('/', async (req: Request, res: Response) => {
       sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
       topics: topics || [],
       solution: solution || '',
-      solutionType: solutionType || 'text'
+      quesImages: quesImages || [],
+      optionImages: optionImages || [[], [], [], []],
+      solutionImages: solutionImages || [],
+      gridSize: gridSize || { xs: 12, sm: 6, md: 3 }
     });
 
     const savedQuestion = await question.save();
+    const questionId = (savedQuestion._id as mongoose.Types.ObjectId).toString();
+
+    // Handle file uploads with organized folder structure
+    const uploadedFiles = (req.files || []) as Express.Multer.File[];
+    let fileIndex = 0;
+    const uploadedImages: Array<{
+      originalName: string;
+      url: string;
+      type: 'question' | 'solution' | 'option';
+      index?: number;
+      optionIndex?: number;
+      imageIndex?: number;
+    }> = [];
+
+    // Process question images first
+    if (quesImages && Array.isArray(quesImages)) {
+      for (let i = 0; i < quesImages.length; i++) {
+        const img = quesImages[i];
+        if (img.isModified && uploadedFiles[fileIndex]) {
+          const file = uploadedFiles[fileIndex];
+          const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+          const mimeToExt: Record<string, string> = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const mimeExt = mimeToExt[file.mimetype] || '';
+          const finalExt = originalExt || mimeExt || '.png';
+          
+          const destination = `questions-images/${questionId}/questionImages/question_${i}${finalExt}`;
+
+          const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+            makePublic: true,
+            contentType: file.mimetype,
+            bucketName: process.env.GCP_BUCKET_NAME,
+          });
+
+          uploadedImages.push({
+            originalName: file.originalname,
+            url: publicUrl,
+            type: 'question',
+            index: i
+          });
+          fileIndex++;
+        }
+      }
+    }
+
+    // Process solution images
+    if (solutionImages && Array.isArray(solutionImages)) {
+      for (let i = 0; i < solutionImages.length; i++) {
+        const img = solutionImages[i];
+        if (img.isModified && uploadedFiles[fileIndex]) {
+          const file = uploadedFiles[fileIndex];
+          const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+          const mimeToExt: Record<string, string> = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const mimeExt = mimeToExt[file.mimetype] || '';
+          const finalExt = originalExt || mimeExt || '.png';
+          
+          const destination = `questions-images/${questionId}/solutionImages/solution_${i}${finalExt}`;
+
+          const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+            makePublic: true,
+            contentType: file.mimetype,
+            bucketName: process.env.GCP_BUCKET_NAME,
+          });
+
+          uploadedImages.push({
+            originalName: file.originalname,
+            url: publicUrl,
+            type: 'solution',
+            index: i
+          });
+          fileIndex++;
+        }
+      }
+    }
+
+    // Process option images
+    if (optionImages && Array.isArray(optionImages)) {
+      for (let optIndex = 0; optIndex < optionImages.length; optIndex++) {
+        const optImgs = optionImages[optIndex];
+        for (let imgIndex = 0; imgIndex < optImgs.length; imgIndex++) {
+          const img = optImgs[imgIndex];
+          if (img.isModified && uploadedFiles[fileIndex]) {
+            const file = uploadedFiles[fileIndex];
+            const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+            const mimeToExt: Record<string, string> = {
+              'image/jpeg': '.jpg',
+              'image/jpg': '.jpg',
+              'image/png': '.png',
+              'image/webp': '.webp',
+              'image/gif': '.gif'
+            };
+            const mimeExt = mimeToExt[file.mimetype] || '';
+            const finalExt = originalExt || mimeExt || '.png';
+            
+            const destination = `questions-images/${questionId}/optionImages/option_${optIndex}_${imgIndex}${finalExt}`;
+
+            const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+              makePublic: true,
+              contentType: file.mimetype,
+              bucketName: process.env.GCP_BUCKET_NAME,
+            });
+
+            uploadedImages.push({
+              originalName: file.originalname,
+              url: publicUrl,
+              type: 'option',
+              optionIndex: optIndex,
+              imageIndex: imgIndex
+            });
+            fileIndex++;
+          }
+        }
+      }
+    }
+
+    interface ImageData {
+      file?: File | string;
+      url?: string;
+      caption: string;
+      width: number;
+      height: number;
+      lockRatio: boolean;
+      originalRatio: number;
+      existingUrl?: string;
+      isModified?: boolean;
+    }
+
+    // Process images with uploaded URLs
+    let processedQuesImages = quesImages as ImageData[];
+    let processedOptionImages = optionImages as ImageData[][];
+    let processedSolutionImages = solutionImages as ImageData[];
+
+    // Process question images
+    if (quesImages && Array.isArray(quesImages)) {
+      processedQuesImages = quesImages.map((img: ImageData, index: number) => {
+        const uploadedImg = uploadedImages.find(uploaded => uploaded.type === 'question' && uploaded.index === index);
+        if (uploadedImg) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: uploadedImg.url
+          };
+        }
+        // Keep existing URL if image wasn't modified
+        if (!img.isModified && img.existingUrl) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: img.existingUrl
+          };
+        }
+        // Default empty image
+        return {
+          caption: img.caption,
+          width: img.width,
+          height: img.height,
+          lockRatio: img.lockRatio,
+          originalRatio: img.originalRatio,
+          url: ''
+        };
+      });
+    }
+
+    // Process solution images
+    if (solutionImages && Array.isArray(solutionImages)) {
+      processedSolutionImages = solutionImages.map((img: ImageData, index: number) => {
+        const uploadedImg = uploadedImages.find(uploaded => uploaded.type === 'solution' && uploaded.index === index);
+        if (uploadedImg) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: uploadedImg.url
+          };
+        }
+        // Keep existing URL if image wasn't modified
+        if (!img.isModified && img.existingUrl) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: img.existingUrl
+          };
+        }
+        // Default empty image
+        return {
+          caption: img.caption,
+          width: img.width,
+          height: img.height,
+          lockRatio: img.lockRatio,
+          originalRatio: img.originalRatio,
+          url: ''
+        };
+      });
+    }
+
+    // Process option images
+    if (optionImages && Array.isArray(optionImages)) {
+      processedOptionImages = optionImages.map((optImgs: ImageData[], optIndex: number) => 
+        optImgs.map((img: ImageData, imgIndex: number) => {
+          const uploadedImg = uploadedImages.find(uploaded => 
+            uploaded.type === 'option' && 
+            uploaded.optionIndex === optIndex && 
+            uploaded.imageIndex === imgIndex
+          );
+          if (uploadedImg) {
+            return {
+              caption: img.caption,
+              width: img.width,
+              height: img.height,
+              lockRatio: img.lockRatio,
+              originalRatio: img.originalRatio,
+              url: uploadedImg.url
+            };
+          }
+          // Keep existing URL if image wasn't modified
+          if (!img.isModified && img.existingUrl) {
+            return {
+              caption: img.caption,
+              width: img.width,
+              height: img.height,
+              lockRatio: img.lockRatio,
+              originalRatio: img.originalRatio,
+              url: img.existingUrl
+            };
+          }
+          // Default empty image
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: ''
+          };
+        })
+      );
+    }
+
+    // Update the question with processed images
+    savedQuestion.quesImages = processedQuesImages as any;
+    savedQuestion.optionImages = processedOptionImages as any;
+    savedQuestion.solutionImages = processedSolutionImages as any;
+    await savedQuestion.save();
 
     // Create QuestionTs entry if difficulty or XP values provided
     if (mu !== undefined || sigma !== undefined || xpCorrect !== undefined || xpIncorrect !== undefined) {
@@ -88,7 +403,7 @@ router.post('/', async (req: Request, res: Response) => {
 // Multi-add questions endpoint
 router.post('/multi-add', async (req: Request, res: Response) => {
   try {
-    const { questions, chapterId, sectionId, topicIds, xpCorrect, xpIncorrect, mu, sigma, solutionType } = req.body;
+    const { questions, chapterId, sectionId, topicIds, xpCorrect, xpIncorrect, mu, sigma } = req.body;
 
     // Validate required fields
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -111,9 +426,6 @@ router.post('/multi-add', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Mu and sigma values must be numbers' });
     }
 
-    if (!solutionType || !['text', 'latex'].includes(solutionType)) {
-      return res.status(400).json({ error: 'Solution type must be either "text" or "latex"' });
-    }
 
     // Validate chapter exists
     const chapter = await Chapter.findById(chapterId);
@@ -162,23 +474,24 @@ router.post('/multi-add', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'All options must be non-empty strings' });
       }
 
-      if (typeof correctIndex !== 'number' || correctIndex < 0 || correctIndex > 3) {
-        return res.status(400).json({ error: 'Correct index must be 0, 1, 2, or 3' });
+      // Handle both single and multiple correct answers
+      const correctAnswers = Array.isArray(correctIndex) ? correctIndex : [correctIndex];
+      if (!correctAnswers.every(ans => typeof ans === 'number' && ans >= 0 && ans <= 3)) {
+        return res.status(400).json({ error: 'Correct answers must be 0, 1, 2, or 3' });
       }
 
       // Create question
       const question = new Question({
         ques: questionText.trim(),
         options: [option1.trim(), option2.trim(), option3.trim(), option4.trim()],
-        correct: correctIndex,
+        correct: correctAnswers,
         chapterId: new mongoose.Types.ObjectId(chapterId),
         sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
         topics: topicIds.map(id => ({
           id: new mongoose.Types.ObjectId(id),
           name: topicMap[id]
         })),
-        solution: solution ? solution.trim() : '',
-        solutionType: solutionType
+        solution: solution ? solution.trim() : ''
       });
 
       const savedQuestion = await question.save();
@@ -213,59 +526,6 @@ router.post('/multi-add', async (req: Request, res: Response) => {
   }
 });
 
-// Upload and attach image to a specific question
-router.post('/:id/image', upload.single('file'), async (req: Request & { file?: Express.Multer.File }, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid question ID' });
-    }
-
-    const question = await Question.findById(id);
-    if (!question) {
-      return res.status(404).json({ error: 'Question not found' });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded. Use form field name "file"' });
-    }
-
-    const file = req.file as Express.Multer.File;
-
-    const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
-    const mimeToExt: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/jpg': '.jpg',
-      'image/png': '.png',
-      'image/webp': '.webp',
-      'image/gif': '.gif'
-    };
-    const mimeExt = mimeToExt[file.mimetype] || '';
-    const finalExt = originalExt || mimeExt || '.png';
-    // Fixed destination so uploads overwrite the same object for this question
-    const destination = `questions-images/${id}/question${finalExt}`;
-
-    const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
-      makePublic: true,
-      contentType: file.mimetype,
-      bucketName: process.env.GCP_BUCKET_NAME,
-    });
-
-    question.quesImage = publicUrl;
-    await question.save();
-
-    return res.status(200).json({
-      message: 'Image uploaded and attached successfully',
-      quesImage: publicUrl,
-      questionId: id,
-    });
-  } catch (error: any) {
-    console.error('Error uploading question image:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // Get all questions
 router.get('/', async (req: Request, res: Response) => {
@@ -396,24 +656,349 @@ router.put('/bulk-assign-section', async (req: Request, res: Response) => {
 });
 
 // Update question
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', upload.array('files'), async (req: Request, res: Response) => {
   try {
-    const { ques, options, correct, chapterId, sectionId, topics, xpCorrect, xpIncorrect, mu, sigma, solution, solutionType } = req.body;
+    console.log('PUT request body raw:', req.body);
+    console.log('PUT request files:', req.files);
+    console.log('Content-Type:', req.headers['content-type']);
+    
+    if (!req.body.data) {
+      return res.status(400).json({ error: 'Missing data in request body' });
+    }
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(req.body.data);
+      console.log('Successfully parsed data:', parsedData);
+    } catch (error) {
+      console.error('Error parsing data:', error);
+      return res.status(400).json({ error: 'Invalid JSON data in request body' });
+    }
+    
+    const { 
+      ques, options, correct, chapterId, sectionId, topics, 
+      xpCorrect, xpIncorrect, mu, sigma, solution,
+      quesImages, optionImages, solutionImages, gridSize
+    } = parsedData;
+    
+    console.log('Parsed data:', {
+      ques, options, correct, chapterId, sectionId, topics,
+      quesImages, optionImages, solutionImages
+    });
 
     const question = await Question.findById(req.params.id);
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
 
-    // Update question
+    // Validate that question has content (either text or images) if updating
+    if (ques !== undefined || quesImages !== undefined) {
+      const hasQuestionText = ques && ques.trim() !== '';
+      const hasQuestionImages = quesImages && Array.isArray(quesImages) && quesImages.some(img => 
+        (img.url && img.url.trim() !== '') || (img.existingUrl && img.existingUrl.trim() !== '') || img.isModified
+      );
+      
+      if (!hasQuestionText && !hasQuestionImages) {
+        return res.status(400).json({ error: 'Question must have either text content or images' });
+      }
+    }
+
+    // Validate that all options have content (either text or images) if updating
+    if (options !== undefined || optionImages !== undefined) {
+      for (let i = 0; i < options.length; i++) {
+        const option = options[i];
+        const hasOptionText = option && option.trim() !== '';
+        const hasOptionImages = optionImages && Array.isArray(optionImages) && 
+          Array.isArray(optionImages[i]) && optionImages[i].some((img: any) => 
+            (img.url && img.url.trim() !== '') || (img.existingUrl && img.existingUrl.trim() !== '') || img.isModified
+          );
+        
+        if (!hasOptionText && !hasOptionImages) {
+          return res.status(400).json({ error: `Option ${i + 1} must have either text content or images` });
+        }
+      }
+    }
+
+    const questionId = (question._id as mongoose.Types.ObjectId).toString();
+
+    // Handle file uploads with organized folder structure
+    const uploadedFiles = (req.files || []) as Express.Multer.File[];
+    let fileIndex = 0;
+    const uploadedImages: Array<{
+      originalName: string;
+      url: string;
+      type: 'question' | 'solution' | 'option';
+      index?: number;
+      optionIndex?: number;
+      imageIndex?: number;
+    }> = [];
+    console.log(quesImages);
+
+    // Process question images first
+    if (quesImages && Array.isArray(quesImages)) {
+      for (let i = 0; i < quesImages.length; i++) {
+        const img = quesImages[i];
+        if (img.isModified && uploadedFiles[fileIndex]) {
+          const file = uploadedFiles[fileIndex];
+          const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+          const mimeToExt: Record<string, string> = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const mimeExt = mimeToExt[file.mimetype] || '';
+          const finalExt = originalExt || mimeExt || '.png';
+          
+          const destination = `questions-images/${questionId}/questionImages/question_${i}${finalExt}`;
+
+          const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+            makePublic: true,
+            contentType: file.mimetype,
+            bucketName: process.env.GCP_BUCKET_NAME,
+          });
+
+          uploadedImages.push({
+            originalName: file.originalname,
+            url: publicUrl,
+            type: 'question',
+            index: i
+          });
+          fileIndex++;
+        }
+      }
+    }
+
+    // Process solution images
+    if (solutionImages && Array.isArray(solutionImages)) {
+      for (let i = 0; i < solutionImages.length; i++) {
+        const img = solutionImages[i];
+        if (img.isModified && uploadedFiles[fileIndex]) {
+          const file = uploadedFiles[fileIndex];
+          const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+          const mimeToExt: Record<string, string> = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif'
+          };
+          const mimeExt = mimeToExt[file.mimetype] || '';
+          const finalExt = originalExt || mimeExt || '.png';
+          
+          const destination = `questions-images/${questionId}/solutionImages/solution_${i}${finalExt}`;
+
+          const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+            makePublic: true,
+            contentType: file.mimetype,
+            bucketName: process.env.GCP_BUCKET_NAME,
+          });
+
+          uploadedImages.push({
+            originalName: file.originalname,
+            url: publicUrl,
+            type: 'solution',
+            index: i
+          });
+          fileIndex++;
+        }
+      }
+    }
+
+    // Process option images
+    if (optionImages && Array.isArray(optionImages)) {
+      for (let optIndex = 0; optIndex < optionImages.length; optIndex++) {
+        const optImgs = optionImages[optIndex];
+        for (let imgIndex = 0; imgIndex < optImgs.length; imgIndex++) {
+          const img = optImgs[imgIndex];
+          if (img.isModified && uploadedFiles[fileIndex]) {
+            const file = uploadedFiles[fileIndex];
+            const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const originalExt = safeOriginalName.includes('.') ? `.${safeOriginalName.split('.').pop()?.toLowerCase()}` : '';
+            const mimeToExt: Record<string, string> = {
+              'image/jpeg': '.jpg',
+              'image/jpg': '.jpg',
+              'image/png': '.png',
+              'image/webp': '.webp',
+              'image/gif': '.gif'
+            };
+            const mimeExt = mimeToExt[file.mimetype] || '';
+            const finalExt = originalExt || mimeExt || '.png';
+            
+            const destination = `questions-images/${questionId}/optionImages/option_${optIndex}_${imgIndex}${finalExt}`;
+
+            const { publicUrl } = await uploadBufferToBucket(file.buffer, destination, {
+              makePublic: true,
+              contentType: file.mimetype,
+              bucketName: process.env.GCP_BUCKET_NAME,
+            });
+
+            uploadedImages.push({
+              originalName: file.originalname,
+              url: publicUrl,
+              type: 'option',
+              optionIndex: optIndex,
+              imageIndex: imgIndex
+            });
+            fileIndex++;
+          }
+        }
+      }
+    }
+
+    interface ImageData {
+      file?: File | string;
+      url?: string;
+      caption: string;
+      width: number;
+      height: number;
+      lockRatio: boolean;
+      originalRatio: number;
+      existingUrl?: string;
+      isModified?: boolean;
+    }
+
+    // Process images with uploaded URLs
+    let processedQuesImages = quesImages as ImageData[];
+    let processedOptionImages = optionImages as ImageData[][];
+    let processedSolutionImages = solutionImages as ImageData[];
+
+    // Process question images
+    if (quesImages && Array.isArray(quesImages)) {
+      processedQuesImages = quesImages.map((img: ImageData, index: number) => {
+        const uploadedImg = uploadedImages.find(uploaded => uploaded.type === 'question' && uploaded.index === index);
+        if (uploadedImg) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: uploadedImg.url
+          };
+        }
+        // Keep existing URL if image wasn't modified
+        if (!img.isModified && img.existingUrl) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: img.existingUrl
+          };
+        }
+        // Default empty image
+        return {
+          caption: img.caption,
+          width: img.width,
+          height: img.height,
+          lockRatio: img.lockRatio,
+          originalRatio: img.originalRatio,
+          url: ''
+        };
+      });
+    }
+
+    // Process solution images
+    if (solutionImages && Array.isArray(solutionImages)) {
+      processedSolutionImages = solutionImages.map((img: ImageData, index: number) => {
+        const uploadedImg = uploadedImages.find(uploaded => uploaded.type === 'solution' && uploaded.index === index);
+        if (uploadedImg) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: uploadedImg.url
+          };
+        }
+        // Keep existing URL if image wasn't modified
+        if (!img.isModified && img.existingUrl) {
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: img.existingUrl
+          };
+        }
+        // Default empty image
+        return {
+          caption: img.caption,
+          width: img.width,
+          height: img.height,
+          lockRatio: img.lockRatio,
+          originalRatio: img.originalRatio,
+          url: ''
+        };
+      });
+    }
+
+    // Process option images
+    if (optionImages && Array.isArray(optionImages)) {
+      processedOptionImages = optionImages.map((optImgs: ImageData[], optIndex: number) => 
+        optImgs.map((img: ImageData, imgIndex: number) => {
+          const uploadedImg = uploadedImages.find(uploaded => 
+            uploaded.type === 'option' && 
+            uploaded.optionIndex === optIndex && 
+            uploaded.imageIndex === imgIndex
+          );
+          if (uploadedImg) {
+            return {
+              caption: img.caption,
+              width: img.width,
+              height: img.height,
+              lockRatio: img.lockRatio,
+              originalRatio: img.originalRatio,
+              url: uploadedImg.url
+            };
+          }
+          // Keep existing URL if image wasn't modified
+          if (!img.isModified && img.existingUrl) {
+            return {
+              caption: img.caption,
+              width: img.width,
+              height: img.height,
+              lockRatio: img.lockRatio,
+              originalRatio: img.originalRatio,
+              url: img.existingUrl
+            };
+          }
+          // Default empty image
+          return {
+            caption: img.caption,
+            width: img.width,
+            height: img.height,
+            lockRatio: img.lockRatio,
+            originalRatio: img.originalRatio,
+            url: ''
+          };
+        })
+      );
+    }
+
+    // Update question fields
     if (ques) question.ques = ques;
     if (options) question.options = options;
-    if (correct !== undefined) question.correct = correct;
+    if (correct !== undefined) {
+      // Handle both single and multiple correct answers
+      const correctAnswers = Array.isArray(correct) ? correct : [correct];
+      question.correct = correctAnswers;
+    }
     if (chapterId) question.chapterId = chapterId;
     if (sectionId !== undefined) question.sectionId = sectionId || null;
     if (topics) question.topics = topics;
     if (solution !== undefined) question.solution = solution;
-    if (solutionType !== undefined) question.solutionType = solutionType;
+    if (quesImages) question.quesImages = processedQuesImages as any;
+    if (optionImages) question.optionImages = processedOptionImages as any;
+    if (solutionImages) question.solutionImages = processedSolutionImages as any;
+    if (gridSize) question.gridSize = gridSize;
 
     await question.save();
 

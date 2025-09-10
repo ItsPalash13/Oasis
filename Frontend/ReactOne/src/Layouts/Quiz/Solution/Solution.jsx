@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
-import { BlockMath } from 'react-katex';
+import { renderTextWithLatex } from '../../../utils/quesUtils.jsx';
 
 const Solution = ({ open, onClose, questionsHistory = [] }) => {
   return (
@@ -97,23 +97,72 @@ const Solution = ({ open, onClose, questionsHistory = [] }) => {
                 {entry.solution && (
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Solution</Typography>
-                    {entry.solutionType === 'latex' ? (
-                      <Box sx={{ 
-                        '& .katex-display': {
-                          textAlign: 'left !important'
-                        },
-                        '& .katex-display > .katex': {
-                          textAlign: 'left !important'
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        '& .katex': {
+                          fontSize: '1em'
                         }
-                      }}>
-                        <Typography variant="body2" color="text.secondary">
-                          <BlockMath math={entry.solution} />
-                        </Typography>
+                      }}
+                    >
+                      {renderTextWithLatex(entry.solution)}
+                    </Typography>
+                    
+                    {/* Solution Images */}
+                    {entry.solutionImages && entry.solutionImages.some(img => img.url) && (
+                      <Box sx={{ mt: 2 }}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          gap: 2, 
+                          flexWrap: 'wrap',
+                          alignItems: 'flex-start'
+                        }}>
+                          {entry.solutionImages.map((image, index) => (
+                            image.url && (
+                              <Box key={index} sx={{ 
+                                flex: '0 0 auto',
+                                width: `${image.width}px`,
+                                height: `${image.height}px`,
+                                minWidth: '50px',
+                                minHeight: '50px'
+                              }}>
+                                <img
+                                  src={image.url}
+                                  alt={image.caption || `Solution image ${index + 1}`}
+                                  style={{ 
+                                    width: '100%', 
+                                    height: '100%',
+                                    objectFit: 'cover', 
+                                    borderRadius: 8 
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                                {image.caption && image.caption.trim() && (
+                                  <Typography 
+                                    variant="caption" 
+                                    color="text.secondary" 
+                                    sx={{ 
+                                      display: 'block', 
+                                      mt: 1, 
+                                      fontStyle: 'italic',
+                                      textAlign: 'center',
+                                      fontSize: '0.75rem',
+                                      lineHeight: 1
+                                    }}
+                                  >
+                                    {image.caption}
+                                  </Typography>
+                                )}
+                              </Box>
+                            )
+                          ))}
+                        </Box>
                       </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        {entry.solution}
-                      </Typography>
                     )}
                   </Box>
                 )}

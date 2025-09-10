@@ -13,6 +13,7 @@ const ResultSchema = new Schema<IResult>({
 
 // TestVersion Schema
 export interface ITestVersion extends Document {
+  title: string;
   startDate: Date;
   endDate: Date;
   versionId: string;
@@ -24,6 +25,11 @@ export interface ITestVersion extends Document {
 }
 
 const TestVersionSchema = new Schema<ITestVersion>({
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
   startDate: { 
     type: Date, 
     required: true 
