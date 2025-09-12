@@ -50,8 +50,8 @@ const Sidebar = ({ open, onToggle, devicePixelRatio }) => {
       { text: 'Dashboard', icon: <HomeIcon fontSize="small" />, path: '/dashboard' },
     ];
 
-    // Only show Admin link for admin users
-    if (userRole === 'admin') {
+    // Show Admin link for users with admin prefix (admin or adminQuestions)
+    if (userRole && userRole.startsWith('admin')) {
       baseItems.push({ text: 'Admin', icon: <SettingsIcon fontSize="small" />, path: '/admin' });
     }
 

@@ -47,7 +47,7 @@ const UserProfileSchema: Schema = new Schema(
     userId: { type: String, required: true, unique: true, index: true },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    role: { type: String, default: 'student', enum: ['student', 'teacher', 'admin'] },
+    role: { type: String, default: 'student', enum: ['student', 'teacher', 'admin', 'adminQuestions'] },
     fullName: { type: String },
     organizationId: { type: Schema.Types.ObjectId, ref: 'Organization' }, // Added organization field
     bio: { type: String },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Tabs, Tab, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useSelector } from 'react-redux';
 import SubjectAdmin from './Subject';
 import ChapterAdmin from './Chapter';
 import TopicsAdmin from './Topics';
@@ -35,6 +36,48 @@ export default function Admin() {
   const [tab, setTab] = useState(0);
   const theme = useTheme();
   const handleChange = (_e, newValue) => setTab(newValue);
+  
+  // Get user role from Redux store
+  const userRole = useSelector((state) => state?.auth?.user?.role || 'student');
+
+  // Get tabs based on user role
+  const getTabs = () => {
+    const allTabs = [
+      { label: 'Subjects', component: 'Subjects' },
+      { label: 'Chapters', component: 'Chapters' },
+      { label: 'Topics', component: 'Topics' },
+      { label: 'Sections', component: 'Sections' },
+      { label: 'Units', component: 'Units' },
+      { label: 'Questions', component: 'Questions' },
+      { label: 'Levels', component: 'Levels' },
+      { label: 'Users', component: 'Users' },
+      { label: 'Badges', component: 'Badges' },
+      { label: 'Organizations', component: 'Organizations' }
+    ];
+
+    let filteredTabs;
+
+    // If role is adminQuestions, show only Questions tab
+    if (userRole === 'adminQuestions') {
+      filteredTabs = allTabs.filter(tab => tab.label === 'Questions');
+    }
+    // If role is admin, show all tabs
+    else if (userRole === 'admin') {
+      filteredTabs = allTabs;
+    }
+    // Default: show only Questions tab for other admin roles
+    else {
+      filteredTabs = allTabs.filter(tab => tab.label === 'Questions');
+    }
+
+    // Assign sequential indices starting from 0
+    return filteredTabs.map((tab, index) => ({
+      ...tab,
+      index: index
+    }));
+  };
+
+  const availableTabs = getTabs();
 
   return (
     <Box sx={{ 
@@ -82,47 +125,35 @@ export default function Admin() {
     }}>
       <Typography variant="h4" sx={{ mb: 2 }}>Admin Panel</Typography>
       <Tabs value={tab} onChange={handleChange} aria-label="admin tabs">
-        <Tab label="Subjects" id="admin-tab-0" aria-controls="admin-tabpanel-0" />
-        <Tab label="Chapters" id="admin-tab-1" aria-controls="admin-tabpanel-1" />
-        <Tab label="Topics" id="admin-tab-2" aria-controls="admin-tabpanel-2" />
-        <Tab label="Sections" id="admin-tab-3" aria-controls="admin-tabpanel-3" />
-        <Tab label="Units" id="admin-tab-4" aria-controls="admin-tabpanel-4" />
-        <Tab label="Questions" id="admin-tab-5" aria-controls="admin-tabpanel-5" />
-        <Tab label="Levels" id="admin-tab-6" aria-controls="admin-tabpanel-6" />
-        <Tab label="Users" id="admin-tab-7" aria-controls="admin-tabpanel-7" />
-        <Tab label="Badges" id="admin-tab-8" aria-controls="admin-tabpanel-8" />
-        <Tab label="Organizations" id="admin-tab-9" aria-controls="admin-tabpanel-9" />
+        {availableTabs.map((tabItem) => (
+          <Tab 
+            key={tabItem.label}
+            label={tabItem.label} 
+            id={`admin-tab-${tabItem.index}`} 
+            aria-controls={`admin-tabpanel-${tabItem.index}`} 
+          />
+        ))}
       </Tabs>
-      <TabPanel value={tab} index={0}>
-        <SubjectAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={1}>
-        <ChapterAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={2}>
-        <TopicsAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={3}>
-        <SectionsAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={4}>
-        <UnitsAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={5}>
-        <QuestionsAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={6}>
-        <LevelsAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={7}>
-        <UsersAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={8}>
-        <BadgeAdmin />
-      </TabPanel>
-      <TabPanel value={tab} index={9}>
-        <OrganizationAdmin />
-      </TabPanel>
+      {availableTabs.map((tabItem) => {
+        const components = {
+          'Subjects': <SubjectAdmin />,
+          'Chapters': <ChapterAdmin />,
+          'Topics': <TopicsAdmin />,
+          'Sections': <SectionsAdmin />,
+          'Units': <UnitsAdmin />,
+          'Questions': <QuestionsAdmin />,
+          'Levels': <LevelsAdmin />,
+          'Users': <UsersAdmin />,
+          'Badges': <BadgeAdmin />,
+          'Organizations': <OrganizationAdmin />
+        };
+        
+        return (
+          <TabPanel key={tabItem.label} value={tab} index={tabItem.index}>
+            {components[tabItem.component]}
+          </TabPanel>
+        );
+      })}
     </Box>
   );
 }
