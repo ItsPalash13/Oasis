@@ -15,6 +15,7 @@ import {
   Tooltip,
 
 } from '@mui/material';
+// @ts-ignore
 import { ProgressBar } from 'react-progressbar-fancy';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -119,15 +120,16 @@ const Levels: React.FC = () => {
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
   const [showTopicsPerformance, setShowTopicsPerformance] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [selectedLevelForDetails, setSelectedLevelForDetails] = useState<Level | null>(null);
   const [selectedSectionForTopics, setSelectedSectionForTopics] = useState<any>(null);
   const { chapterId } = useParams<{ chapterId: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { data: chapterData, isLoading, refetch } = useGetChapterInfoQuery(chapterId || '', {
+  const { data: chapterData, isLoading, error: chapterError, refetch } = useGetChapterInfoQuery(chapterId || '', {
     skip: !chapterId
   });
-  const [startLevel] = useStartLevelMutation();
+  const [startLevel, { error: startLevelError }] = useStartLevelMutation();
   const [units, setUnits] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [runTour, setRunTour] = useState(false);
@@ -250,6 +252,9 @@ const Levels: React.FC = () => {
   useEffect(() => {
     console.log('Levels component mounted, refetching session...');
     refetchSession();
+    // Clear any previous errors on component mount
+    setHealthError(null);
+    setApiError(null);
   }, [refetchSession]);
 
   useEffect(() => {
@@ -275,10 +280,27 @@ const Levels: React.FC = () => {
     }
   }, [chapterData]);
 
+  // Handle chapter data API errors
+  useEffect(() => {
+    if (chapterError) {
+      const errorMessage = (chapterError as any)?.data?.error || (chapterError as any)?.message || 'Failed to load chapter data';
+      setApiError(errorMessage);
+    }
+  }, [chapterError]);
+
+  // Handle start level API errors
+  useEffect(() => {
+    if (startLevelError) {
+      const errorMessage = (startLevelError as any)?.data?.error || (startLevelError as any)?.message || 'Failed to start level';
+      setApiError(errorMessage);
+    }
+  }, [startLevelError]);
+
   const handleLevelClick = async (levelId: string) => {
     try {
-      // Clear any previous health errors
+      // Clear any previous errors
       setHealthError(null);
+      setApiError(null);
       
       // Check if user has sufficient health
       if (userHealth <= 0) {
@@ -482,6 +504,18 @@ const Levels: React.FC = () => {
       >
         <Alert onClose={() => setHealthError(null)} severity="error" sx={{ width: '100%' }}>
           {healthError}
+        </Alert>
+      </Snackbar>
+
+      {/* API Error Snackbar */}
+      <Snackbar
+        open={!!apiError}
+        autoHideDuration={3000}
+        onClose={() => setApiError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setApiError(null)} severity="error" sx={{ width: '100%' }}>
+          {apiError}
         </Alert>
       </Snackbar>
       

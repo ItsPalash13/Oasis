@@ -21,6 +21,7 @@ interface IQuestionImage {
 
 interface IQuestion extends Document {
   ques?: string;
+  status: -1 | 0 | 1 ;
   options: (string | undefined)[];
   correct: number[];
   quesImages?: IQuestionImage[];
@@ -37,6 +38,10 @@ const QuestionSchema = new Schema<IQuestion>({
   ques: { 
     type: String, 
     required: false 
+  },
+  status: {
+    type: Number,
+    default: 0,
   },
   options: [{ 
     type: String, 

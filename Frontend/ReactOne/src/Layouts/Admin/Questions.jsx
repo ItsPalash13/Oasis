@@ -31,7 +31,7 @@ import {
   Tooltip
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon, Edit as EditIcon, Settings as SettingsIcon } from '@mui/icons-material';
 import {
   useGetQuestionsQuery,
   useCreateQuestionMutation,
@@ -41,7 +41,8 @@ import {
   useGetChaptersQuery,
   useGetTopicsQuery,
   useGetSectionsQuery,
-  useBulkAssignSectionMutation
+  useBulkAssignSectionMutation,
+  useChangeQuestionStatusMutation
 } from '../../features/api/adminAPI';
 import { useUploadQuestionImageMutation } from '../../features/api/adminAPI';
 import { saveAs } from 'file-saver';
@@ -128,6 +129,7 @@ const Questions = () => {
   const [deleteQuestion] = useDeleteQuestionMutation();
   const [uploadQuestionImage] = useUploadQuestionImageMutation();
   const [bulkAssignSection] = useBulkAssignSectionMutation();
+  const [changeQuestionStatus] = useChangeQuestionStatusMutation();
 
   // Bulk assign section dialog state
   const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
@@ -140,6 +142,12 @@ const Questions = () => {
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [selectedImagePreview, setSelectedImagePreview] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Status change dialog state
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusDialogTarget, setStatusDialogTarget] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState(0);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const openImageDialog = (row) => {
     setImageDialogTarget(row);
@@ -173,6 +181,34 @@ const Questions = () => {
       console.error('Upload failed', err);
     } finally {
       setIsUploadingImage(false);
+    }
+  };
+
+  const openStatusDialog = (row) => {
+    setStatusDialogTarget(row);
+    setSelectedStatus(row.status || 0);
+    setStatusDialogOpen(true);
+  };
+
+  const closeStatusDialog = () => {
+    setStatusDialogOpen(false);
+    setStatusDialogTarget(null);
+    setSelectedStatus(0);
+  };
+
+  const handleStatusChange = async () => {
+    if (!statusDialogTarget?._id) return;
+    try {
+      setIsChangingStatus(true);
+      await changeQuestionStatus({ 
+        id: statusDialogTarget._id, 
+        status: selectedStatus 
+      }).unwrap();
+      closeStatusDialog();
+    } catch (err) {
+      console.error('Status change failed', err);
+    } finally {
+      setIsChangingStatus(false);
     }
   };
 
@@ -432,6 +468,35 @@ const Questions = () => {
   };
 
   const columns = [
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params) => {
+        const status = params.value;
+        const getStatusInfo = (status) => {
+          switch (status) {
+            case 1:
+              return { label: 'Active', color: 'success' };
+            case 0:
+              return { label: 'Inactive', color: 'warning' };
+            case -1:
+              return { label: 'Archived', color: 'error' };
+            default:
+              return { label: 'Unknown', color: 'default' };
+          }
+        };
+        const statusInfo = getStatusInfo(status);
+        return (
+          <Chip
+            label={statusInfo.label}
+            color={statusInfo.color}
+            size="small"
+            variant="filled"
+          />
+        );
+      }
+    },
     { field: 'ques', headerName: 'Question', flex: 1, minWidth: 200 },
     { 
       field: 'options', 
@@ -675,14 +740,20 @@ const Questions = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
+      width: 200,
       renderCell: (params) => (
         <Box>
-          <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error">
-            <DeleteIcon />
+          <IconButton onClick={() => handleRowClick(params)} size="small" color="primary" title="Edit Question">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={() => openStatusDialog(params.row)} size="small" color="secondary" title="Change Status">
+            <SettingsIcon />
           </IconButton>
           <IconButton onClick={() => openImageDialog(params.row)} size="small" title="Attach Image">
             <UploadIcon />
+          </IconButton>
+          <IconButton onClick={() => handleDelete(params.row._id)} size="small" color="error" title="Delete">
+            <DeleteIcon />
           </IconButton>
         </Box>
       )
@@ -1015,7 +1086,6 @@ const Questions = () => {
           onRowSelectionModelChange={(newSelectionModel) => {
             setSelectedRows([...newSelectionModel.ids]);
           }}
-          onRowClick={handleRowClick}
           selectionModel={selectedRows}
           initialState={{
             pagination: {
@@ -1038,7 +1108,6 @@ const Questions = () => {
               borderColor: 'divider',
             },
             '& .MuiDataGrid-row': {
-              cursor: 'pointer',
               '&:hover': {
                 backgroundColor: 'action.hover',
               },
@@ -1356,6 +1425,67 @@ const Questions = () => {
             disabled={!selectedSectionForBulk || isBulkAssigning}
           >
             {isBulkAssigning ? 'Assigning...' : 'Assign Section'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Status Change Dialog */}
+      <Dialog open={statusDialogOpen} onClose={closeStatusDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Change Question Status</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Change status for: <strong>{statusDialogTarget?.ques}</strong>
+            </Typography>
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Select Status</InputLabel>
+              <Select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                label="Select Status"
+              >
+                <MenuItem value={1}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip label="Active" color="success" size="small" />
+                    <Typography>Active - Question is available for use</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value={0}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip label="Inactive" color="warning" size="small" />
+                    <Typography>Inactive - Question is not available for use</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value={-1}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip label="Archived" color="error" size="small" />
+                    <Typography>Archived - Question is permanently disabled</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            <Alert severity="info">
+              <Typography variant="body2">
+                <strong>Status Meanings:</strong><br/>
+                • <strong>Active (1):</strong> Question is available for use in quizzes and levels<br/>
+                • <strong>Inactive (0):</strong> Question is not available for use but can be reactivated<br/>
+                • <strong>Archived (-1):</strong> Question is permanently disabled and should not be used
+              </Typography>
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeStatusDialog} disabled={isChangingStatus}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleStatusChange} 
+            variant="contained" 
+            disabled={isChangingStatus}
+          >
+            {isChangingStatus ? 'Changing...' : 'Change Status'}
           </Button>
         </DialogActions>
       </Dialog>

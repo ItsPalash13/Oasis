@@ -96,6 +96,7 @@ router.post('/', upload.array('files'), async (req: Request, res: Response) => {
       ques,
       options,
       correct,
+      status: 0, // Set status to 0 (inactive) by default
       chapterId: new mongoose.Types.ObjectId(chapterId),
       sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
       topics: topics || [],
@@ -485,6 +486,7 @@ router.post('/multi-add', async (req: Request, res: Response) => {
         ques: questionText.trim(),
         options: [option1.trim(), option2.trim(), option3.trim(), option4.trim()],
         correct: correctAnswers,
+        status: 0, // Set status to 0 (inactive) by default
         chapterId: new mongoose.Types.ObjectId(chapterId),
         sectionId: sectionId ? new mongoose.Types.ObjectId(sectionId) : undefined,
         topics: topicIds.map(id => ({
@@ -1119,6 +1121,44 @@ router.post('/mu-by-topics', async (req: Request, res: Response) => {
     return res.json({ success: true, data: questionsWithMu });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Change question status
+router.patch('/:id/status', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status value
+    if (status === undefined || ![0, 1, -1].includes(status)) {
+      return res.status(400).json({ 
+        error: 'Status is required and must be 0 (inactive), 1 (active), or -1 (archived)' 
+      });
+    }
+
+    // Find the question
+    const question = await Question.findById(id);
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    // Update the status
+    question.status = status;
+    await question.save();
+
+    return res.json({
+      message: `Question status updated to ${status}`,
+      question: {
+        _id: question._id,
+        ques: question.ques,
+        status: question.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating question status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -166,7 +166,7 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       // Reset form
       setQuestion('');
       setOptions(['', '', '', '']);
-      setCorrectOption(0);
+      setCorrectOptions([0]);
       setSolution('');
       setXpCorrect(2);
       setXpIncorrect(0);
@@ -253,7 +253,7 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       // Reset form when not editing
       setQuestion('');
       setOptions(['', '', '', '']);
-      setCorrectOption(0);
+      setCorrectOptions([0]);
       setSolution('');
       setXpCorrect(2);
       setXpIncorrect(0);

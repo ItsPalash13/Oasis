@@ -561,6 +561,7 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
         
         const allQuestions = await Question.find({
           sectionId: level.sectionId,
+          status: 1, // Only get active questions
           "topics": {
             $not: {
               $elemMatch: {
@@ -570,10 +571,10 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           }
         }).populate('topics.id');
 
-        console.log(`Total questions found in database: ${allQuestions.length}`);
+        console.log(`Total active questions found in database: ${allQuestions.length}`);
 
         if (!allQuestions.length) {
-          throw new Error('No questions found for this section with the required topics');
+          throw new Error('No active questions found for this section with the required topics');
         }
 
         // Convert questions to array with string IDs for easier comparison
@@ -594,10 +595,12 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           !correctQuestions.includes(q._id) && !wrongQuestions.includes(q._id)
         );
         
+        // Filter wrong questions to only include active ones and remove inactive ones from user's wrongQuestions array
         const availableWrongQuestions = questionPool.filter(q => 
           wrongQuestions.includes(q._id)
         );
         
+        // Filter correct questions to only include active ones and remove inactive ones from user's correctQuestions array
         const availableCorrectQuestions = questionPool.filter(q => 
           correctQuestions.includes(q._id)
         ).sort((a, b) => {
@@ -605,6 +608,48 @@ import { UserLevelSessionHistory } from '../models/UserLevelSessionHistory';
           // For ObjectId, older IDs are lexicographically smaller
           return a._id.localeCompare(b._id);
         });
+
+        // Remove inactive questions from user's wrongQuestions and correctQuestions arrays
+        const activeWrongQuestionIds = availableWrongQuestions.map(q => q._id);
+        const activeCorrectQuestionIds = availableCorrectQuestions.map(q => q._id);
+        
+        const inactiveWrongQuestions = wrongQuestions.filter(id => !activeWrongQuestionIds.includes(id));
+        const inactiveCorrectQuestions = correctQuestions.filter(id => !activeCorrectQuestionIds.includes(id));
+        
+        if (inactiveWrongQuestions.length > 0 || inactiveCorrectQuestions.length > 0) {
+          console.log(`\n--- Cleaning up inactive questions from user history ---`);
+          console.log(`Removing ${inactiveWrongQuestions.length} inactive wrong questions`);
+          console.log(`Removing ${inactiveCorrectQuestions.length} inactive correct questions`);
+          
+          const cleanupOperation: any = {};
+          
+          if (inactiveWrongQuestions.length > 0) {
+            cleanupOperation.$pull = {
+              ...(cleanupOperation.$pull || {}),
+              wrongQuestions: { $in: inactiveWrongQuestions.map(id => new mongoose.Types.ObjectId(id)) }
+            };
+          }
+          
+          if (inactiveCorrectQuestions.length > 0) {
+            cleanupOperation.$pull = {
+              ...(cleanupOperation.$pull || {}),
+              correctQuestions: { $in: inactiveCorrectQuestions.map(id => new mongoose.Types.ObjectId(id)) }
+            };
+          }
+          
+          if (Object.keys(cleanupOperation).length > 0) {
+            await UserChapterSection.findOneAndUpdate(
+              {
+                userId: new mongoose.Types.ObjectId(userId),
+                chapterId: level.chapterId,
+                sectionId: level.sectionId
+              },
+              cleanupOperation,
+              { upsert: false }
+            );
+            console.log(`✅ Successfully removed inactive questions from user history`);
+          }
+        }
 
         console.log(`Question pool size: ${questionPool.length}`);
         console.log(`New questions available: ${newQuestions.length}`);
