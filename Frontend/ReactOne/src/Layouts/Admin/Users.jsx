@@ -1656,26 +1656,37 @@ function UserLevelSessionHistoryTab() {
     {
       field: 'userProfile',
       headerName: 'User',
-      width: 250,
+      width: 200,
       renderCell: (params) => {
         if (params.value) {
-          return `${params.value.username} (${params.value.email})`;
+          return params.value.username || 'N/A';
         }
         return params.row.userId || 'N/A';
       },
     },
     {
-      field: 'userProfile',
+      field: 'userEmail',
+      headerName: 'Email',
+      width: 200,
+      renderCell: (params) => {
+        if (params.row.userProfile) {
+          return params.row.userProfile.email || 'N/A';
+        }
+        return 'N/A';
+      },
+    },
+    {
+      field: 'userRole',
       headerName: 'Role',
       width: 100,
       renderCell: (params) => {
-        if (params.value && params.value.role) {
+        if (params.row.userProfile && params.row.userProfile.role) {
           return (
             <Chip
-              label={params.value.role}
+              label={params.row.userProfile.role}
               color={
-                params.value.role === 'admin' ? 'error' : 
-                params.value.role === 'teacher' ? 'warning' : 'primary'
+                params.row.userProfile.role === 'admin' ? 'error' : 
+                params.row.userProfile.role === 'teacher' ? 'warning' : 'primary'
               }
               size="small"
               variant="outlined"

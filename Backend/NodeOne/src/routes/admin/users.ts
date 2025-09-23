@@ -374,7 +374,8 @@ router.get('/chapter-units', async (req: Request, res: Response) => {
             _id: userProfile._id,
             username: userProfile.username,
             email: userProfile.email,
-            fullName: userProfile.fullName
+            fullName: userProfile.fullName,
+            role: userProfile.role
           } : null
         };
       })
@@ -420,7 +421,8 @@ router.get('/chapter-units/:id', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -526,7 +528,8 @@ router.post('/chapter-units', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -589,7 +592,8 @@ router.put('/chapter-units/:id', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -668,7 +672,8 @@ router.get('/chapter-sections', async (req: Request, res: Response) => {
             _id: userProfile._id,
             username: userProfile.username,
             email: userProfile.email,
-            fullName: userProfile.fullName
+            fullName: userProfile.fullName,
+            role: userProfile.role
           } : null
         };
       })
@@ -706,7 +711,8 @@ router.get('/chapter-sections/:id', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -753,7 +759,8 @@ router.post('/chapter-sections', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -790,7 +797,8 @@ router.put('/chapter-sections/:id', async (req: Request, res: Response) => {
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
@@ -849,7 +857,8 @@ router.get('/chapter-levels', async (req: Request, res: Response) => {
             _id: userProfile._id,
             username: userProfile.username,
             email: userProfile.email,
-            fullName: userProfile.fullName
+            fullName: userProfile.fullName,
+            role: userProfile.role
           } : null
         };
       })
@@ -1217,7 +1226,8 @@ router.get('/level-session-history', async (req: Request, res: Response) => {
             _id: userProfile._id,
             username: userProfile.username,
             email: userProfile.email,
-            fullName: userProfile.fullName
+            fullName: userProfile.fullName,
+            role: userProfile.role
           } : null
         };
       })
@@ -1267,7 +1277,8 @@ router.get('/level-session-history/:id', async (req: Request, res: Response) => 
         _id: userProfile._id,
         username: userProfile.username,
         email: userProfile.email,
-        fullName: userProfile.fullName
+        fullName: userProfile.fullName,
+        role: userProfile.role
       } : null
     };
 
