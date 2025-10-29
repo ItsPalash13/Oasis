@@ -15,6 +15,11 @@ const UserBadgeSchema = new Schema<UserBadge>({
   createdAt: { type: Date, default: Date.now },
 }, { _id: false });
 
+
+type TSavedQuestion = {
+  questionId: mongoose.Types.ObjectId;
+  savedAt: Date;
+}
 // Define the interface for the UserProfile document
 interface UserProfileDocument extends Document {
   userId: string;
@@ -39,6 +44,8 @@ interface UserProfileDocument extends Document {
   onboardingCompleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  savedQuestions?: Array<TSavedQuestion>;
 }
 
 // Define the Mongoose schema for UserProfile
@@ -70,6 +77,10 @@ const UserProfileSchema: Schema = new Schema(
     totalCoins: { type: Number, default: 0 },
     badges: { type: [UserBadgeSchema], default: [] },
     monthlyXp: { type: Object, default: {} }, // YYYY/MM format keys with totalXp values
+    savedQuestions: [{
+      questionId: { type: Schema.Types.ObjectId, ref: 'Question', required: true },
+      savedAt: { type: Date, default: Date.now }
+    }],
   },
   {
     timestamps: true,
