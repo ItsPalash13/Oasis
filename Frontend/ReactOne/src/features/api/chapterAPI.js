@@ -30,11 +30,18 @@ export const chapterApi = createApi({
       },
       providesTags: ['Chapter']
     }),
+    startGame: builder.mutation({
+      query: () => ({
+        url: '/level_v2/start',
+        method: 'POST'
+      })
+    })
   }),
 });
 
 export const { 
   useGetAllChaptersQuery,
   useGetChaptersBySubjectQuery,
-  useGetChapterByIdQuery
+  useGetChapterByIdQuery,
+  useStartGameMutation
 } = chapterApi; 
