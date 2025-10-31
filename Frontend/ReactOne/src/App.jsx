@@ -23,6 +23,7 @@ import Admin from './Layouts/Admin/Admin';
 import Profile from './Layouts/Profile/Profile';
 import TempResults from './Layouts/Temp/TempResults';
 import TempMath from './Layouts/Temp/TempMath';
+import QuizV2 from './Layouts/Quiz_v2/Quiz';
 
 // Create socket instance outside component
 export const socket = io(import.meta.env.VITE_BACKEND_URL, {
@@ -203,6 +204,13 @@ const QuizWrapper = ({ socket }) => {
   return <Quiz key={levelId} socket={socket} />;
 };
 
+// Quiz v2 wrapper component to force remount on quizId change
+// To revert to old behavior: comment the v2 route below and keep only the v1 route.
+const QuizWrapper_v2 = ({ socket }) => {
+  const { quizId } = useParams();
+  return <QuizV2 key={quizId} socket={socket} />;
+};
+
 function AppContent() {
   const location = useLocation();
   const dispatch = useDispatch();
@@ -351,6 +359,8 @@ function AppContent() {
               />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/quiz/:levelId" element={<ProtectedRoute><QuizWrapper socket={socket} /></ProtectedRoute>} />
+              {/* New Quiz v2 route (dummy). To revert, comment this line. */}
+              <Route path="/quiz_v2/:quizId" element={<ProtectedRoute><QuizWrapper_v2 socket={socket} /></ProtectedRoute>} />
               <Route path="/chapters" element={<ProtectedRoute><Chapters /></ProtectedRoute>} />
               <Route path="/chapter/:chapterId" element={<ProtectedRoute><Levels /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

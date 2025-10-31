@@ -8,17 +8,38 @@ type DummyQuestion = {
   correctIndex: number;
 };
 
-// Static dummy question for the loop
-const DUMMY_QUESTION: DummyQuestion = {
-  id: 'q1',
-  ques: 'What is 2 + 2?',
-  options: ['3', '4', '5', '22'],
-  correctIndex: 1,
-};
+// Multiple dummy questions for random selection
+const QUESTIONS: DummyQuestion[] = [
+  {
+    id: 'q1',
+    ques: 'What is 2 + 2?',
+    options: ['3', '4', '5', '22'],
+    correctIndex: 1,
+  },
+  {
+    id: 'q2',
+    ques: 'Which of the following is a prime number?',
+    options: ['4', '6', '9', '11'],
+    correctIndex: 3,
+  },
+  {
+    id: 'q3',
+    ques: 'Solve: 3 × 5 = ?',
+    options: ['8', '10', '15', '30'],
+    correctIndex: 2,
+  },
+  {
+    id: 'q4',
+    ques: 'What is the capital of France?',
+    options: ['Berlin', 'Madrid', 'Paris', 'Rome'],
+    correctIndex: 2,
+  },
+];
 
 async function fetch_question(): Promise<DummyQuestion> {
-  // Simulate async fetch
-  return DUMMY_QUESTION;
+  // Simulate async fetch and return random question
+  const idx = Math.floor(Math.random() * QUESTIONS.length);
+  return QUESTIONS[idx];
 }
 
 async function checkanswer(
@@ -26,7 +47,7 @@ async function checkanswer(
   answerIndex: number,
   currentQuestion?: DummyQuestion
 ): Promise<{ isCorrect: boolean; correctIndex: number }> {
-  const q = currentQuestion && currentQuestion.id === questionId ? currentQuestion : DUMMY_QUESTION;
+  const q = currentQuestion && currentQuestion.id === questionId ? currentQuestion : QUESTIONS[0];
   const isCorrect = answerIndex === q.correctIndex;
   return { isCorrect, correctIndex: q.correctIndex };
 }
@@ -66,7 +87,7 @@ export const quizV2DummyHandlers = (socket: Socket) => {
       const { isCorrect, correctIndex } = await checkanswer(id, answerIndex, currentQuestion);
       await updatets();
 
-      const correctOption = (currentQuestion || DUMMY_QUESTION).options[correctIndex];
+      const correctOption = (currentQuestion || QUESTIONS[0]).options[correctIndex];
 
       socket.emit('result', {
         isCorrect,

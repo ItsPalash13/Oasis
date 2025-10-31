@@ -1,5 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useStartGameMutation } from '../features/api/chapterAPI';
+import { setquizSession } from '../features/auth/quizSessionSlice';
 import {
   Typography,
   Box,
@@ -8,20 +11,43 @@ import { StyledChapterCard, chapterCardStyles } from '../theme/chapterCardTheme'
 
 const ChapterCard = ({ chapter, onClick }) => {
   const navigate = useNavigate();
-  const isActive = chapter.isActive !== false; // Default to true if not specified
+  const dispatch = useDispatch();
+  const [startGame] = useStartGameMutation();
+  const isActive = chapter.status !== false; // Use status from Chapter data
 
   const handleChapterClick = () => {
+    console.log("ChapterCard clicked");
     // Don't navigate if chapter is inactive
     if (!isActive) {
       return;
     }
     
-    // Call the custom onClick handler if provided
-    if (onClick) {
-      onClick(chapter);
-    }
-    // Navigate to chapter page
-    navigate(`/chapter/${chapter._id}`);
+    // Old custom onClick (v1). To restore, uncomment the next lines.
+    // if (onClick) {
+    //   onClick(chapter);
+    //   return;
+    // }
+
+    // Old v1 navigation:
+    // navigate(`/chapter/${chapter._id}`);
+
+    // New v2 (dummy) start flow
+    (async () => {
+      try {
+        console.log('Starting Quiz v2 via /level_v2/start');
+        const result = await startGame().unwrap();
+        console.log('Game started result:', result);
+        // Map `{ userChapterTicket }` into `{ data: { session: { id } } }` if backend returns ticket
+        const mapped = result && result.data ? result : { data: { session: { id: result.userChapterTicket } } };
+        dispatch(setquizSession(mapped.data.session));
+        console.log('Navigating to /quiz_v2/', mapped.data.session.id);
+        navigate(`/quiz_v2/${mapped.data.session.id}`);
+      } catch (err) {
+        console.error('Quiz v2 start failed:', err);
+        // Fallback: if start fails, go to chapter page
+        navigate(`/chapter/${chapter._id}`);
+      }
+    })();
   };
 
   return (

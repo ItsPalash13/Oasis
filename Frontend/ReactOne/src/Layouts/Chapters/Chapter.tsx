@@ -6,6 +6,10 @@ import {
   Box
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+// import { useDispatch } from 'react-redux';
+// import { useStartGameMutation } from '../../features/api/chapterAPI';
+// import { setquizSession } from '../../features/auth/quizSessionSlice';
+// @ts-ignore
 import axios from 'axios';
 // @ts-ignore
 import ChapterCard from '../../components/ChapterCard';
@@ -23,6 +27,8 @@ interface Chapter {
 const Chapters: React.FC = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const navigate = useNavigate();
+  // const dispatch = useDispatch();
+  // const [startGame] = useStartGameMutation();
 
   useEffect(() => {
     const fetchChapters = async () => {
@@ -37,9 +43,13 @@ const Chapters: React.FC = () => {
     fetchChapters();
   }, []);
 
+  // @ts-ignore
   const handleChapterClick = (chapterId: string) => {
     navigate(`/chapter/${chapterId}`);
   };
+
+  // New v2 start handler (dummy) moved to ChapterCard.jsx
+  // const handleStartQuizV2 = async (_chapterId: string) => { ... }
 
   return (
     <Box sx={{minHeight: '100vh'}}>
@@ -55,7 +65,8 @@ const Chapters: React.FC = () => {
                   ...chapter,
                   image: chapter.thumbnailUrl
                 }}
-                onClick={() => chapter.status && handleChapterClick(chapter._id)}
+                // old v1 (at call-site): onClick={() => chapter.status && handleChapterClick(chapter._id)}
+                // new v2 is now handled inside ChapterCard.jsx; no onClick override here
               />
             </Grid>
           ))}
