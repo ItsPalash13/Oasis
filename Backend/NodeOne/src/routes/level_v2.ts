@@ -1,19 +1,32 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
+import { UserChapterSessionService } from '../services/UserChapterSession';
 
 const router = express.Router();
 
-function generate16DigitId(): string {
-  let id = '';
-  for (let i = 0; i < 16; i++) {
-    id += Math.floor(Math.random() * 10).toString();
-  }
-  return id;
-}
 
-router.post('/start', (_req: Request, res: Response) => {
-  const userChapterTicket = generate16DigitId();
-  return res.json({ userChapterTicket });
-});
+const startUserChapterSessionRouter = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { userId, chapterId } = req.body;
+
+    if (!userId) {
+      throw { statusCode: 400, code: "MissingParameter", message: "userId is required" };
+    }
+
+    if (!chapterId) {
+      throw { statusCode: 400, code: "MissingParameter", message: "chapterId is required" };
+    }
+
+    const result = await UserChapterSessionService.startUserChapterSession({ userId, chapterId });
+    return res.json(result);
+  
+  } catch (error: any) {
+    next(error);
+    return;
+  }
+};
+
+
+router.post('/start', startUserChapterSessionRouter);
 
 export default router;
 

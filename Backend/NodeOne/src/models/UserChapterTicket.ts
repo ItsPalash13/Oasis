@@ -15,7 +15,8 @@ interface IUserChapterTicket extends Document {
         questionsIncorrect?: number;
         currentStreak?: number; //
         lastAttemptedQuestionId?: mongoose.Types.ObjectId;
-        currentQuestionId: mongoose.Types.ObjectId;
+        currentQuestionId?: mongoose.Types.ObjectId;
+        currentScore?: number;
         heartsLeft: number
     };
     maxStreak: number;
@@ -48,7 +49,7 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
         currentQuestionId: {
             type: Schema.Types.ObjectId,
             ref: 'Question',
-            required: true
+            required: false
         },
         lastAttemptedQuestionId: {
             type: Schema.Types.ObjectId,
@@ -57,27 +58,27 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
         },
         questionsAttempted: {
             type: Number,
-            required: true
+            required: false
         },
         questionsCorrect: {
             type: Number,
-            required: true 
+            required: false
         },
         questionsIncorrect: {
             type: Number,
-            required: true
+            required: false
         },
         currentStreak: {
             type: Number,
-            required: true
+            required: false
         },  
         currentScore: {
             type: Number,
-            required: true
+            required: false
         },
         heartsLeft: {
             type: Number,
-            required: true
+            required: false
         }
     },
     maxStreak: {
