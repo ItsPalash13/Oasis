@@ -1,12 +1,14 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { UserChapterSessionService } from '../services/UserChapterSession';
+import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
 
 
 const startUserChapterSessionRouter = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId, chapterId } = req.body;
+    const userId = (req as any).user.id;
+    const {chapterId } = req.body;
 
     if (!userId) {
       throw { statusCode: 400, code: "MissingParameter", message: "userId is required" };
@@ -26,7 +28,7 @@ const startUserChapterSessionRouter = async (req: Request, res: Response, next: 
 };
 
 
-router.post('/start', startUserChapterSessionRouter);
+router.post('/start', authMiddleware, startUserChapterSessionRouter);
 
 export default router;
 
