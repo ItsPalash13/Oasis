@@ -3,10 +3,13 @@ import { Box, CardContent, CircularProgress, Grid, Typography } from '@mui/mater
 import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, quizStyles } from '../../theme/quizTheme';
 import { Timer as TimerIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 const Quiz = ({ socket }) => {
   const navigate = useNavigate();
   const { quizId } = useParams();
+  const quizSession = useSelector((state) => state?.quizSession?.session);
+  const sessionId = quizSession?.id || quizId; // Fallback to quizId if session.id is missing
   const [isLoading, setIsLoading] = useState(true);
   const [question, setQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -25,7 +28,7 @@ const Quiz = ({ socket }) => {
       socket.connect();
     }
     const onConnect = () => {
-      socket.emit('initiate');
+      socket.emit('initiate', { sessionId });
     };
     const onQuestion = (data) => {
       setQuestion(data);
@@ -47,18 +50,18 @@ const Quiz = ({ socket }) => {
       socket.off('result', onResult);
       if (socket.connected) socket.disconnect();
     };
-  }, [socket, quizId]);
+  }, [socket, quizId, sessionId]);
 
   const submitAnswer = () => {
     if (!question || selectedAnswer === null) return;
     setIsLoading(true);
-    socket.emit('answer', { id: question.id, answerIndex: selectedAnswer });
+    socket.emit('answer', { id: question.id, answerIndex: selectedAnswer, sessionId });
     setTimeout(() => setIsLoading(false), 150); // small UX delay
   };
 
   const nextQuestion = () => {
     setIsLoading(true);
-    socket.emit('initiate');
+    socket.emit('initiate', { sessionId });
   };
 
   const formatTime = (seconds) => {

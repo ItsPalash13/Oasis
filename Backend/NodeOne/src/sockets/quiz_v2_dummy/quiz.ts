@@ -61,13 +61,17 @@ export const quizV2DummyHandlers = (socket: Socket) => {
   logger.info(`Dummy Quiz v2 socket connected: ${socket.id}`);
 
   // On initiate: fetch question then emit question (without revealing the answer)
-  socket.on('initiate', async () => {
+  socket.on('initiate', async ({ sessionId }: { sessionId?: string }) => {
     try {
+      logger.info(`[initiate] sessionId: ${sessionId || 'not provided'}`);
       const q = await fetch_question();
       // Store the current question on the socket for this simple loop
       // socket.io v4 provides a data bag on the socket instance
       (socket as any).data = (socket as any).data || {};
       (socket as any).data.currentQuestion = q;
+      if (sessionId) {
+        (socket as any).data.sessionId = sessionId;
+      }
 
       socket.emit('question', {
         id: q.id,
@@ -81,8 +85,9 @@ export const quizV2DummyHandlers = (socket: Socket) => {
   });
 
   // On answer: checkanswer -> updatets -> emit result (with correctness and correct option)
-  socket.on('answer', async ({ id, answerIndex }: { id: string; answerIndex: number }) => {
+  socket.on('answer', async ({ id, answerIndex, sessionId }: { id: string; answerIndex: number; sessionId?: string }) => {
     try {
+      logger.info(`[answer] sessionId: ${sessionId || (socket as any).data?.sessionId || 'not provided'}`);
       const currentQuestion: DummyQuestion | undefined = (socket as any).data?.currentQuestion;
       const { isCorrect, correctIndex } = await checkanswer(id, answerIndex, currentQuestion);
       await updatets();
@@ -101,7 +106,8 @@ export const quizV2DummyHandlers = (socket: Socket) => {
   });
 
   socket.on('disconnect', () => {
-    logger.info(`Dummy Quiz v2 socket disconnected: ${socket.id}`);
+    const sessionId = (socket as any).data?.sessionId;
+    logger.info(`Dummy Quiz v2 socket disconnected: ${socket.id}, sessionId: ${sessionId || 'not set'}`);
   });
 };
 

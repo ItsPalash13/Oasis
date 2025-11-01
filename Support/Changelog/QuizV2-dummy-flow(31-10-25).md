@@ -2,18 +2,18 @@
 
 ## Overview
 - Adds a minimal Quiz v2 loop that serves random dummy questions over sockets.
-- Start flow: client calls `POST /api/level_v2/start` → receives `userChapterTicket` → maps to `session.id` → stores in Redux → navigates to `/quiz_v2/:quizId`.
+- Start flow: client calls `POST /api/level_v2_dummy/start` → receives `userChapterTicket` → maps to `session.id` → stores in Redux → navigates to `/quiz_v2/:quizId`.
 - Existing v1 quiz remains intact; v2 is additive and easily reverted.
 
 ## Backend
 
 ### Routes registry
 - File: `Backend/NodeOne/src/routes/index.ts`
-  - Registers `router.use('/level_v2', levelV2Routes);`
+  - Registers `router.use('/level_v2_dummy', levelV2Routes);`
 
 ### Start endpoint
-- File: `Backend/NodeOne/src/routes/level_v2.ts`
-  - `POST /api/level_v2/start` returns `{ userChapterTicket: string }` (16-digit ID).
+- File: `Backend/NodeOne/src/routes/level_v2_dummy.ts`
+  - `POST /api/level_v2_dummy/start` returns `{ userChapterTicket: string }` (16-digit ID).
 
 ### Socket bootstrap
 - File: `Backend/NodeOne/src/sockets/index.ts`
@@ -29,7 +29,7 @@
 
 ### API (RTK Query)
 - File: `Frontend/ReactOne/src/features/api/chapterAPI.js`
-  - Adds `startGame` mutation: `POST /api/level_v2/start`.
+  - Adds `startGame` mutation: `POST /api/level_v2_dummy/start`.
 
 ### Redux slice
 - File: `Frontend/ReactOne/src/features/auth/quizSessionSlice.js`
@@ -64,7 +64,7 @@
   - Timer display and interval are commented out per request.
 
 ## Events & Endpoints
-- REST: `POST /api/level_v2/start` → `{ userChapterTicket }`.
+- REST: `POST /api/level_v2_dummy/start` → `{ userChapterTicket }`.
 - Socket:
   - Client `emit('initiate')` → server `emit('question', { id, ques, options })`.
   - Client `emit('answer', { id, answerIndex })` → server `emit('result', { isCorrect, correctIndex, correctOption })`.

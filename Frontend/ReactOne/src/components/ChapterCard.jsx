@@ -34,8 +34,8 @@ const ChapterCard = ({ chapter, onClick }) => {
     // New v2 (dummy) start flow
     (async () => {
       try {
-        console.log('Starting Quiz v2 via /level_v2/start');
-        const result = await startGame().unwrap();
+        console.log('Starting Quiz v2 via /level_v2_dummy/start');
+        const result = await startGame(chapter._id).unwrap();
         console.log('Game started result:', result);
         // Map `{ userChapterTicket }` into `{ data: { session: { id } } }` if backend returns ticket
         const mapped = result && result.data ? result : { data: { session: { id: result.userChapterTicket } } };
