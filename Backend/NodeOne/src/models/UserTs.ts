@@ -11,8 +11,8 @@ interface IUser extends Document {
 }
 
 const SkillSchema = new Schema<ISkill>({
-  mu: { type: Number, required: true, default: 25.0 },
-  sigma: { type: Number, required: true, default: 8.333 }
+  mu: { type: Number, required: true },
+  sigma: { type: Number, required: true }
 }, { _id: false });  // Disable _id for skill subdocument
 
 const UserSchema = new Schema<IUser>({
