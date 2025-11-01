@@ -11,8 +11,10 @@ function generate16DigitId(): string {
   return id;
 }
 
-router.post('/start', (_req: Request, res: Response) => {
+router.post('/start', (req: Request, res: Response) => {
   const userChapterTicket = generate16DigitId();
+  const { chapterId } = req.body;
+  logger.info(`Chapter ID: ${chapterId}`);
   logger.info(`User chapter ticket generated: ${userChapterTicket}`);
   return res.json({ userChapterTicket });
 });

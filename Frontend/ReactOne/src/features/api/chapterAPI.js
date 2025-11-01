@@ -31,9 +31,10 @@ export const chapterApi = createApi({
       providesTags: ['Chapter']
     }),
     startGame: builder.mutation({
-      query: () => ({
+      query: (chapterId) => ({
         url: '/level_v2_dummy/start',
-        method: 'POST'
+        method: 'POST',
+        body: { chapterId }
       })
     })
   }),
