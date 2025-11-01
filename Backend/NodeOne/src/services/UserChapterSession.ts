@@ -7,7 +7,7 @@ interface IStartChapterSessionResponse {
 		userId: string;
 	};
 	chapterId: string;
-	socketTicket: string;
+	userChapterTicket: string;
 }
 
 namespace UserChapterSessionService {
@@ -19,19 +19,19 @@ namespace UserChapterSessionService {
 		socketTicket: string;
 	}) => {
 
-
+console.log("TESTING SOCKET TICKET : ", socketTicket);
 		const userChapterTicket = await UserChapterTicket.findOne({
 			"ongoing._id": socketTicket,
 		});
-
-		if (!userChapterTicket) {
+		console.log("TESTING1234: ", userChapterTicket);	
+		if (!userChapterTicket?._id) {
 			throw {
 				statusCode: 404,
 				code: "SessionNotFound",
 				message: "Session not found",
 			};
 		}
-
+		
 		return userChapterTicket;
 	};
 
@@ -129,7 +129,7 @@ namespace UserChapterSessionService {
 				userId: user.userId,
 			},
 			chapterId: chapterId,
-			socketTicket: userChapterTicketInitialized.ongoing._id.toString(),
+			userChapterTicket: userChapterTicketInitialized.ongoing._id.toString(),
 		} as IStartChapterSessionResponse;
 	};
 }

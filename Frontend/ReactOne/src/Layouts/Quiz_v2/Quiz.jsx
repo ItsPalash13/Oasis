@@ -28,6 +28,7 @@ const Quiz = ({ socket }) => {
       socket.connect();
     }
     const onConnect = () => {
+      console.log('SOCKET INITIATE SOCKET ID :', sessionId);
       socket.emit('initiate', { sessionId });
     };
     const onQuestion = (data) => {

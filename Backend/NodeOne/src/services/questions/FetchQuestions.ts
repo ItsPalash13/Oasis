@@ -1,4 +1,4 @@
-import { IQuestionTs, QuestionTs } from "models/QuestionTs";
+import { IQuestionTs, QuestionTs } from "./../../models/QuestionTs";
 
 export const fetchQuestionsByChapterIdAndMu = async ({
 	chapterId,
