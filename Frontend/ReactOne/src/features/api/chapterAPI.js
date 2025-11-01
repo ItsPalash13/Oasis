@@ -32,7 +32,7 @@ export const chapterApi = createApi({
     }),
     startGame: builder.mutation({
       query: () => ({
-        url: '/level_v2/start',
+        url: '/level_v2_dummy/start',
         method: 'POST'
       })
     })
