@@ -1,9 +1,25 @@
-import express from 'express';
+import express, { NextFunction } from 'express';
 import { UserProfile } from '../models/UserProfile';
 import authMiddleware from '../middleware/authMiddleware';
 import { Request, Response } from 'express';
 
 const router = express.Router();
+
+
+const getAllUsersRouter = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const users = await UserProfile.find().populate({
+      path: 'badges.badgeId',
+      select: 'badgeName badgeType badgeslug badgeDescription badgelevel',
+    });
+    return res.json({ users });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+router.get('/', getAllUsersRouter);
+
 
 // GET user info
 router.get('/info/:userId', authMiddleware, async (req: Request, res: Response) => {

@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import UserChapterTicket from "../models/UserChapterTicket";
 import { UserProfile } from "../models/UserProfile";
 import mongoose from "mongoose";
@@ -12,6 +11,29 @@ interface IStartChapterSessionResponse {
 }
 
 namespace UserChapterSessionService {
+
+
+	export const getCurrentSessionBySocketTicket = async ({
+		socketTicket,
+	}: {
+		socketTicket: string;
+	}) => {
+
+
+		const userChapterTicket = await UserChapterTicket.findOne({
+			"ongoing._id": socketTicket,
+		});
+
+		if (!userChapterTicket) {
+			throw {
+				statusCode: 404,
+				code: "SessionNotFound",
+				message: "Session not found",
+			};
+		}
+
+		return userChapterTicket;
+	};
 
 	export const startUserChapterSession = async ({
 		userId,
@@ -43,6 +65,7 @@ namespace UserChapterSessionService {
 		if (userChapterTicket) {
 			// If ticket exists, fill/update the ongoing object
 			userChapterTicket.ongoing = {
+				_id: userChapterTicket.ongoing?._id,
 				currentQuestionId:
 					userChapterTicket.ongoing?.currentQuestionId,
 				lastAttemptedQuestionId:
@@ -78,14 +101,35 @@ namespace UserChapterSessionService {
 			await userChapterTicket.save();
 		}
 
-		const socketTicket = randomUUID();
+
+		const userChapterTicketInitialized = await UserChapterTicket.findOne({
+			userId: userObjectId,
+			chapterId: chapterObjectId,
+		});
+
+		console.log("USERCHAPTER", userChapterTicketInitialized)
+		if (!userChapterTicketInitialized) {
+			throw {
+				statusCode: 500,
+				code: "TicketInitializationFailed",
+				message: "Failed to initialize user chapter ticket",
+			};
+		}
+
+		if (!userChapterTicketInitialized?.ongoing || !userChapterTicketInitialized?.ongoing?._id) {
+			throw {
+				statusCode: 500,
+				code: "TicketOngoingMissing",
+				message: "User chapter ticket ongoing session is missing",
+			};
+		}
 
 		return {
 			user: {
 				userId: user.userId,
 			},
 			chapterId: chapterId,
-			socketTicket: socketTicket,
+			socketTicket: userChapterTicketInitialized.ongoing._id.toString(),
 		} as IStartChapterSessionResponse;
 	};
 }

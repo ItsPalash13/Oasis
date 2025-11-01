@@ -5,20 +5,36 @@ interface IDifficulty {
   sigma: number; // Standard deviation of the difficulty rating
 }
 
+export interface IOngoingSession {
+  _id?: mongoose.Types.ObjectId;
+  questionsAttempted?: number;
+  questionsCorrect?: number;
+  questionsIncorrect?: number;
+  currentStreak?: number;
+  lastAttemptedQuestionId?: mongoose.Types.ObjectId;
+  currentQuestionId?: mongoose.Types.ObjectId;
+  currentScore?: number;
+  heartsLeft: number;
+}
+
+const ongoingSchema = new Schema<IOngoingSession>({
+  _id: { type: Schema.Types.ObjectId , auto: true, unique: true}, 
+  questionsAttempted: { type: Number, default: 0 },
+  questionsCorrect: { type: Number, default: 0 },
+  questionsIncorrect: { type: Number, default: 0 },
+  currentStreak: { type: Number, default: 0 },
+  lastAttemptedQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
+  currentQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
+  currentScore: { type: Number, default: 0 },
+  heartsLeft: { type: Number, required: true, default: 3 },
+}, { _id: true }); 
+
+
 interface IUserChapterTicket extends Document {
     userId: mongoose.Types.ObjectId;
     chapterId: mongoose.Types.ObjectId;
     trueSkillScore? : IDifficulty;
-    ongoing: {
-        questionsAttempted?: number;
-        questionsCorrect?: number;
-        questionsIncorrect?: number;
-        currentStreak?: number; //
-        lastAttemptedQuestionId?: mongoose.Types.ObjectId;
-        currentQuestionId?: mongoose.Types.ObjectId;
-        currentScore?: number;
-        heartsLeft: number
-    };
+    ongoing: IOngoingSession;
     maxStreak: number;
     maxScore: number;
 }
@@ -45,42 +61,7 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
         ref: 'Chapter',
         required: true
     }, 
-    ongoing: {
-        currentQuestionId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Question',
-            required: false
-        },
-        lastAttemptedQuestionId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Question',
-            required: false,
-        },
-        questionsAttempted: {
-            type: Number,
-            required: false
-        },
-        questionsCorrect: {
-            type: Number,
-            required: false
-        },
-        questionsIncorrect: {
-            type: Number,
-            required: false
-        },
-        currentStreak: {
-            type: Number,
-            required: false
-        },  
-        currentScore: {
-            type: Number,
-            required: false
-        },
-        heartsLeft: {
-            type: Number,
-            required: false
-        }
-    },
+    ongoing: ongoingSchema,
     maxStreak: {
         type: Number,
         required: true
