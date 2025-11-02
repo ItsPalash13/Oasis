@@ -1,4 +1,4 @@
-import UserChapterTicket from "../models/UserChapterTicket";
+import UserChapterTicket, { IOngoingSession } from "../models/UserChapterTicket";
 import { UserProfile } from "../models/UserProfile";
 import mongoose from "mongoose";
 
@@ -132,6 +132,40 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			userChapterTicket: userChapterTicketInitialized.ongoing._id.toString(),
 		} as IStartChapterSessionResponse;
 	};
-}
+
+	export const updateUserChapterOngoingByUserIdChapterId = async ({
+		userId,
+		chapterId,
+		updateData,
+	}: {
+		userId: string;
+		chapterId: string;
+		updateData: Partial<IOngoingSession>;
+	}) => {
+		const userObjectId = new mongoose.Types.ObjectId(userId);
+		const chapterObjectId = new mongoose.Types.ObjectId(chapterId);
+
+		const userChapterTicket = await UserChapterTicket.findOne({
+			userId: userObjectId,
+			chapterId: chapterObjectId,
+		});
+
+		if (!userChapterTicket) {
+			throw {
+				statusCode: 404,
+				code: "SessionNotFound",
+				message: "Session not found",
+			};
+		}
+
+		// Update the ongoing session data
+		userChapterTicket.ongoing = {
+			...userChapterTicket.ongoing,
+			...updateData,
+		};
+
+		await userChapterTicket.save();
+	};
+};
 
 export { UserChapterSessionService };

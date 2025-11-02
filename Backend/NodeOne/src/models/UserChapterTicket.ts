@@ -7,13 +7,13 @@ interface IDifficulty {
 
 export interface IOngoingSession {
   _id?: mongoose.Types.ObjectId;
-  questionsAttempted?: number;
-  questionsCorrect?: number;
-  questionsIncorrect?: number;
-  currentStreak?: number;
-  lastAttemptedQuestionId?: mongoose.Types.ObjectId;
-  currentQuestionId?: mongoose.Types.ObjectId;
-  currentScore?: number;
+  questionsAttempted: number;
+  questionsCorrect: number;
+  questionsIncorrect: number;
+  currentStreak: number;
+  lastAttemptedQuestionId: mongoose.Types.ObjectId;
+  currentQuestionId: mongoose.Types.ObjectId;
+  currentScore: number;
   heartsLeft: number;
 }
 

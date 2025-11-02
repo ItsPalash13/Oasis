@@ -22,6 +22,7 @@ interface IQuestionImage {
 interface IQuestion extends Document {
   ques?: string;
   status: -1 | 0 | 1 ;
+  correctIndex?: number; // For single correct answer questions
   options: (string | undefined)[];
   correct: number[];
   quesImages?: IQuestionImage[];
