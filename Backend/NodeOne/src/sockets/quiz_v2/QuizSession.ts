@@ -1,7 +1,6 @@
-import { fetchQuestionsByChapterIdAndMu } from "./../../services/questions/FetchQuestions";
+import { fetchUserChapterTicketQuestionPool } from "./../../services/questions/FetchQuestions";
 import { Socket } from "socket.io";
 import { logger } from "./../../utils/logger";
-import { Userts } from "./../../models/UserTs";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession } from "models/UserChapterTicket";
@@ -49,61 +48,87 @@ export const quizV2Handler = (socket: Socket) => {
 			console.log("SOCKET TICKET:", userChapterTicket);
 
 			// fetch user trueskill data
-			const userTrueskillData = {skill:{ mu: userChapterTicket?.trueSkillScore?.mu || 936, sigma: userChapterTicket?.trueSkillScore?.sigma || 200 }};
+			const userTrueskillData = {
+				skill: {
+					mu: userChapterTicket?.trueSkillScore?.mu || 936,
+					sigma: userChapterTicket?.trueSkillScore?.sigma || 200,
+				},
+			};
 
 			console.log("USERS TRUESKILL DATA :", userTrueskillData);
 
-			const question = await fetchQuestionsByChapterIdAndMu({
-				chapterId: userChapterTicket.chapterId.toString(),
-				mu: userTrueskillData.skill.mu,
-				muFilter: "lesser",
+			// fetch question that matches trueskill and not in questionsAttemptedList
+			let questionList = await fetchUserChapterTicketQuestionPool({
+				userChapterTicket: userChapterTicket,
+				userTrueSkillData: userTrueskillData.skill,
 			});
 
-			if (question.length === 0) {
-				socket.emit("quizError", {
-					type: "no_questions",
-					message: "No suitable questions found for your skill level.",
-				});
-				return;
+		
+			const currentQuestion = questionList[0];
+
+			let questionAttemptedList = userChapterTicket.ongoing.questionsAttemptedList || [];
+			questionAttemptedList.push(currentQuestion.quesId);
+
+			let questionPool = userChapterTicket.ongoing.questionPoolUsed || [];
+			questionPool.concat(
+				questionList.map((q) => q.quesId)
+			);
+
+			// NEED to place this somewhere else 
+			if (questionList.length === 0) { 
+				questionPool = questionAttemptedList;
+				questionAttemptedList = [];
 			}
-			console.log("QUESTIONS FETCHED :", question);
+			// update question data (pool and attempted list )
+			await UserChapterSessionService.updateUserChapterQuestionData({
+				userId: userChapterTicket.userId,
+				chapterId: userChapterTicket.chapterId,
+				questionPool,
+				questionAttemptedList
+			});
 
-			const questionTsObject = question[0];
-			const currentQuestionTs = questionTsObject.quesId;
 
+			const currentQuestionTs = currentQuestion.quesId;
 			const wholeQuestionObject = await Question.findById(
 				currentQuestionTs
 			);
+
 			const parsedQuestion = {
 				id: currentQuestionTs,
 				ques: wholeQuestionObject?.ques,
 				options: wholeQuestionObject?.options,
 			};
 
-
 			//TODO Test
 			const updatedOngoingData: Partial<IOngoingSession> = {
 				currentQuestionId: currentQuestionTs,
-				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
-				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
+				questionsAttempted:
+					userChapterTicket?.ongoing?.questionsAttempted + 1,
+				questionsCorrect:
+					userChapterTicket?.ongoing?.questionsCorrect,
+				questionsIncorrect:
+					userChapterTicket?.ongoing?.questionsIncorrect,
 				currentStreak: userChapterTicket?.ongoing?.currentStreak,
 				currentScore: userChapterTicket?.ongoing?.currentScore,
 				heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
 			};
 
-			// Havennt tested this YET 
-			userChapterTicket?.ongoing?.questionsAttempted > 1 ? updatedOngoingData.lastAttemptedQuestionId = userChapterTicket.ongoing.currentQuestionId : undefined;
+			// Havennt tested this YET
+			userChapterTicket?.ongoing?.questionsAttempted > 1
+				? (updatedOngoingData.lastAttemptedQuestionId =
+						userChapterTicket.ongoing.currentQuestionId)
+				: undefined;
 			// updating UserChapterSession with questionTsId
-			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
+			await UserChapterSessionService.updateUserChapterOngoing({
 				userId: userChapterTicket.userId.toString(),
 				chapterId: userChapterTicket.chapterId.toString(),
-				updateData: updatedOngoingData
+				updateData: updatedOngoingData,
 			});
-
 
 			// emit fetched question
 			socket.emit("question", parsedQuestion);
+
+
 		} catch (error: any) {
 			logger.error("Error in initiate:", error);
 			socket.emit("quizError", {
@@ -114,86 +139,155 @@ export const quizV2Handler = (socket: Socket) => {
 	});
 
 	// On answer: checkanswer -> updatets -> emit result (with correctness and correct option)
-	  socket.on('answer', async ({ id, answerIndex, sessionId }: { id: string; answerIndex: number; sessionId?: string }) => {
-		try {
+	socket.on(
+		"answer",
+		async ({
+			id,
+			answerIndex,
+			sessionId,
+		}: {
+			id: string;
+			answerIndex: number;
+			sessionId?: string;
+		}) => {
+			try {
+				const userChapterTicket =
+					await UserChapterSessionService.getCurrentSessionBySocketTicket(
+						{
+							socketTicket: sessionId!,
+						}
+					);
 
-			const userChapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket(
-				{
-					socketTicket: sessionId!,
+				const questionId =
+					userChapterTicket.ongoing.currentQuestionId
+				console.log(
+					`[answer] sessionId: ${
+						sessionId ||
+						(socket as any).data?.sessionId ||
+						"not provided"
+					}`
+				);
+
+				// Fetch the question to get the correct answer
+				const wholeQuestionObject = await Question.findById(
+					questionId
+				);
+				if (!wholeQuestionObject) {
+					socket.emit("quizError", {
+						type: "failure",
+						message: "Question not found",
+					});
+					return;
 				}
-			);
-
-			const questionId = userChapterTicket.ongoing.currentQuestionId.toString();
-		  console.log(`[answer] sessionId: ${sessionId || (socket as any).data?.sessionId || 'not provided'}`);
-
-		  // Fetch the question to get the correct answer
-		  const wholeQuestionObject = await Question.findById(questionId);
-		  if (!wholeQuestionObject) {
-			socket.emit('quizError', { type: 'failure', message: 'Question not found' });
-			return;
-		  }
-		  const isCorrect = wholeQuestionObject.correct.includes(answerIndex);
-		  console.log(`User answered question ${questionId} with option index ${answerIndex}. Correct: ${isCorrect}`);
-		  const questionIdAsObject = new mongo.ObjectId(questionId);
 
 
-		  if (isCorrect) {
+				const isCorrect =
+					wholeQuestionObject.correct.includes(answerIndex);
 
-			// Update UserChapterSession for correct answer
-				const updatedOngoingData: Partial<IOngoingSession> = {
-				currentQuestionId: questionIdAsObject,
-				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
-				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
-				currentStreak: userChapterTicket?.ongoing?.currentStreak + 1,
-				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
-				heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
-			};
 
-			// updating UserChapterSession with questionTsId
-			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
-				userId: userChapterTicket.userId.toString(),
-				chapterId: userChapterTicket.chapterId.toString(),
-				updateData: updatedOngoingData
-			});
-			console.log("EMITTING CORRECT ANSWER");
-			socket.emit('result', {
-				isCorrect,
-				correctIndex: answerIndex,
-				correctOption: null,
-    		  });
-		  } else {
+				console.log(
+					`User answered question ${questionId} with option index ${answerIndex}. Correct: ${isCorrect}`
+				);
+				const questionIdAsObject = new mongo.ObjectId(questionId);
 
-				const updatedOngoingData: Partial<IOngoingSession> = {
-				currentQuestionId: questionIdAsObject,
-				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
-				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
-				currentStreak: 0,
-				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
-				heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
-			};
+				if (isCorrect) {
+					// Update UserChapterSession for correct answer
+					const updatedOngoingData: Partial<IOngoingSession> = {
+						currentQuestionId: questionIdAsObject,
+						questionsAttempted:
+							userChapterTicket?.ongoing
+								?.questionsAttempted + 1,
+						questionsCorrect:
+							userChapterTicket?.ongoing
+								?.questionsCorrect + 1,
+						questionsIncorrect:
+							userChapterTicket?.ongoing
+								?.questionsIncorrect,
+						currentStreak:
+							userChapterTicket?.ongoing?.currentStreak +
+							1,
+						currentScore:
+							userChapterTicket?.ongoing?.currentScore + 1,
+						heartsLeft:
+							userChapterTicket?.ongoing?.heartsLeft,
+					};
 
-			// updating UserChapterSession with questionTsId
-			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
-				userId: userChapterTicket.userId.toString(),
-				chapterId: userChapterTicket.chapterId.toString(),
-				updateData: updatedOngoingData
-			});
+					userChapterTicket.ongoing = updatedOngoingData as IOngoingSession;
+					await userChapterTicket.save()
+					// updating UserChapterSession with questionTsId
+					await UserChapterSessionService.updateUserChapterOngoing(
+						{
+							userId: userChapterTicket.userId.toString(),
+							chapterId:
+								userChapterTicket.chapterId.toString(),
+							updateData: updatedOngoingData,
+						}
+					);
+					console.log("EMITTING CORRECT ANSWER");
+					socket.emit("result", {
+						isCorrect,
+						correctIndex: answerIndex,
+						correctOption: null,
+					});
+				} else {
+					const updatedOngoingData: Partial<IOngoingSession> = {
+						currentQuestionId: questionIdAsObject,
+						questionsAttempted:
+							userChapterTicket?.ongoing
+								?.questionsAttempted + 1,
+						questionsCorrect:
+							userChapterTicket?.ongoing?.questionsCorrect,
+						questionsIncorrect:
+							userChapterTicket?.ongoing
+								?.questionsIncorrect + 1,
+						currentStreak: 0,
+						currentScore:
+							userChapterTicket?.ongoing?.currentScore + 1,
+						heartsLeft:
+							userChapterTicket?.ongoing?.heartsLeft - 1,
+					};
 
-			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
-			socket.emit('result', {
-				isCorrect,
-				correctIndex: wholeQuestionObject.correct[0], // sending first correct answer index
-				correctOption: null,
-    		  });
-		  }
 
-		} catch (error: any) {
-		  logger.error('Error in answer:', error);
-		  socket.emit('quizError', { type: 'failure', message: error?.message || 'Failed to submit answer' });
+					// if WRONG, update questionPool and push it to last
+					const questionPool = userChapterTicket.ongoing.questionPoolUsed;
+					questionPool.push(questionId);
+					
+					//TODO not but will look at it tmrw
+					userChapterTicket.ongoing = updatedOngoingData as IOngoingSession;
+					userChapterTicket.ongoing.questionPoolUsed = questionPool;
+					await userChapterTicket.save()
+
+					// updating UserChapterSession with questionTsId
+					// await UserChapterSessionService.updateUserChapterOngoing(
+					// 	{
+					// 		userId: userChapterTicket.userId.toString(),
+					// 		chapterId:
+					// 			userChapterTicket.chapterId.toString(),
+					// 		updateData: updatedOngoingData,
+					// 	}
+					// );
+
+					console.log(
+						"The answer is incorrect ",
+						isCorrect,
+						answerIndex,
+						wholeQuestionObject.correct
+					);
+					socket.emit("result", {
+						isCorrect,
+						correctIndex: wholeQuestionObject.correct[0], // sending first correct answer index
+						correctOption: null,
+					});
+				}
+			} catch (error: any) {
+				logger.error("Error in answer:", error);
+				socket.emit("quizError", {
+					type: "failure",
+					message: error?.message || "Failed to submit answer",
+				});
+			}
 		}
-	  });
+	);
 
 	socket.on("disconnect", () => {
 		logger.info(`Dummy Quiz v2 socket disconnected: ${socket.id}`);

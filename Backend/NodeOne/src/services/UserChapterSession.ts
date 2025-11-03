@@ -67,6 +67,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			userChapterTicket.ongoing = {
 				_id: userChapterTicket.ongoing?._id,
 				questionsAttemptedList: [],
+				questionPoolUsed: [],
 				currentQuestionId:
 					userChapterTicket.ongoing?.currentQuestionId,
 				lastAttemptedQuestionId:
@@ -134,7 +135,38 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 		} as IStartChapterSessionResponse;
 	};
 
-	export const updateUserChapterOngoingByUserIdChapterId = async ({
+	export const updateUserChapterQuestionData = async ({
+		userId,
+		chapterId,
+		questionAttemptedList,
+		questionPool 
+	}: {
+		userId: mongoose.Types.ObjectId;
+		chapterId: mongoose.Types.ObjectId;
+		questionAttemptedList: mongoose.Types.ObjectId[];
+		questionPool: mongoose.Types.ObjectId[];
+	}) => {
+		const userChapterTicket = await UserChapterTicket.findOne({
+			userId: userId,
+			chapterId: chapterId,
+		});
+
+		if (!userChapterTicket) {
+			throw {
+				statusCode: 404,
+				code: "SessionNotFound",
+				message: "Session not found",
+			};
+		}
+
+		// Update the questionAttemptedList and questionPoolUsed
+		userChapterTicket.ongoing.questionPoolUsed = questionPool;
+		userChapterTicket.ongoing.questionsAttemptedList = questionAttemptedList;
+
+		await userChapterTicket.save();
+	};
+	
+	export const updateUserChapterOngoing = async ({
 		userId,
 		chapterId,
 		updateData,

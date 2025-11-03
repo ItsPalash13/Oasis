@@ -12,6 +12,7 @@ export interface IOngoingSession {
   questionsIncorrect: number;
   currentStreak: number;
   questionsAttemptedList: Array<mongoose.Types.ObjectId>;
+  questionPoolUsed: Array<mongoose.Types.ObjectId>;
   lastAttemptedQuestionId: mongoose.Types.ObjectId;
   currentQuestionId: mongoose.Types.ObjectId;
   currentScore: number;
@@ -31,7 +32,7 @@ const ongoingSchema = new Schema<IOngoingSession>({
 }, { _id: true }); 
 
 
-interface IUserChapterTicket extends Document {
+export interface IUserChapterTicket extends Document {
     userId: mongoose.Types.ObjectId;
     chapterId: mongoose.Types.ObjectId;
     trueSkillScore? : IDifficulty;
