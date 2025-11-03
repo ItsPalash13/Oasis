@@ -3,9 +3,9 @@ import { Socket } from "socket.io";
 import { logger } from "./../../utils/logger";
 import { Userts } from "./../../models/UserTs";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
-import { IQuestionTs } from "models/QuestionTs";
-import { Question } from "models/Questions";
+import { Question } from "./../../models/Questions";
 import { IOngoingSession } from "models/UserChapterTicket";
+import { mongo } from "mongoose";
 
 export const quizV2Handler = (socket: Socket) => {
 	logger.info(` Quiz v2 socket connected: ${socket.id}`);
@@ -37,6 +37,8 @@ export const quizV2Handler = (socket: Socket) => {
 			}
 
 			console.log("Session ID:", sessionId);
+
+			// fetch UserChapterTicket by socketTicket
 			const userChapterTicket =
 				await UserChapterSessionService.getCurrentSessionBySocketTicket(
 					{
@@ -45,6 +47,8 @@ export const quizV2Handler = (socket: Socket) => {
 				);
 
 			console.log("SOCKET TICKET:", userChapterTicket);
+
+			// fetch user trueskill data
 			const userTrueskillData = await Userts.findOne({
 				userId: userChapterTicket.userId,
 			});
@@ -137,12 +141,61 @@ export const quizV2Handler = (socket: Socket) => {
 			socket.emit('quizError', { type: 'failure', message: 'Question not found' });
 			return;
 		  }
-		  const isCorrect = answerIndex === wholeQuestionObject.correctIndex;
+		  const isCorrect = wholeQuestionObject.correct.includes(answerIndex);
+		  console.log(`User answered question ${questionId} with option index ${answerIndex}. Correct: ${isCorrect}`);
+		  const questionIdAsObject = new mongo.ObjectId(questionId);
+
 
 		  if (isCorrect) {
-			socket.emit('quizCorrect', { type: 'success', message: 'Correct answer!' });
+
+			// Update UserChapterSession for correct answer
+				const updatedOngoingData: Partial<IOngoingSession> = {
+				currentQuestionId: questionIdAsObject,
+				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
+				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
+				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
+				currentStreak: userChapterTicket?.ongoing?.currentStreak + 1,
+				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
+				heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
+			};
+
+			// updating UserChapterSession with questionTsId
+			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
+				userId: userChapterTicket.userId.toString(),
+				chapterId: userChapterTicket.chapterId.toString(),
+				updateData: updatedOngoingData
+			});
+			console.log("EMITTING CORRECT ANSWER");
+			socket.emit('result', {
+				isCorrect,
+				correctIndex: answerIndex,
+				correctOption: null,
+    		  });
 		  } else {
-			socket.emit('quizIncorrect', { type: 'failure', message: 'Incorrect answer.' });
+
+				const updatedOngoingData: Partial<IOngoingSession> = {
+				currentQuestionId: questionIdAsObject,
+				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
+				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
+				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
+				currentStreak: 0,
+				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
+				heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
+			};
+
+			// updating UserChapterSession with questionTsId
+			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
+				userId: userChapterTicket.userId.toString(),
+				chapterId: userChapterTicket.chapterId.toString(),
+				updateData: updatedOngoingData
+			});
+
+			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
+			socket.emit('result', {
+				isCorrect,
+				correctIndex: wholeQuestionObject.correct[0], // sending first correct answer index
+				correctOption: null,
+    		  });
 		  }
 
 		} catch (error: any) {

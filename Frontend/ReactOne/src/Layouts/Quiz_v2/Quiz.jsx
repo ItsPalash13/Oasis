@@ -38,6 +38,7 @@ const Quiz = ({ socket }) => {
       setIsLoading(false);
     };
     const onResult = (data) => {
+      console.log('Received result:', data);
       setResult(data);
     };
 

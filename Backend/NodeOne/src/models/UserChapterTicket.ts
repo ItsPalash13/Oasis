@@ -11,6 +11,7 @@ export interface IOngoingSession {
   questionsCorrect: number;
   questionsIncorrect: number;
   currentStreak: number;
+  questionsAttemptedList: Array<mongoose.Types.ObjectId>;
   lastAttemptedQuestionId: mongoose.Types.ObjectId;
   currentQuestionId: mongoose.Types.ObjectId;
   currentScore: number;

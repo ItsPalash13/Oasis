@@ -66,6 +66,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			// If ticket exists, fill/update the ongoing object
 			userChapterTicket.ongoing = {
 				_id: userChapterTicket.ongoing?._id,
+				questionsAttemptedList: [],
 				currentQuestionId:
 					userChapterTicket.ongoing?.currentQuestionId,
 				lastAttemptedQuestionId:
