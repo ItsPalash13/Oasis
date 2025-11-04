@@ -28,6 +28,7 @@ const Quiz = ({ socket }) => {
       socket.connect();
     }
     const onConnect = () => {
+      console.log('SOCKET INITIATE SOCKET ID :', sessionId);
       socket.emit('initiate', { sessionId });
     };
     const onQuestion = (data) => {
@@ -37,6 +38,7 @@ const Quiz = ({ socket }) => {
       setIsLoading(false);
     };
     const onResult = (data) => {
+      console.log('Received result:', data);
       setResult(data);
     };
 

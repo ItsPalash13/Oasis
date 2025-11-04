@@ -17,8 +17,10 @@ const startUserChapterSessionRouter = async (req: Request, res: Response, next: 
     if (!chapterId) {
       throw { statusCode: 400, code: "MissingParameter", message: "chapterId is required" };
     }
-
+    console.log("LEVEL V2 ORIGINAL ROUTE CALLED ", userId, chapterId);
     const result = await UserChapterSessionService.startUserChapterSession({ userId, chapterId });
+
+    console.log("LEVEL V2 ORIGINAL ROUTE RESULT ", result);
     return res.json(result);
   
   } catch (error: any) {

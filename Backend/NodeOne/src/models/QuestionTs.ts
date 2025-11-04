@@ -12,8 +12,8 @@ interface IQuestionTs extends Document {
 }
 
 const DifficultySchema = new Schema<IDifficulty>({
-  mu: { type: Number, required: true, default: 936 },
-  sigma: { type: Number, required: true, default: 200 }
+  mu: { type: Number, required: true, },
+  sigma: { type: Number, required: true, }
 }, { _id: false });  // Disable _id for difficulty subdocument
 
 const QuestionTsSchema = new Schema<IQuestionTs>({

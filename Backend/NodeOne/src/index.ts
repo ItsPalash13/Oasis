@@ -2,7 +2,6 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { config } from './config/config';
-import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { initializeApp } from './config/init';
 import { toNodeHandler } from "better-auth/node";
@@ -12,6 +11,7 @@ import { createServer } from 'http';
 
 // Import TrueSkill
 import { TrueSkill } from 'ts-trueskill';
+import handleError from './error/ErrorHandler';
 
 // Load environment variables
 dotenv.config();
@@ -72,7 +72,7 @@ const startServer = async () => {
         });
 
         // @ts-ignore
-        app.use(errorHandler);
+        app.use(handleError);
 
         const PORT = config.port || 3000;
         server.listen(PORT, '0.0.0.0', () => {
