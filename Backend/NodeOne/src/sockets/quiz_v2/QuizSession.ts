@@ -49,18 +49,9 @@ export const quizV2Handler = (socket: Socket) => {
 			console.log("SOCKET TICKET:", userChapterTicket);
 
 			// fetch user trueskill data
-			const userTrueskillData = await Userts.findOne({
-				userId: userChapterTicket.userId,
-			});
+			const userTrueskillData = {skill:{ mu: userChapterTicket?.trueSkillScore?.mu || 936, sigma: userChapterTicket?.trueSkillScore?.sigma || 200 }};
 
 			console.log("USERS TRUESKILL DATA :", userTrueskillData);
-			if (!userTrueskillData || !userTrueskillData.skill) {
-				socket.emit("quizError", {
-					type: "failure",
-					message: "User not found or missing skill data",
-				});
-				return;
-			}
 
 			const question = await fetchQuestionsByChapterIdAndMu({
 				chapterId: userChapterTicket.chapterId.toString(),
