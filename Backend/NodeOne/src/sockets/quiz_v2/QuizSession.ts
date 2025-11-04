@@ -1,11 +1,9 @@
 import { fetchQuestionsByChapterIdAndMu } from "./../../services/questions/FetchQuestions";
 import { Socket } from "socket.io";
 import { logger } from "./../../utils/logger";
-import { Userts } from "./../../models/UserTs";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession } from "models/UserChapterTicket";
-import { mongo } from "mongoose";
 
 export const quizV2Handler = (socket: Socket) => {
 	logger.info(` Quiz v2 socket connected: ${socket.id}`);
@@ -114,7 +112,7 @@ export const quizV2Handler = (socket: Socket) => {
 	});
 
 	// On answer: checkanswer -> updatets -> emit result (with correctness and correct option)
-	  socket.on('answer', async ({ id, answerIndex, sessionId }: { id: string; answerIndex: number; sessionId?: string }) => {
+	  socket.on('answer', async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 		try {
 
 			const userChapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket(
@@ -127,67 +125,34 @@ export const quizV2Handler = (socket: Socket) => {
 		  console.log(`[answer] sessionId: ${sessionId || (socket as any).data?.sessionId || 'not provided'}`);
 
 		  // Fetch the question to get the correct answer
-		  const wholeQuestionObject = await Question.findById(questionId);
+		const wholeQuestionObject = await Question.findById(questionId);
 		  if (!wholeQuestionObject) {
 			socket.emit('quizError', { type: 'failure', message: 'Question not found' });
 			return;
 		  }
-		  const isCorrect = wholeQuestionObject.correct.includes(answerIndex);
-		  console.log(`User answered question ${questionId} with option index ${answerIndex}. Correct: ${isCorrect}`);
-		  const questionIdAsObject = new mongo.ObjectId(questionId);
+		const isCorrect = wholeQuestionObject.correct.includes(answerIndex);
+		console.log(`User answered question ${questionId} with option index ${answerIndex}. Correct: ${isCorrect}`);
 
-
-		  if (isCorrect) {
-
-			// Update UserChapterSession for correct answer
-				const updatedOngoingData: Partial<IOngoingSession> = {
-				currentQuestionId: questionIdAsObject,
-				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
-				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
-				currentStreak: userChapterTicket?.ongoing?.currentStreak + 1,
-				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
-				heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
-			};
-
-			// updating UserChapterSession with questionTsId
-			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
+		// only pass correctness to update service
+		await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
 				userId: userChapterTicket.userId.toString(),
 				chapterId: userChapterTicket.chapterId.toString(),
-				updateData: updatedOngoingData
-			});
-			console.log("EMITTING CORRECT ANSWER");
-			socket.emit('result', {
-				isCorrect,
-				correctIndex: answerIndex,
-				correctOption: null,
-    		  });
-		  } else {
-
-				const updatedOngoingData: Partial<IOngoingSession> = {
-				currentQuestionId: questionIdAsObject,
-				questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-				questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
-				questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
-				currentStreak: 0,
-				currentScore: userChapterTicket?.ongoing?.currentScore + 1,
-				heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
-			};
-
-			// updating UserChapterSession with questionTsId
-			await UserChapterSessionService.updateUserChapterOngoingByUserIdChapterId({
-				userId: userChapterTicket.userId.toString(),
-				chapterId: userChapterTicket.chapterId.toString(),
-				updateData: updatedOngoingData
+				updateData: { isCorrect },
 			});
 
-			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
-			socket.emit('result', {
+		// update TrueSkill for user and question
+		await UserChapterSessionService.updateUserQuestionTrueskill({
+			userId: userChapterTicket.userId.toString(),
+			questionId: questionId,
+			isCorrect,
+		});
+
+		socket.emit('result', {
 				isCorrect,
-				correctIndex: wholeQuestionObject.correct[0], // sending first correct answer index
+				correctIndex: wholeQuestionObject.correct[0],
 				correctOption: null,
-    		  });
-		  }
+		    	});
+
 
 		} catch (error: any) {
 		  logger.error('Error in answer:', error);

@@ -42,13 +42,7 @@ const startServer = async () => {
         await initializeApp(app);
 
         // --- Create TrueSkill environment ---
-        const trueskillEnv = new TrueSkill(
-            Number(process.env.TRUESKILL_MU) || 100,  // mu
-            Number(process.env.TRUESKILL_SIGMA) || 300,   // sigma
-            Number(process.env.TRUESKILL_BETA) || 200,   // beta
-            Number(process.env.TRUESKILL_TAU) || 10,    // tau
-            Number(process.env.TRUESKILL_DRAW_PROBABILITY) || 0.0    // drawProbability
-        );
+        const trueskillEnv = new TrueSkill();
 
         // Optionally attach to app locals for access in routes/middleware
         app.locals.trueskillEnv = trueskillEnv;

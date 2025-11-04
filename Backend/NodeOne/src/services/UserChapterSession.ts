@@ -1,6 +1,8 @@
 import UserChapterTicket, { IOngoingSession } from "../models/UserChapterTicket";
 import { UserProfile } from "../models/UserProfile";
 import mongoose from "mongoose";
+import { TrueSkill, Rating } from "ts-trueskill";
+import { QuestionTs } from "../models/QuestionTs";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -141,7 +143,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 	}: {
 		userId: string;
 		chapterId: string;
-		updateData: Partial<IOngoingSession>;
+		updateData: Partial<IOngoingSession> | { isCorrect: boolean };
 	}) => {
 		const userObjectId = new mongoose.Types.ObjectId(userId);
 		const chapterObjectId = new mongoose.Types.ObjectId(chapterId);
@@ -159,13 +161,105 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			};
 		}
 
-		// Update the ongoing session data
+		// If only correctness is provided, skip merging into ongoing for now.
+		if (Object.prototype.hasOwnProperty.call(updateData as any, "isCorrect")) {
+			// Placeholder: actual aggregation logic to be handled separately
+			return;
+		}
+
+		// Update the ongoing session data for partial ongoing updates
 		userChapterTicket.ongoing = {
 			...userChapterTicket.ongoing,
-			...updateData,
+			...(updateData as Partial<IOngoingSession>),
 		};
 
 		await userChapterTicket.save();
+	};
+
+	/**
+	 * Update TrueSkill ratings for user and question after an answer.
+	 * Uses default TrueSkill environment parameters.
+	 */
+	export const updateUserQuestionTrueskill = async ({
+		userId,
+		questionId,
+		isCorrect,
+	}: {
+		userId: string;
+		questionId: string;
+		isCorrect: boolean;
+	}): Promise<void> => {
+		const userObjectId = new mongoose.Types.ObjectId(userId);
+		const questionObjectId = new mongoose.Types.ObjectId(questionId);
+
+		// Load user ticket (any chapter; TrueSkill kept at ticket-level)
+		const userTicket = await UserChapterTicket.findOne({ userId: userObjectId });
+		if (!userTicket) {
+			return; // No ticket; skip
+		}
+
+		// Load question TS entry by quesId
+		const questionTs = await QuestionTs.findOne({ quesId: questionObjectId });
+		if (!questionTs) {
+			return; // No question ts; skip
+		}
+
+		// Current ratings (fallback to defaults if missing)
+		const currentUserMu = userTicket.trueSkillScore?.mu ?? 936;
+		const currentUserSigma = userTicket.trueSkillScore?.sigma ?? 200;
+		const currentQMu = questionTs.difficulty?.mu ?? 936;
+		const currentQSigma = questionTs.difficulty?.sigma ?? 200;
+
+		const env = new TrueSkill();
+		const userRating = new Rating(currentUserMu, currentUserSigma);
+		const questionRating = new Rating(currentQMu, currentQSigma);
+
+		// Rank 1 is winner (lower is better). If user is correct, user wins
+		const ranks = isCorrect ? [1, 2] : [2, 1];
+		const [[newUserRating], [newQuestionRating]] = env.rate(
+			[[userRating], [questionRating]],
+			ranks
+		);
+
+		// Persist updates
+		userTicket.trueSkillScore = {
+			mu: newUserRating.mu,
+			sigma: newUserRating.sigma,
+		};
+
+		// Append changelog entry to user ticket
+		(userTicket as any).tsChangeLogs = (userTicket as any).tsChangeLogs || [];
+		(userTicket as any).tsChangeLogs.push({
+			timestamp: new Date(),
+			questionId: questionObjectId,
+			userId: userObjectId,
+			isCorrect,
+			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
+			beforeQts: { mu: currentQMu, sigma: currentQSigma },
+			afterUts: { mu: newUserRating.mu, sigma: newUserRating.sigma },
+			afterQts: { mu: newQuestionRating.mu, sigma: newQuestionRating.sigma },
+		});
+
+		await userTicket.save();
+
+		questionTs.difficulty = {
+			mu: newQuestionRating.mu,
+			sigma: newQuestionRating.sigma,
+		};
+
+		// Append changelog entry to question ts
+		(questionTs as any).tsChangeLogs = (questionTs as any).tsChangeLogs || [];
+		(questionTs as any).tsChangeLogs.push({
+			timestamp: new Date(),
+			questionId: questionObjectId,
+			userId: userObjectId,
+			isCorrect,
+			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
+			beforeQts: { mu: currentQMu, sigma: currentQSigma },
+			afterUts: { mu: newUserRating.mu, sigma: newUserRating.sigma },
+			afterQts: { mu: newQuestionRating.mu, sigma: newQuestionRating.sigma },
+		});
+		await questionTs.save();
 	};
 };
 
