@@ -1,0 +1,141 @@
+import { fetchUserChapterTicketQuestionPool } from "./../../services/questions/FetchQuestions";
+import { logger } from "./../../utils/logger";
+import { UserChapterSessionService } from "./../../services/UserChapterSession";
+import { Question } from "./../../models/Questions";
+import { IOngoingSession } from "../../models/UserChapterTicket";
+
+const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
+	try {
+		// need to get chapterId by socketTicket or maybe currentSession in user table or smth
+
+		if (!sessionId) {
+			return {
+				socketResponse: "quizError",
+				responseData: {
+					type: "failure",
+					message: "Session ID missing",
+				},
+			};
+		}
+		console.log("SESSIONID IS :", sessionId);
+
+		if (!sessionId) {
+			return {
+				socketResponse: "quizError",
+				responseData: {
+					type: "failure",
+					message: "Session ID missing",
+				},
+			};
+		}
+
+		console.log("Session ID:", sessionId);
+
+		// fetch UserChapterTicket by socketTicket
+		const userChapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket({
+			socketTicket: sessionId,
+		});
+
+		console.log("SOCKET TICKET:", userChapterTicket);
+
+		// fetch user trueskill data
+		const userTrueskillData = {
+			skill: {
+				mu: userChapterTicket?.trueSkillScore?.mu || 936,
+				sigma: userChapterTicket?.trueSkillScore?.sigma || 200,
+			},
+		};
+
+		console.log("USERS TRUESKILL DATA :", userTrueskillData);
+
+		// fetch question that matches trueskill and not in questionsAttemptedList
+		let questionList = await fetchUserChapterTicketQuestionPool({
+			userChapterTicket: userChapterTicket,
+			userTrueSkillData: userTrueskillData.skill,
+		});
+		let questionAttemptedList = userChapterTicket.ongoing.questionsAttemptedList || [];
+		let questionPool = userChapterTicket.ongoing.questionPool || [];
+
+		// re attempet if question list is empty
+		if (questionList.length === 0) {
+			userChapterTicket.ongoing.questionPool = questionAttemptedList;
+			userChapterTicket.ongoing.questionsAttemptedList = [];
+		}
+		questionList = await fetchUserChapterTicketQuestionPool({
+			userChapterTicket: userChapterTicket,
+			userTrueSkillData: userTrueskillData.skill,
+		});
+		const currentQuestion = questionList[0];
+
+		console.log("Question List ", questionList);
+		console.log("Current Question ", currentQuestion);
+		questionAttemptedList.push(currentQuestion.quesId);
+
+		questionPool = [...questionList.slice(1).map((q) => q.quesId), ...questionPool]; // remove first question as its current question
+
+		// update question data (pool and attempted list )
+		// await UserChapterSessionService.updateUserChapterQuestionData({
+		// 	userId: userChapterTicket.userId,
+		// 	chapterId: userChapterTicket.chapterId,
+		// 	questionPool,
+		// 	questionAttemptedList
+		// });
+
+		userChapterTicket.ongoing.questionPool = questionPool?.length > 0 ? questionPool : [];
+		userChapterTicket.ongoing.questionsAttemptedList =
+			questionAttemptedList?.length > 0 ? questionAttemptedList : [];
+		console.log("UPDATED TICKET :", userChapterTicket);
+		await userChapterTicket.save();
+
+		// const updatedUserCHapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket(
+		// 	{
+		// 		socketTicket: sessionId,
+		// 	}
+		// );
+		// console.log("Something must have happened here ", updatedUserCHapterTicket)
+		const currentQuestionTs = currentQuestion.quesId;
+		const wholeQuestionObject = await Question.findById(currentQuestionTs);
+
+		const parsedQuestion = {
+			id: currentQuestionTs,
+			ques: wholeQuestionObject?.ques,
+			options: wholeQuestionObject?.options,
+		};
+
+		//TODO Test
+		const updatedOngoingData: Partial<IOngoingSession> = {
+			currentQuestionId: currentQuestionTs,
+			questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
+			questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
+			questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
+			currentStreak: userChapterTicket?.ongoing?.currentStreak,
+			currentScore: userChapterTicket?.ongoing?.currentScore,
+			heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
+		};
+
+		// Havennt tested this YET
+		userChapterTicket?.ongoing?.questionsAttempted > 1
+			? (updatedOngoingData.lastAttemptedQuestionId = userChapterTicket.ongoing.currentQuestionId)
+			: undefined;
+		// updating UserChapterSession with questionTsId
+		await UserChapterSessionService.updateUserChapterOngoing({
+			userId: userChapterTicket.userId.toString(),
+			chapterId: userChapterTicket.chapterId.toString(),
+			updateData: updatedOngoingData,
+		});
+
+		// emit fetched question
+		return { socketResponse: "question", responseData: parsedQuestion };
+	} catch (error: any) {
+		logger.error("Error in initiate:", error);
+		return {
+			socketResponse: "quizError",
+			responseData: {
+				type: "failure",
+				message: error?.message || "Failed to initiate",
+			},
+		};
+	}
+};
+
+export { initiateQuizSession };

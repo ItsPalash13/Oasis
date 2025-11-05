@@ -103,4 +103,6 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
 
 const UserChapterTicket = mongoose.model<IUserChapterTicket>('UserChapterTicket', UserChapterTicketSchema);
 
+export type UserChapterTicketType = typeof UserChapterTicket;
+
 export default UserChapterTicket;

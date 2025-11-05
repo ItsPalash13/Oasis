@@ -19,7 +19,7 @@ export const fetchUserChapterTicketQuestionPool = async ({
 		console.log("REACHED HERE ", userChapterTicket);
 		const questions = await QuestionTs.find({
 			chapterId: userChapterTicket.chapterId.toString(),
-			"difficulty.mu": muFilterObject,
+			// "difficulty.mu": muFilterObject, //TODO TrueSkill error here
 			quesId: { $nin: questionAttemptedList },
 		})
 			// .populate("quesId")
