@@ -11,16 +11,18 @@ export const fetchUserChapterTicketQuestionPool = async ({
 }) => {
 
 	// if questionPool < 5, fetch 10 questions not in questionPool
-	const questionPool = userChapterTicket.ongoing.questionPoolUsed || [];
+	const questionPool = userChapterTicket.ongoing.questionPool || [];
+	const questionAttemptedList = userChapterTicket.ongoing.questionsAttemptedList || [];
 	const muFilterObject =   { $lte: userTrueSkillData.mu };
 
-	if (questionPool.length < 5) {
+	if (questionPool?.length < 5) {
+		console.log("REACHED HERE ", userChapterTicket);
 		const questions = await QuestionTs.find({
-			chapterId: userChapterTicket.chapterId,
+			chapterId: userChapterTicket.chapterId.toString(),
 			"difficulty.mu": muFilterObject,
-			quesId: { $nin: questionPool },
+			quesId: { $nin: questionAttemptedList },
 		})
-			.populate("quesId")
+			// .populate("quesId")
 			.sort({ "difficulty.mu": 1 }) // Sort by mu ascending (easiest first)
 			.limit(10)
 			.exec();

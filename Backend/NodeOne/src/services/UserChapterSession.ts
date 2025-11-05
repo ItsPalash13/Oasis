@@ -67,7 +67,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			userChapterTicket.ongoing = {
 				_id: userChapterTicket.ongoing?._id,
 				questionsAttemptedList: [],
-				questionPoolUsed: [],
+				questionPool: [],
 				currentQuestionId:
 					userChapterTicket.ongoing?.currentQuestionId,
 				lastAttemptedQuestionId:
@@ -91,6 +91,8 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 				chapterId: chapterObjectId,
 				ongoing: {
 					questionsAttempted: 0,
+					questionPoolUsed: [],
+					questionsAttemptedList: [],
 					questionsCorrect: 0,
 					questionsIncorrect: 0,
 					currentStreak: 0,
@@ -160,8 +162,8 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 		}
 
 		// Update the questionAttemptedList and questionPoolUsed
-		userChapterTicket.ongoing.questionPoolUsed = questionPool;
-		userChapterTicket.ongoing.questionsAttemptedList = questionAttemptedList;
+		userChapterTicket.ongoing.questionPool = questionPool ?? [];
+		userChapterTicket.ongoing.questionsAttemptedList = questionAttemptedList ?? [];
 
 		await userChapterTicket.save();
 	};

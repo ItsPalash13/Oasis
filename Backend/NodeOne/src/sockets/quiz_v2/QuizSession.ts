@@ -63,13 +63,14 @@ export const quizV2Handler = (socket: Socket) => {
 				userTrueSkillData: userTrueskillData.skill,
 			});
 
-		
 			const currentQuestion = questionList[0];
 
 			let questionAttemptedList = userChapterTicket.ongoing.questionsAttemptedList || [];
+
+			console.log("Current Question ", currentQuestion)
 			questionAttemptedList.push(currentQuestion.quesId);
 
-			let questionPool = userChapterTicket.ongoing.questionPoolUsed || [];
+			let questionPool = userChapterTicket.ongoing.questionPool || [];
 			questionPool.concat(
 				questionList.map((q) => q.quesId)
 			);
@@ -80,14 +81,25 @@ export const quizV2Handler = (socket: Socket) => {
 				questionAttemptedList = [];
 			}
 			// update question data (pool and attempted list )
-			await UserChapterSessionService.updateUserChapterQuestionData({
-				userId: userChapterTicket.userId,
-				chapterId: userChapterTicket.chapterId,
-				questionPool,
-				questionAttemptedList
-			});
+			// await UserChapterSessionService.updateUserChapterQuestionData({
+			// 	userId: userChapterTicket.userId,
+			// 	chapterId: userChapterTicket.chapterId,
+			// 	questionPool,
+			// 	questionAttemptedList
+			// });
+
+			userChapterTicket.ongoing.questionPool = questionPool?.length > 0 ? questionPool : [];
+			userChapterTicket.ongoing.questionsAttemptedList = questionAttemptedList?.length > 0 ? questionAttemptedList : [];
+			console.log("UPDATED TICKET :", userChapterTicket)
+			await userChapterTicket.save();
 
 
+			const updatedUserCHapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket(
+				{
+					socketTicket: sessionId,
+				}
+			);
+			console.log("Something must have happened here ", updatedUserCHapterTicket)
 			const currentQuestionTs = currentQuestion.quesId;
 			const wholeQuestionObject = await Question.findById(
 				currentQuestionTs
@@ -212,17 +224,17 @@ export const quizV2Handler = (socket: Socket) => {
 							userChapterTicket?.ongoing?.heartsLeft,
 					};
 
-					userChapterTicket.ongoing = updatedOngoingData as IOngoingSession;
+					userChapterTicket.ongoing = {...userChapterTicket.ongoing, ...updatedOngoingData as IOngoingSession};
 					await userChapterTicket.save()
 					// updating UserChapterSession with questionTsId
-					await UserChapterSessionService.updateUserChapterOngoing(
-						{
-							userId: userChapterTicket.userId.toString(),
-							chapterId:
-								userChapterTicket.chapterId.toString(),
-							updateData: updatedOngoingData,
-						}
-					);
+					// await UserChapterSessionService.updateUserChapterOngoing(
+					// 	{
+					// 		userId: userChapterTicket.userId.toString(),
+					// 		chapterId:
+					// 			userChapterTicket.chapterId.toString(),
+					// 		updateData: updatedOngoingData,
+					// 	}
+					// );
 					console.log("EMITTING CORRECT ANSWER");
 					socket.emit("result", {
 						isCorrect,
@@ -249,13 +261,13 @@ export const quizV2Handler = (socket: Socket) => {
 
 
 					// if WRONG, update questionPool and push it to last
-					const questionPool = userChapterTicket.ongoing.questionPoolUsed;
+					const questionPool = userChapterTicket.ongoing.questionPool ?? [];
 					questionPool.push(questionId);
 					
 					//TODO not but will look at it tmrw
-					userChapterTicket.ongoing = updatedOngoingData as IOngoingSession;
-					userChapterTicket.ongoing.questionPoolUsed = questionPool;
-					await userChapterTicket.save()
+					userChapterTicket.ongoing = {...userChapterTicket.ongoing, ...updatedOngoingData as IOngoingSession};
+					userChapterTicket.ongoing.questionPool  = questionPool;
+					await userChapterTicket.save();
 
 					// updating UserChapterSession with questionTsId
 					// await UserChapterSessionService.updateUserChapterOngoing(
