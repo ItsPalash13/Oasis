@@ -3,6 +3,7 @@ import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession, IUserChapterTicket  } from "models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
+import { QuestionTs } from "models/QuestionTs";
 
 const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 	try {
@@ -29,7 +30,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 		const questionIdAsObject = new mongo.ObjectId(questionId);
 
 		if (isCorrect) {
-			userChapterTicket = parseCorrectOption({
+			userChapterTicket = await parseCorrectOption({
 				currentQuestionId: questionIdAsObject,
 				userChapterTicket,
 			}) as any;
@@ -47,7 +48,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
                 };
             }
 			
-            userChapterTicket = parseIncorrectOption({
+            userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
                 userChapterTicket,
             }) as any;
@@ -83,14 +84,19 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 	}
 };
 
-const parseCorrectOption = ({
+const parseCorrectOption = async ({
 	currentQuestionId,
 	userChapterTicket,
 }: {
 	currentQuestionId: mongoose.Types.ObjectId;
 	userChapterTicket: IUserChapterTicket;
-}): IUserChapterTicket => {
+}): Promise<IUserChapterTicket> => {
 	// Fetch the question to get the correct answer
+
+
+    const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
+    
+    const xpToAdd = questionTrueskillData!.xp.correct || 10;
 
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
@@ -98,7 +104,7 @@ const parseCorrectOption = ({
 		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
 		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore + 1,
+		currentScore: userChapterTicket?.ongoing?.currentScore + xpToAdd,
 		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
 	};
 
@@ -111,20 +117,24 @@ const parseCorrectOption = ({
 	return userChapterTicket;
 };
 
-const parseIncorrectOption = ({
+const parseIncorrectOption = async ({
 	currentQuestionId,
 	userChapterTicket,
 }: {
 	currentQuestionId: mongoose.Types.ObjectId;
 	userChapterTicket: IUserChapterTicket;
 }) => {
+
+    const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
+    
+    const xpToSubtract = questionTrueskillData!.xp.incorrect || 10;
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
 		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
 		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore + 1,
+		currentScore: userChapterTicket?.ongoing?.currentScore - xpToSubtract,
 		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
 	};
 

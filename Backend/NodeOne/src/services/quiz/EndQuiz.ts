@@ -10,6 +10,8 @@ const endQuizSession = async ({ sessionId }: { sessionId?: string }) => {
             socketTicket: sessionId!,
         });
 
+
+        const responseForUser = userChapterTicket.ongoing;
         userChapterTicket.maxScore = userChapterTicket.maxScore || 0;
         if (userChapterTicket.ongoing.currentScore > userChapterTicket.maxScore) {
             userChapterTicket.maxScore = userChapterTicket.ongoing.currentScore;
@@ -27,6 +29,7 @@ const endQuizSession = async ({ sessionId }: { sessionId?: string }) => {
             responseData: {
                 type: "success",
                 message: "Quiz session ended",
+                data: responseForUser
             },
         };
     } catch(error) {
