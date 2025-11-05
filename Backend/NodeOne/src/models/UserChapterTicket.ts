@@ -19,6 +19,17 @@ export interface IOngoingSession {
   heartsLeft: number;
 }
 
+interface ITrueSkillChangeLogEntry {
+  timestamp: Date;
+  questionId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  isCorrect: boolean;
+  beforeUts: { mu: number; sigma: number };
+  beforeQts: { mu: number; sigma: number };
+  afterUts: { mu: number; sigma: number };
+  afterQts: { mu: number; sigma: number };
+}
+
 const ongoingSchema = new Schema<IOngoingSession>({
   _id: { type: Schema.Types.ObjectId , auto: true, unique: true}, 
   questionsAttempted: { type: Number, default: 0 },
@@ -41,6 +52,7 @@ export interface IUserChapterTicket extends Document {
     ongoing: IOngoingSession;
     maxStreak: number;
     maxScore: number;
+    tsChangeLogs?: ITrueSkillChangeLogEntry[];
 }
 
 const DifficultySchema = new Schema<IDifficulty>({
@@ -66,6 +78,19 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
         required: true
     }, 
     ongoing: ongoingSchema,
+    tsChangeLogs: {
+      type: [new Schema<ITrueSkillChangeLogEntry>({
+        timestamp: { type: Date, required: true, default: () => new Date() },
+        questionId: { type: Schema.Types.ObjectId, ref: 'Question', required: true },
+        userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        isCorrect: { type: Boolean, required: true },
+        beforeUts: { type: { mu: Number, sigma: Number }, required: true },
+        beforeQts: { type: { mu: Number, sigma: Number }, required: true },
+        afterUts: { type: { mu: Number, sigma: Number }, required: true },
+        afterQts: { type: { mu: Number, sigma: Number }, required: true },
+      }, { _id: false })],
+      default: []
+    },
     maxStreak: {
         type: Number,
         required: true

@@ -151,25 +151,14 @@ export const quizV2Handler = (socket: Socket) => {
 	});
 
 	// On answer: checkanswer -> updatets -> emit result (with correctness and correct option)
-	socket.on(
-		"answer",
-		async ({
-			id,
-			answerIndex,
-			sessionId,
-		}: {
-			id: string;
-			answerIndex: number;
-			sessionId?: string;
-		}) => {
-			try {
-				const userChapterTicket =
+	  socket.on('answer', async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
+		try {
+			const userChapterTicket =
 					await UserChapterSessionService.getCurrentSessionBySocketTicket(
 						{
 							socketTicket: sessionId!,
 						}
 					);
-
 				const questionId =
 					userChapterTicket.ongoing.currentQuestionId
 				console.log(
