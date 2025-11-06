@@ -1,174 +1,243 @@
-import React, { useEffect, useState } from 'react';
-import { Box, CardContent, CircularProgress, Grid, Typography } from '@mui/material';
-import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, quizStyles } from '../../theme/quizTheme';
-import { Timer as TimerIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useState } from "react";
+import { Box, CardContent, CircularProgress, Grid, Typography } from "@mui/material";
+import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, quizStyles } from "../../theme/quizTheme";
+import { Timer as TimerIcon, ArrowBack as ArrowBackIcon } from "@mui/icons-material";
+import { useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const Quiz = ({ socket }) => {
-  const navigate = useNavigate();
-  const { quizId } = useParams();
-  const quizSession = useSelector((state) => state?.quizSession?.session);
-  const sessionId = quizSession?.id || quizId; // Fallback to quizId if session.id is missing
-  const [isLoading, setIsLoading] = useState(true);
-  const [question, setQuestion] = useState(null);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [result, setResult] = useState(null);
-  const [time, setTime] = useState(0);
+	const navigate = useNavigate();
+	const { quizId } = useParams();
+	const quizSession = useSelector((state) => state?.quizSession?.session);
+	const sessionId = quizSession?.id || quizId; // Fallback to quizId if session.id is missing
+	const [isLoading, setIsLoading] = useState(true);
+	const [question, setQuestion] = useState(null);
+	const [selectedAnswer, setSelectedAnswer] = useState(null);
+	const [result, setResult] = useState(null);
+	const [time, setTime] = useState(0);
 
-  // minimal local timer (commented out)
-  // useEffect(() => {
-  //   const i = setInterval(() => setTime((t) => t + 1), 1000);
-  //   return () => clearInterval(i);
-  // }, []);
+	// minimal local timer (commented out)
+	// useEffect(() => {
+	//   const i = setInterval(() => setTime((t) => t + 1), 1000);
+	//   return () => clearInterval(i);
+	// }, []);
 
-  // connect and fetch question
-  useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
-    const onConnect = () => {
-      console.log('SOCKET INITIATE SOCKET ID :', sessionId);
-      socket.emit('initiate', { sessionId });
-    };
-    const onQuestion = (data) => {
-      setQuestion(data);
-      setSelectedAnswer(null);
-      setResult(null);
-      setIsLoading(false);
-    };
-    const onResult = (data) => {
-      console.log('Received result:', data);
-      setResult(data);
-    };
+	// connect and fetch question
+	useEffect(() => {
+		if (!socket.connected) {
+			socket.connect();
+		}
+		const onConnect = () => {
+			console.log("SOCKET INITIATE SOCKET ID :", sessionId);
+			socket.emit("initiate", { sessionId });
+		};
+		const onQuestion = (data) => {
+			setQuestion(data);
+			setSelectedAnswer(null);
+			setResult(null);
+			setIsLoading(false);
+		};
+		const onResult = (data) => {
+			console.log("Received result:", data);
+			setResult(data);
+		};
 
-    socket.on('connect', onConnect);
-    socket.on('question', onQuestion);
-    socket.on('result', onResult);
+		socket.on("connect", onConnect);
+		socket.on("question", onQuestion);
+		socket.on("result", onResult);
 
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('question', onQuestion);
-      socket.off('result', onResult);
-      if (socket.connected) socket.disconnect();
-    };
-  }, [socket, quizId, sessionId]);
+		return () => {
+			socket.off("connect", onConnect);
+			socket.off("question", onQuestion);
+			socket.off("result", onResult);
+			if (socket.connected) socket.disconnect();
+		};
+	}, [socket, quizId, sessionId]);
 
-  const submitAnswer = () => {
-    if (!question || selectedAnswer === null) return;
-    setIsLoading(true);
-    socket.emit('answer', { id: question.id, answerIndex: selectedAnswer, sessionId });
-    setTimeout(() => setIsLoading(false), 150); // small UX delay
-  };
+	const submitAnswer = () => {
+		if (!question || selectedAnswer === null) return;
+		setIsLoading(true);
+		socket.emit("answer", { id: question.id, answerIndex: selectedAnswer, sessionId });
+		setTimeout(() => setIsLoading(false), 150); // small UX delay
+	};
 
-  const nextQuestion = () => {
-    setIsLoading(true);
-    socket.emit('initiate', { sessionId });
-  };
+	const nextQuestion = () => {
+		setIsLoading(true);
+		socket.emit("initiate", { sessionId });
+	};
 
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+	const formatTime = (seconds) => {
+		const m = Math.floor(seconds / 60);
+		const s = Math.floor(seconds % 60);
+		return `${m}:${s.toString().padStart(2, "0")}`;
+	};
 
-  return (
-    <Box sx={{ p: 2 }}>
-      <QuizHeader>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <StyledButton
-            variant="outlined"
-            size="small"
-            onClick={() => navigate(-1)}
-            sx={quizStyles.backButton}
-          >
-            <ArrowBackIcon fontSize="small" />
-          </StyledButton>
-        </Box>
-        {/* Time clock commented */}
-        {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+	return (
+		<Box sx={{ p: 2 }}>
+			<QuizHeader>
+				<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+					<StyledButton
+						variant="outlined"
+						size="small"
+						onClick={() => navigate(-1)}
+						sx={quizStyles.backButton}
+					>
+						<ArrowBackIcon fontSize="small" />
+					</StyledButton>
+				</Box>
+				{/* Time clock commented */}
+				{/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <TimeDisplay>
             <TimerIcon />
             {'Time: '}
             {formatTime(time)}
           </TimeDisplay>
         </Box> */}
-      </QuizHeader>
+			</QuizHeader>
 
-      {isLoading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-        </Box>
-      ) : (
-        question && (
-          <>
-            <QuestionCard>
-              <CardContent sx={quizStyles.questionCardContent}>
-                <Typography variant="h6" sx={quizStyles.questionTitle}>
-                  {question.ques}
-                </Typography>
-              </CardContent>
-            </QuestionCard>
+			{isLoading ? (
+				<Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+					<CircularProgress />
+				</Box>
+			) : (
+				question && (
+					<>
+						<QuestionCard>
+							<CardContent sx={quizStyles.questionCardContent}>
+								<Typography variant="h6" sx={quizStyles.questionTitle}>
+									{question.ques}
+								</Typography>
+							</CardContent>
+						</QuestionCard>
 
-            <Grid container spacing={3} sx={{ mt: 2 }}>
-              {question.options?.map((opt, idx) => (
-                <Grid key={idx} size={{ xs: 12, sm: 6, md: 3 }}>
-                  <OptionCard
-                    selected={selectedAnswer === idx}
-                    className={
-                      result
-                        ? idx === result.correctIndex
-                          ? 'correct-answer'
-                          : idx === selectedAnswer
-                            ? (result.isCorrect ? 'correct' : 'wrong')
-                            : ''
-                        : selectedAnswer === idx
-                          ? 'selected'
-                          : ''
-                    }
-                    onClick={() => result ? null : setSelectedAnswer(idx)}
-                  >
-                    <CardContent>
-                      <Typography variant="subtitle1" align="center">
-                        {opt}
-                      </Typography>
-                    </CardContent>
-                  </OptionCard>
-                </Grid>
-              ))}
-            </Grid>
+						<Grid container spacing={3} sx={{ mt: 2 }}>
+							{question.options?.map((opt, idx) => (
+								<Grid key={idx} size={{ xs: 12, sm: 6, md: 3 }}>
+									<OptionCard
+										selected={selectedAnswer === idx}
+										className={
+											result
+												? idx === result.correctIndex
+													? "correct-answer"
+													: idx === selectedAnswer
+													? result.isCorrect
+														? "correct"
+														: "wrong"
+													: ""
+												: selectedAnswer === idx
+												? "selected"
+												: ""
+										}
+										onClick={() => (result ? null : setSelectedAnswer(idx))}
+									>
+										<CardContent>
+											<Typography variant="subtitle1" align="center">
+												{opt}
+											</Typography>
+										</CardContent>
+									</OptionCard>
+								</Grid>
+							))}
+						</Grid>
+              {/* Debug Info Box */}
+						<Box
+							sx={{
+								position: "fixed",
+								right: 16,
+								bottom: 16,
+								bgcolor: "background.paper",
+								boxShadow: 6,
+								borderRadius: 2,
+								p: 1.5,
+								zIndex: 1400,
+								display: "flex",
+								justifyContent: "space-between",
+								gap: 1,
+								fontSize: "0.75rem",
+								maxWidth: 360,
+								flexWrap: "wrap",
+							}}
+						>
+							<Typography variant="body2" title={question?.correctAnswer?.join(", ") || "-"}>
+								Correct Index (0 - 3): {question?.correctAnswer?.join(", ") || "-"}
+							</Typography>
 
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
-              {!result ? (
-                <StyledButton
-                  variant="contained"
-                  size="large"
-                  onClick={submitAnswer}
-                  disabled={selectedAnswer === null || isLoading}
-                  sx={{
-                    backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#444' : '#1F1F1F',
-                    color: (theme) => theme.palette.mode === 'dark' ? 'white' : 'white',
-                  }}
-                >
-                  Submit Answer
-                </StyledButton>
-              ) : (
-                <StyledButton
-                  variant="contained"
-                  size="large"
-                  onClick={nextQuestion}
-                  disabled={isLoading}
-                >
-                  Next Question
-                </StyledButton>
-              )}
-            </Box>
-          </>
-        )
-      )}
-    </Box>
-  );
+							<Typography
+								variant="body2"
+								title={question?.trueskill ? JSON.stringify(question.trueskill) : "-"}
+								sx={{
+									fontFamily:
+										'ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace',
+								 whiteSpace: 'pre-wrap', // allow wrapping
+    wordBreak: 'break-word', // break long words
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+								}}
+							>
+								UserChapterTS: <br />
+								Mu: {question.trueskill.mu},<br />
+								Sigma: {question.trueskill.sigma}
+							</Typography>
+
+							<Typography
+								variant="body2"
+								title={
+									question?.questionTrueskill
+										? JSON.stringify(question.questionTrueskill)
+										: "-"
+								}
+								sx={{
+									fontFamily:
+										'ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace',
+									 whiteSpace: 'pre-wrap', // allow wrapping
+    wordBreak: 'break-word', // break long words
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+								}}
+							>
+								QuestionTS:{" "}
+								{question.questionTrueskill ? (
+									<>
+										<br />
+										Mu: {question.questionTrueskill.mu},<br />
+										Sigma: {question.questionTrueskill.sigma}
+									</>
+								) : (
+									"-"
+								)}
+							</Typography>
+						</Box>
+						<Box sx={{ mt: 4, display: "flex", justifyContent: "center", gap: 2 }}>
+							{!result ? (
+								<StyledButton
+									variant="contained"
+									size="large"
+									onClick={submitAnswer}
+									disabled={selectedAnswer === null || isLoading}
+									sx={{
+										backgroundColor: (theme) =>
+											theme.palette.mode === "dark" ? "#444" : "#1F1F1F",
+										color: (theme) => (theme.palette.mode === "dark" ? "white" : "white"),
+									}}
+								>
+									Submit Answer
+								</StyledButton>
+							) : (
+								<StyledButton
+									variant="contained"
+									size="large"
+									onClick={nextQuestion}
+									disabled={isLoading}
+								>
+									Next Question
+								</StyledButton>
+							)}
+						</Box>
+					</>
+				)
+			)}
+		</Box>
+	);
 };
 
 export default Quiz;
-

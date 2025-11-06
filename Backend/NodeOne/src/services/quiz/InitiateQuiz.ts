@@ -3,6 +3,7 @@ import { logger } from "./../../utils/logger";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession } from "../../models/UserChapterTicket";
+import { QuestionTs } from "../../models/QuestionTs";
 
 const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 	try {
@@ -100,10 +101,17 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		const currentQuestionTs = currentQuestion;
 		const wholeQuestionObject = await Question.findById(currentQuestionTs);
 
+
+		// Only for testing 
+		const questionTs = await QuestionTs.findOne({ quesId: currentQuestionTs });
+		console.log("QuestionTSNOW is :", questionTs);
 		const parsedQuestion = {
 			id: currentQuestionTs,
 			ques: wholeQuestionObject?.ques,
 			options: wholeQuestionObject?.options,
+			correctAnswer: wholeQuestionObject?.correct,
+			trueskill: userChapterTicket?.trueSkillScore, 
+			questionTrueskill: questionTs?.difficulty
 		};
 
 		//TODO Test
