@@ -57,21 +57,25 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		let questionPool = userChapterTicket.ongoing.questionPool || [];
 
 		// re attempet if question list is empty
-		if (questionList.length === 0) {
-			userChapterTicket.ongoing.questionPool = questionAttemptedList;
-			userChapterTicket.ongoing.questionsAttemptedList = [];
-		}
+		// if (questionList.length === 0) {
+		// 	userChapterTicket.ongoing.questionPool = questionAttemptedList;
+		// 	userChapterTicket.ongoing.questionsAttemptedList = [];
+		// }
 		questionList = await fetchUserChapterTicketQuestionPool({
 			userChapterTicket: userChapterTicket,
 			userTrueSkillData: userTrueskillData.skill,
 		});
-		const currentQuestion = questionList[0];
+
+		questionPool = [...questionList.slice(1).map((q) => q.quesId), ...questionPool]; // remove first question as its current question
+
+		console.log("QUESTION POOL :", questionPool);
+		const currentQuestion = questionPool[0];
+		questionPool = questionPool.slice(1); // remove current question from pool
 
 		console.log("Question List ", questionList);
 		console.log("Current Question ", currentQuestion);
-		questionAttemptedList.push(currentQuestion.quesId);
+		questionAttemptedList.push(currentQuestion);
 
-		questionPool = [...questionList.slice(1).map((q) => q.quesId), ...questionPool]; // remove first question as its current question
 
 		// update question data (pool and attempted list )
 		// await UserChapterSessionService.updateUserChapterQuestionData({
@@ -93,7 +97,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		// 	}
 		// );
 		// console.log("Something must have happened here ", updatedUserCHapterTicket)
-		const currentQuestionTs = currentQuestion.quesId;
+		const currentQuestionTs = currentQuestion;
 		const wholeQuestionObject = await Question.findById(currentQuestionTs);
 
 		const parsedQuestion = {

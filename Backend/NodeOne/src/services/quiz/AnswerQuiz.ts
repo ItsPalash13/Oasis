@@ -1,9 +1,9 @@
 import { logger } from "./../../utils/logger";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
-import { IOngoingSession, IUserChapterTicket  } from "models/UserChapterTicket";
+import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
-import { QuestionTs } from "models/QuestionTs";
+import { QuestionTs } from "../../models/QuestionTs";
 
 const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 	try {
@@ -38,15 +38,15 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			await userChapterTicket.save();
 		} else {
 
-            if (userChapterTicket.ongoing.heartsLeft <= 0) {  
-                return {
-                    socketResponse: "quizEnded",
-                    responseData: {
-                        type: "failure",
-                        message: "No hearts left",
-                    },
-                };
-            }
+            // if (userChapterTicket.ongoing.heartsLeft <= 0) {  
+            //     return {
+            //         socketResponse: "quizEnded",
+            //         responseData: {
+            //             type: "failure",
+            //             message: "No hearts left",
+            //         },
+            //     };
+            // }
 			
             userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
@@ -109,7 +109,6 @@ const parseCorrectOption = async ({
 	};
 
 	const questionPool = userChapterTicket.ongoing.questionPool ?? [];
-	questionPool.push(currentQuestionId);
 	userChapterTicket.ongoing = {
 		...userChapterTicket.ongoing,
 		...(updatedOngoingData as IOngoingSession),

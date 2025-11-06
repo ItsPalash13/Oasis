@@ -19,10 +19,10 @@ export const fetchUserChapterTicketQuestionPool = async ({
 		console.log("REACHED HERE ", userChapterTicket);
 		const questions = await QuestionTs.find({
 			chapterId: userChapterTicket.chapterId.toString(),
-			// "difficulty.mu": muFilterObject, //TODO TrueSkill error here
+			"difficulty.mu": muFilterObject, //TODO TrueSkill error here
 			quesId: { $nin: questionAttemptedList },
 		})
-			// .populate("quesId")
+			.populate("quesId")
 			.sort({ "difficulty.mu": 1 }) // Sort by mu ascending (easiest first)
 			.limit(10)
 			.exec();
