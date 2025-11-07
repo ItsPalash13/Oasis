@@ -12,6 +12,7 @@ export interface IOngoingSession {
   questionsIncorrect: number;
   currentStreak: number;
   questionsAttemptedList: Array<mongoose.Types.ObjectId>;
+  questionPool: Array<mongoose.Types.ObjectId>;
   lastAttemptedQuestionId: mongoose.Types.ObjectId;
   currentQuestionId: mongoose.Types.ObjectId;
   currentScore: number;
@@ -35,6 +36,8 @@ const ongoingSchema = new Schema<IOngoingSession>({
   questionsCorrect: { type: Number, default: 0 },
   questionsIncorrect: { type: Number, default: 0 },
   currentStreak: { type: Number, default: 0 },
+  questionPool: [{ type: Schema.Types.ObjectId, ref: "Question" }],
+  questionsAttemptedList: [{ type: Schema.Types.ObjectId, ref: "Question" }],
   lastAttemptedQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
   currentQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
   currentScore: { type: Number, default: 0 },
@@ -42,7 +45,7 @@ const ongoingSchema = new Schema<IOngoingSession>({
 }, { _id: true }); 
 
 
-interface IUserChapterTicket extends Document {
+export interface IUserChapterTicket extends Document {
     userId: mongoose.Types.ObjectId;
     chapterId: mongoose.Types.ObjectId;
     trueSkillScore? : IDifficulty;
@@ -99,5 +102,7 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
 });
 
 const UserChapterTicket = mongoose.model<IUserChapterTicket>('UserChapterTicket', UserChapterTicketSchema);
+
+export type UserChapterTicketType = typeof UserChapterTicket;
 
 export default UserChapterTicket;

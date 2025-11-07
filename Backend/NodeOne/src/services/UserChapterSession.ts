@@ -13,19 +13,12 @@ interface IStartChapterSessionResponse {
 }
 
 namespace UserChapterSessionService {
-
-
-	export const getCurrentSessionBySocketTicket = async ({
-		socketTicket,
-	}: {
-		socketTicket: string;
-	}) => {
-
-console.log("TESTING SOCKET TICKET : ", socketTicket);
+	export const getCurrentSessionBySocketTicket = async ({ socketTicket }: { socketTicket: string }) => {
+		console.log("TESTING SOCKET TICKET : ", socketTicket);
 		const userChapterTicket = await UserChapterTicket.findOne({
 			"ongoing._id": socketTicket,
 		});
-		console.log("TESTING1234: ", userChapterTicket);	
+		console.log("TESTING1234: ", userChapterTicket);
 		if (!userChapterTicket?._id) {
 			throw {
 				statusCode: 404,
@@ -33,7 +26,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 				message: "Session not found",
 			};
 		}
-		
+
 		return userChapterTicket;
 	};
 
@@ -69,18 +62,13 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			userChapterTicket.ongoing = {
 				_id: userChapterTicket.ongoing?._id,
 				questionsAttemptedList: [],
-				currentQuestionId:
-					userChapterTicket.ongoing?.currentQuestionId,
-				lastAttemptedQuestionId:
-					userChapterTicket.ongoing?.lastAttemptedQuestionId,
-				questionsAttempted:
-					userChapterTicket.ongoing?.questionsAttempted ?? 0,
-				questionsCorrect:
-					userChapterTicket.ongoing?.questionsCorrect ?? 0,
-				questionsIncorrect:
-					userChapterTicket.ongoing?.questionsIncorrect ?? 0,
-				currentStreak:
-					userChapterTicket.ongoing?.currentStreak ?? 0,
+				questionPool: [],
+				currentQuestionId: userChapterTicket.ongoing?.currentQuestionId,
+				lastAttemptedQuestionId: userChapterTicket.ongoing?.lastAttemptedQuestionId,
+				questionsAttempted: userChapterTicket.ongoing?.questionsAttempted ?? 0,
+				questionsCorrect: userChapterTicket.ongoing?.questionsCorrect ?? 0,
+				questionsIncorrect: userChapterTicket.ongoing?.questionsIncorrect ?? 0,
+				currentStreak: userChapterTicket.ongoing?.currentStreak ?? 0,
 				currentScore: userChapterTicket.ongoing?.currentScore ?? 0,
 				heartsLeft: userChapterTicket.ongoing?.heartsLeft ?? 3,
 			};
@@ -92,6 +80,8 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 				chapterId: chapterObjectId,
 				ongoing: {
 					questionsAttempted: 0,
+					questionPoolUsed: [],
+					questionsAttemptedList: [],
 					questionsCorrect: 0,
 					questionsIncorrect: 0,
 					currentStreak: 0,
@@ -104,13 +94,12 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 			await userChapterTicket.save();
 		}
 
-
 		const userChapterTicketInitialized = await UserChapterTicket.findOne({
 			userId: userObjectId,
 			chapterId: chapterObjectId,
 		});
 
-		console.log("USERCHAPTER", userChapterTicketInitialized)
+		console.log("USERCHAPTER", userChapterTicketInitialized);
 		if (!userChapterTicketInitialized) {
 			throw {
 				statusCode: 500,
@@ -136,7 +125,38 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 		} as IStartChapterSessionResponse;
 	};
 
-	export const updateUserChapterOngoingByUserIdChapterId = async ({
+	export const updateUserChapterQuestionData = async ({
+		userId,
+		chapterId,
+		questionAttemptedList,
+		questionPool,
+	}: {
+		userId: mongoose.Types.ObjectId;
+		chapterId: mongoose.Types.ObjectId;
+		questionAttemptedList: mongoose.Types.ObjectId[];
+		questionPool: mongoose.Types.ObjectId[];
+	}) => {
+		const userChapterTicket = await UserChapterTicket.findOne({
+			userId: userId,
+			chapterId: chapterId,
+		});
+
+		if (!userChapterTicket) {
+			throw {
+				statusCode: 404,
+				code: "SessionNotFound",
+				message: "Session not found",
+			};
+		}
+
+		// Update the questionAttemptedList and questionPoolUsed
+		userChapterTicket.ongoing.questionPool = questionPool ?? [];
+		userChapterTicket.ongoing.questionsAttemptedList = questionAttemptedList ?? [];
+
+		await userChapterTicket.save();
+	};
+
+	export const updateUserChapterOngoing = async ({
 		userId,
 		chapterId,
 		updateData,
@@ -216,10 +236,7 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 
 		// Rank 1 is winner (lower is better). If user is correct, user wins
 		const ranks = isCorrect ? [1, 2] : [2, 1];
-		const [[newUserRating], [newQuestionRating]] = env.rate(
-			[[userRating], [questionRating]],
-			ranks
-		);
+		const [[newUserRating], [newQuestionRating]] = env.rate([[userRating], [questionRating]], ranks);
 
 		// Persist updates
 		userTicket.trueSkillScore = {
@@ -261,6 +278,6 @@ console.log("TESTING SOCKET TICKET : ", socketTicket);
 		});
 		await questionTs.save();
 	};
-};
+}
 
 export { UserChapterSessionService };
