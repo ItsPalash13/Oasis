@@ -16,7 +16,12 @@ export const quizV2Handler = (socket: Socket) => {
 	// On answer: checkanswer -> updatets -> emit result (with correctness and correct option)
 	socket.on("answer", async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 		const { socketResponse, responseData } = await answerQuizSession({ sessionId, answerIndex });
-		return socket.emit(socketResponse, responseData);
+		socket.emit(socketResponse, responseData);
+		
+		// Emit separate maxScoreReached event if maxScore was crossed
+		if (socketResponse === "result" && (responseData as any).maxScoreReached === true) {
+			socket.emit("maxScoreReached", { maxScore: (responseData as any).currentScore });
+		}
 	});
 
 	socket.on("endSession", async ({ sessionId }: { sessionId?: string }) => {

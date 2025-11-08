@@ -66,6 +66,8 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			isCorrect,
 		});
 
+		const maxScoreReached = (userChapterTicket as any).__maxScoreReached || false;
+
 		return {
 			socketResponse: "result",
 			responseData: {
@@ -74,6 +76,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 				correctOption: null,
 				currentScore: userChapterTicket.ongoing.currentScore,
 				heartsLeft: userChapterTicket.ongoing.heartsLeft,
+				maxScoreReached: maxScoreReached,
 			},
 		};
 	} catch (error: any) {
@@ -101,6 +104,14 @@ const parseCorrectOption = async ({
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
     
     const xpToAdd = questionTrueskillData!.xp.correct || 2;
+	const newCurrentScore = userChapterTicket?.ongoing?.currentScore + xpToAdd;
+
+	// Check if maxScore is crossed and hasn't been reached yet in this session
+	let maxScoreReached = false;
+	if (newCurrentScore > userChapterTicket.maxScore && !userChapterTicket.ongoing.maxScoreReached) {
+		userChapterTicket.maxScore = newCurrentScore;
+		maxScoreReached = true;
+	}
 
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
@@ -108,14 +119,19 @@ const parseCorrectOption = async ({
 		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
 		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore + xpToAdd,
+		currentScore: newCurrentScore,
 		heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
+		maxScoreReached: maxScoreReached || userChapterTicket?.ongoing?.maxScoreReached || false,
 	};
 
 	userChapterTicket.ongoing = {
 		...userChapterTicket.ongoing,
 		...(updatedOngoingData as IOngoingSession),
 	};
+	
+	// Store maxScoreReached flag for return
+	(userChapterTicket as any).__maxScoreReached = maxScoreReached;
+	
 	return userChapterTicket;
 };
 

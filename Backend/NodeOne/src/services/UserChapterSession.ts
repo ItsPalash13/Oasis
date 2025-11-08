@@ -71,6 +71,7 @@ namespace UserChapterSessionService {
 				currentStreak: userChapterTicket.ongoing?.currentStreak ?? 0,
 				currentScore: 0,
 				heartsLeft: 3,
+				maxScoreReached: false,
 			};
 			await userChapterTicket.save();
 		} else {
@@ -87,6 +88,7 @@ namespace UserChapterSessionService {
 					currentStreak: 0,
 					currentScore: 0,
 					heartsLeft: 3,
+					maxScoreReached: false,
 				},
 				maxStreak: 0,
 				maxScore: 0,

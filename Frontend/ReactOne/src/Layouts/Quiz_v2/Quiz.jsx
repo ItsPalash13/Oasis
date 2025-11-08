@@ -4,6 +4,7 @@ import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, XpDisp
 import { Timer as TimerIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, Favorite as HealthIcon } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import MaxScoreNotification from "./MaxScoreNotification";
 
 const Quiz = ({ socket }) => {
 	const navigate = useNavigate();
@@ -21,6 +22,8 @@ const Quiz = ({ socket }) => {
 	const [questionsIncorrect, setQuestionsIncorrect] = useState(0);
 	const [quizEnded, setQuizEnded] = useState(false);
 	const [quizResults, setQuizResults] = useState(null);
+	const [showMaxScore, setShowMaxScore] = useState(false);
+	const [maxScoreValue, setMaxScoreValue] = useState(0);
 
 	// minimal local timer (commented out)
 	// useEffect(() => {
@@ -79,16 +82,24 @@ const Quiz = ({ socket }) => {
 			setIsLoading(false);
 		};
 
+		const onMaxScoreReached = (data) => {
+			setMaxScoreValue(data.maxScore);
+			setShowMaxScore(true);
+			setTimeout(() => setShowMaxScore(false), 4000);
+		};
+
 		socket.on("connect", onConnect);
 		socket.on("question", onQuestion);
 		socket.on("result", onResult);
 		socket.on("quizEnded", onQuizEnded);
+		socket.on("maxScoreReached", onMaxScoreReached);
 
 		return () => {
 			socket.off("connect", onConnect);
 			socket.off("question", onQuestion);
 			socket.off("result", onResult);
 			socket.off("quizEnded", onQuizEnded);
+			socket.off("maxScoreReached", onMaxScoreReached);
 			if (socket.connected) socket.disconnect();
 		};
 	}, [socket, quizId, sessionId]);
@@ -545,6 +556,11 @@ const Quiz = ({ socket }) => {
 					</>
 				)
 			)}
+			<MaxScoreNotification 
+				show={showMaxScore} 
+				maxScore={maxScoreValue} 
+				onClose={() => setShowMaxScore(false)} 
+			/>
 		</Box>
 	);
 };
