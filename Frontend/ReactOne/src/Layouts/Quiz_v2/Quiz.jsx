@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Card, CardContent, CircularProgress, Grid, Typography } from "@mui/material";
 import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, XpDisplay, HeartDisplay, quizStyles } from "../../theme/quizTheme";
-import { Timer as TimerIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, Favorite as HealthIcon, Close as CloseIcon } from "@mui/icons-material";
+import { Timer as TimerIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, Favorite as HealthIcon } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
@@ -17,6 +17,8 @@ const Quiz = ({ socket }) => {
 	const [time, setTime] = useState(0);
 	const [currentScore, setCurrentScore] = useState(0);
 	const [heartsLeft, setHeartsLeft] = useState(3);
+	const [questionsCorrect, setQuestionsCorrect] = useState(0);
+	const [questionsIncorrect, setQuestionsIncorrect] = useState(0);
 	const [quizEnded, setQuizEnded] = useState(false);
 	const [quizResults, setQuizResults] = useState(null);
 
@@ -46,6 +48,12 @@ const Quiz = ({ socket }) => {
 			if (data.heartsLeft !== undefined) {
 				setHeartsLeft(data.heartsLeft);
 			}
+			if (data.questionsCorrect !== undefined) {
+				setQuestionsCorrect(data.questionsCorrect);
+			}
+			if (data.questionsIncorrect !== undefined) {
+				setQuestionsIncorrect(data.questionsIncorrect);
+			}
 		};
 		const onResult = (data) => {
 			console.log("Received result:", data);
@@ -55,6 +63,12 @@ const Quiz = ({ socket }) => {
 			}
 			if (data.heartsLeft !== undefined) {
 				setHeartsLeft(data.heartsLeft);
+			}
+			if (data.questionsCorrect !== undefined) {
+				setQuestionsCorrect(data.questionsCorrect);
+			}
+			if (data.questionsIncorrect !== undefined) {
+				setQuestionsIncorrect(data.questionsIncorrect);
 			}
 		};
 
@@ -108,50 +122,53 @@ const Quiz = ({ socket }) => {
 		<Box sx={{ p: 2 }}>
 			<QuizHeader>
 				<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-					<StyledButton
-						variant="outlined"
-						size="small"
-						onClick={() => navigate(-1)}
-						sx={quizStyles.backButton}
-					>
-						<ArrowBackIcon fontSize="small" />
-					</StyledButton>
 					{!quizEnded && (
 						<StyledButton
 							variant="outlined"
 							size="small"
 							onClick={handleEndQuiz}
-							sx={{
-								...quizStyles.backButton,
-								color: (theme) => theme.palette.error.main,
-								borderColor: (theme) => theme.palette.error.main,
-								"&:hover": {
-									borderColor: (theme) => theme.palette.error.dark,
-									backgroundColor: (theme) => theme.palette.error.light,
-								},
-							}}
+							sx={quizStyles.backButton}
 						>
-							<CloseIcon fontSize="small" />
-							<Typography variant="body2" sx={{ ml: 0.5 }}>
-								End Quiz
-							</Typography>
+							<ArrowBackIcon fontSize="small" />
 						</StyledButton>
 					)}
 				</Box>
 				{!quizEnded && (
-					<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-						<XpDisplay>
-							<StarIcon />
-							<Typography variant="h6" sx={{ fontWeight: "bold" }}>
-								{currentScore} XP
+					<Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1.5 }}>
+						<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+							<XpDisplay>
+								<StarIcon />
+								<Typography variant="h6" sx={{ fontWeight: "bold" }}>
+									{currentScore} XP
+								</Typography>
+							</XpDisplay>
+							<HeartDisplay>
+								<HealthIcon />
+								<Typography variant="h6" sx={{ fontWeight: "bold" }}>
+									{heartsLeft}
+								</Typography>
+							</HeartDisplay>
+						</Box>
+						<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+							<Typography 
+								variant="h4" 
+								sx={{ 
+									fontWeight: "bold",
+									color: "#4CAF50"
+								}}
+							>
+								{questionsCorrect > 0 ? `+${questionsCorrect}` : questionsCorrect}
 							</Typography>
-						</XpDisplay>
-						<HeartDisplay>
-							<HealthIcon />
-							<Typography variant="h6" sx={{ fontWeight: "bold" }}>
-								{heartsLeft}
+							<Typography 
+								variant="h4" 
+								sx={{ 
+									fontWeight: "bold",
+									color: "#F44336"
+								}}
+							>
+								{questionsIncorrect > 0 ? `-${questionsIncorrect}` : questionsIncorrect}
 							</Typography>
-						</HeartDisplay>
+						</Box>
 					</Box>
 				)}
 			</QuizHeader>
@@ -384,31 +401,9 @@ const Quiz = ({ socket }) => {
 										fontWeight: 600,
 									}}
 								>
-									Back to Chapter
+									Back to Chapters
 								</StyledButton>
-								<StyledButton
-									variant="outlined"
-									size="medium"
-									onClick={() => {
-										// Reset quiz state and restart
-										setQuizEnded(false);
-										setQuizResults(null);
-										setCurrentScore(0);
-										setHeartsLeft(3);
-										setQuestion(null);
-										setResult(null);
-										setSelectedAnswer(null);
-										socket.emit("initiate", { sessionId });
-									}}
-									sx={{
-										px: 3,
-										py: 1,
-										fontSize: "0.9rem",
-										fontWeight: 600,
-									}}
-								>
-									Try Again
-								</StyledButton>
+
 							</Box>
 						</CardContent>
 					</QuestionCard>

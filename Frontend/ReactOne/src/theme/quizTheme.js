@@ -211,6 +211,21 @@ export const CorrectQuestionsDisplay = styled(Box)(({ theme }) => ({
   }
 }));
 
+export const IncorrectQuestionsDisplay = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  background: '#F44336',
+  padding: theme.spacing(1.5, 2.5),
+  borderRadius: 12,
+  color: 'white',
+  fontWeight: 'bold',
+  boxShadow: '0 4px 16px rgba(244, 67, 54, 0.3)',
+  '& .MuiSvgIcon-root': {
+    color: 'white',
+  }
+}));
+
 export const CongratsDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
     borderRadius: 20,

@@ -129,7 +129,7 @@ const parseIncorrectOption = async ({
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
     
-    const xpToSubtract = questionTrueskillData!.xp.incorrect || 1;
+    const xpToSubtract = questionTrueskillData?.xp?.incorrect ?? 1;
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,

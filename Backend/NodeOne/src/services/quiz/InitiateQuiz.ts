@@ -113,7 +113,9 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			trueskill: userChapterTicket?.trueSkillScore, 
 			questionTrueskill: questionTs?.difficulty,
 			currentScore: userChapterTicket?.ongoing?.currentScore ?? 0,
-			heartsLeft: userChapterTicket?.ongoing?.heartsLeft ?? 3
+			heartsLeft: userChapterTicket?.ongoing?.heartsLeft ?? 3,
+			questionsCorrect: questionTs?.xp?.correct ?? 0,
+			questionsIncorrect: questionTs?.xp?.incorrect ?? 0
 		};
 
 		//TODO Test
