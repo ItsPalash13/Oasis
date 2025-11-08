@@ -4,6 +4,7 @@ import { Question } from "./../../models/Questions";
 import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
 import { QuestionTs } from "../../models/QuestionTs";
+import { endQuizSession } from "./EndQuiz";
 
 const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 	try {
@@ -37,25 +38,26 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			// };
 			await userChapterTicket.save();
 		} else {
-
-            // if (userChapterTicket.ongoing.heartsLeft <= 0) {  
-            //     return {
-            //         socketResponse: "quizEnded",
-            //         responseData: {
-            //             type: "failure",
-            //             message: "No hearts left",
-            //         },
-            //     };
-            // }
-			
             userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
                 userChapterTicket,
             }) as any;
-            // };
 			await userChapterTicket.save();
 
 			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
+			
+			// Check if hearts are exhausted after processing incorrect answer
+			if (userChapterTicket.ongoing.heartsLeft <= 0) {
+				// Update TrueSkill before ending
+				await UserChapterSessionService.updateUserQuestionTrueskill({
+					userId: userChapterTicket.userId.toString(),
+					questionId: questionId.toString(),
+					isCorrect,
+				});
+				
+				// Automatically end the quiz session
+				return await endQuizSession({ sessionId, endReason: "hearts_exhausted" });
+			}
 		}
 
 		await UserChapterSessionService.updateUserQuestionTrueskill({
@@ -70,6 +72,8 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 				isCorrect,
 				correctIndex: wholeQuestionObject!.correct[0], // sending first correct answer index
 				correctOption: null,
+				currentScore: userChapterTicket.ongoing.currentScore,
+				heartsLeft: userChapterTicket.ongoing.heartsLeft,
 			},
 		};
 	} catch (error: any) {
@@ -96,19 +100,18 @@ const parseCorrectOption = async ({
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
     
-    const xpToAdd = questionTrueskillData!.xp.correct || 10;
+    const xpToAdd = questionTrueskillData!.xp.correct || 2;
 
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
-		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
+		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
+		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
 		currentStreak: 0,
 		currentScore: userChapterTicket?.ongoing?.currentScore + xpToAdd,
-		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
+		heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
 	};
 
-	const questionPool = userChapterTicket.ongoing.questionPool ?? [];
 	userChapterTicket.ongoing = {
 		...userChapterTicket.ongoing,
 		...(updatedOngoingData as IOngoingSession),
@@ -126,7 +129,7 @@ const parseIncorrectOption = async ({
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
     
-    const xpToSubtract = questionTrueskillData!.xp.incorrect || 10;
+    const xpToSubtract = questionTrueskillData!.xp.incorrect || 1;
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
