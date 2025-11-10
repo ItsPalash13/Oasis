@@ -75,7 +75,6 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 
 		console.log("Question List ", questionList);
 		console.log("Current Question ", currentQuestion);
-		questionAttemptedList.push(currentQuestion);
 
 
 		// update question data (pool and attempted list )

@@ -38,15 +38,15 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			await userChapterTicket.save();
 		} else {
 
-            // if (userChapterTicket.ongoing.heartsLeft <= 0) {  
-            //     return {
-            //         socketResponse: "quizEnded",
-            //         responseData: {
-            //             type: "failure",
-            //             message: "No hearts left",
-            //         },
-            //     };
-            // }
+            if (userChapterTicket.ongoing.heartsLeft - 1 <= 0) {
+                return {
+                    socketResponse: "quizEnded",
+                    responseData: {
+                        type: "failure",
+                        message: "No hearts left",
+                    },
+                };
+            }
 			
             userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
@@ -58,6 +58,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
 		}
 
+		// TODO: handle trueskill and ticket update with correct and incorrect answer in mongo transaction
 		await UserChapterSessionService.updateUserQuestionTrueskill({
 			userId: userChapterTicket.userId.toString(),
 			questionId: questionId.toString(),
@@ -95,7 +96,7 @@ const parseCorrectOption = async ({
 
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
-    
+    userChapterTicket?.ongoing.questionsAttemptedList.push(currentQuestionId);
     const xpToAdd = questionTrueskillData!.xp.correct || 10;
 
 	const updatedOngoingData: Partial<IOngoingSession> = {
@@ -125,15 +126,19 @@ const parseIncorrectOption = async ({
 }) => {
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
-    
+    userChapterTicket?.ongoing.questionsAttemptedList.push(currentQuestionId);
+
     const xpToSubtract = questionTrueskillData!.xp.incorrect || 10;
+
+	const userXp = (userChapterTicket?.ongoing?.currentScore - xpToSubtract) < 0 ? 0 : (userChapterTicket?.ongoing?.currentScore - xpToSubtract);
+
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
 		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
 		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore - xpToSubtract,
+		currentScore: userXp,
 		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
 	};
 
