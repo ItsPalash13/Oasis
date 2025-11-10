@@ -18,7 +18,7 @@ namespace UserChapterSessionService {
 		const userChapterTicket = await UserChapterTicket.findOne({
 			"ongoing._id": socketTicket,
 		});
-		console.log("TESTING1234: ", userChapterTicket);
+		// console.log("TESTING1234: ", userChapterTicket);
 		if (!userChapterTicket?._id) {
 			throw {
 				statusCode: 404,
@@ -65,10 +65,10 @@ namespace UserChapterSessionService {
 				questionPool: [],
 				currentQuestionId: new mongoose.Types.ObjectId(),
 				lastAttemptedQuestionId: userChapterTicket.ongoing?.lastAttemptedQuestionId,
-				questionsAttempted: userChapterTicket.ongoing?.questionsAttempted ?? 0,
-				questionsCorrect: userChapterTicket.ongoing?.questionsCorrect ?? 0,
-				questionsIncorrect: userChapterTicket.ongoing?.questionsIncorrect ?? 0,
-				currentStreak: userChapterTicket.ongoing?.currentStreak ?? 0,
+				questionsAttempted: 0,
+				questionsCorrect:  0,
+				questionsIncorrect: 0,
+				currentStreak: 0,
 				currentScore: 0,
 				heartsLeft: 3,
 				maxScoreReached: false,
@@ -101,7 +101,7 @@ namespace UserChapterSessionService {
 			chapterId: chapterObjectId,
 		});
 
-		console.log("USERCHAPTER", userChapterTicketInitialized);
+		// console.log("USERCHAPTER", userChapterTicketInitialized);
 		if (!userChapterTicketInitialized) {
 			throw {
 				statusCode: 500,

@@ -1,7 +1,7 @@
 import { logger } from "./../../utils/logger";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
-import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
+import UserChapterTicket, { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
 import { QuestionTs } from "../../models/QuestionTs";
 import { endQuizSession } from "./EndQuiz";
@@ -12,6 +12,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			socketTicket: sessionId!,
 		});
 		const questionId = userChapterTicket.ongoing.currentQuestionId;
+		console.log("UserChapterTicket Log before Answer call ", userChapterTicket?.ongoing?.questionsAttempted)
 
 		// Fetch the question to get the correct answer
 		const wholeQuestionObject = await Question.findById(questionId);
@@ -38,6 +39,17 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			// };
 			await userChapterTicket.save();
 		} else {
+
+            if (userChapterTicket.ongoing.heartsLeft - 1 <= 0) {
+                return {
+                    socketResponse: "quizEnded",
+                    responseData: {
+                        type: "failure",
+                        message: "No hearts left",
+                    },
+                };
+            }
+			
             userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
                 userChapterTicket,
@@ -60,6 +72,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			}
 		}
 
+		// TODO: handle trueskill and ticket update with correct and incorrect answer in mongo transaction
 		await UserChapterSessionService.updateUserQuestionTrueskill({
 			userId: userChapterTicket.userId.toString(),
 			questionId: questionId.toString(),
@@ -68,6 +81,11 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 
 		const maxScoreReached = (userChapterTicket as any).__maxScoreReached || false;
 
+
+		let newOne = await UserChapterSessionService.getCurrentSessionBySocketTicket({
+			socketTicket: sessionId!,
+		});
+		console.log("UserChapterTicket Log after Answer call ", newOne?.ongoing?.questionsAttempted)
 		return {
 			socketResponse: "result",
 			responseData: {
@@ -146,13 +164,15 @@ const parseIncorrectOption = async ({
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
     
     const xpToSubtract = questionTrueskillData?.xp?.incorrect ?? 1;
+	const userXp = (userChapterTicket?.ongoing?.currentScore - xpToSubtract) < 0 ? 0 : (userChapterTicket?.ongoing?.currentScore - xpToSubtract);
+
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
 		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
 		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore - xpToSubtract,
+		currentScore: userXp,
 		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
 	};
 

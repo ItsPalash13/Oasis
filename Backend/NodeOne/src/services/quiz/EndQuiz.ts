@@ -35,6 +35,7 @@ const endQuizSession = async ({ sessionId, endReason = "manual_end" }: { session
         userChapterTicket.ongoing = {} as IOngoingSession;
         await userChapterTicket.save();
 
+        console.log("The users new userChapterTicket is ", userChapterTicket)
         // Calculate accuracy percentage
         const accuracy = sessionData.questionsAttempted > 0 
             ? Math.round((sessionData.questionsCorrect / sessionData.questionsAttempted) * 100)
