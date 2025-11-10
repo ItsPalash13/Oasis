@@ -73,6 +73,7 @@ const Quiz = ({ socket }) => {
 			if (data.questionsIncorrect !== undefined) {
 				setQuestionsIncorrect(data.questionsIncorrect);
 			}
+			setIsLoading(false);
 		};
 
 		const onQuizEnded = (data) => {
@@ -108,7 +109,6 @@ const Quiz = ({ socket }) => {
 		if (!question || selectedAnswer === null) return;
 		setIsLoading(true);
 		socket.emit("answer", { id: question.id, answerIndex: selectedAnswer, sessionId });
-		setTimeout(() => setIsLoading(false), 150); // small UX delay
 	};
 
 	const nextQuestion = () => {
