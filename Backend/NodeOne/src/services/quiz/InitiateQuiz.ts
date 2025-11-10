@@ -37,7 +37,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			socketTicket: sessionId,
 		});
 
-		console.log("SOCKET TICKET:", userChapterTicket);
+		// console.log("SOCKET TICKET:", userChapterTicket);
 
 		// fetch user trueskill data
 		const userTrueskillData = {
@@ -47,7 +47,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			},
 		};
 
-		console.log("USERS TRUESKILL DATA :", userTrueskillData);
+		// console.log("USERS TRUESKILL DATA :", userTrueskillData);
 
 		// fetch question that matches trueskill and not in questionsAttemptedList
 		let questionList = await fetchUserChapterTicketQuestionPool({
@@ -69,12 +69,12 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 
 		questionPool = [...questionList.slice(1).map((q) => q.quesId), ...questionPool]; // remove first question as its current question
 
-		console.log("QUESTION POOL :", questionPool);
+		// console.log("QUESTION POOL :", questionPool);
 		const currentQuestion = questionPool[0];
 		questionPool = questionPool.slice(1); // remove current question from pool
 
-		console.log("Question List ", questionList);
-		console.log("Current Question ", currentQuestion);
+		// console.log("Question List ", questionList);
+		// console.log("Current Question ", currentQuestion);
 
 
 		// update question data (pool and attempted list )
@@ -88,7 +88,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		userChapterTicket.ongoing.questionPool = questionPool?.length > 0 ? questionPool : [];
 		userChapterTicket.ongoing.questionsAttemptedList =
 			questionAttemptedList?.length > 0 ? questionAttemptedList : [];
-		console.log("UPDATED TICKET :", userChapterTicket);
+		// console.log("UPDATED TICKET :", userChapterTicket);
 		await userChapterTicket.save();
 
 		// const updatedUserCHapterTicket = await UserChapterSessionService.getCurrentSessionBySocketTicket(
@@ -103,7 +103,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 
 		// Only for testing 
 		const questionTs = await QuestionTs.findOne({ quesId: currentQuestionTs });
-		console.log("QuestionTSNOW is :", questionTs);
+		// console.log("QuestionTSNOW is :", questionTs);
 		const parsedQuestion = {
 			id: currentQuestionTs,
 			ques: wholeQuestionObject?.ques,
@@ -120,7 +120,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		//TODO Test
 		const updatedOngoingData: Partial<IOngoingSession> = {
 			currentQuestionId: currentQuestionTs,
-			questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
+			questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted,
 			questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
 			questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
 			currentStreak: userChapterTicket?.ongoing?.currentStreak,

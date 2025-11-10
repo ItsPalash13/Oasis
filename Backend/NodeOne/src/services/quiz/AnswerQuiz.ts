@@ -1,7 +1,7 @@
 import { logger } from "./../../utils/logger";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
-import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
+import UserChapterTicket, { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
 import { QuestionTs } from "../../models/QuestionTs";
 import { endQuizSession } from "./EndQuiz";
@@ -12,6 +12,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			socketTicket: sessionId!,
 		});
 		const questionId = userChapterTicket.ongoing.currentQuestionId;
+		console.log("UserChapterTicket Log before Answer call ", userChapterTicket?.ongoing?.questionsAttempted)
 
 		// Fetch the question to get the correct answer
 		const wholeQuestionObject = await Question.findById(questionId);
@@ -80,6 +81,11 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 
 		const maxScoreReached = (userChapterTicket as any).__maxScoreReached || false;
 
+
+		let newOne = await UserChapterSessionService.getCurrentSessionBySocketTicket({
+			socketTicket: sessionId!,
+		});
+		console.log("UserChapterTicket Log after Answer call ", newOne?.ongoing?.questionsAttempted)
 		return {
 			socketResponse: "result",
 			responseData: {
