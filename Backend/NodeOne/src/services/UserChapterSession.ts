@@ -204,26 +204,29 @@ namespace UserChapterSessionService {
 	 * Uses default TrueSkill environment parameters.
 	 */
 	export const updateUserQuestionTrueskill = async ({
-		userId,
+		ticketId,
 		questionId,
 		isCorrect,
 	}: {
-		userId: string;
+		ticketId: string;
 		questionId: string;
 		isCorrect: boolean;
 	}): Promise<void> => {
-		const userObjectId = new mongoose.Types.ObjectId(userId);
+		const ticketObjectId = new mongoose.Types.ObjectId(ticketId);
 		const questionObjectId = new mongoose.Types.ObjectId(questionId);
+		console.log("Entered updateUserQuestionTrueskill")
 
-		// Load user ticket (any chapter; TrueSkill kept at ticket-level)
-		const userTicket = await UserChapterTicket.findOne({ userId: userObjectId });
+		// Load user ticket by _id (TrueSkill kept at ticket-level)
+		const userTicket = await UserChapterTicket.findById(ticketObjectId);
 		if (!userTicket) {
+			console.log("No user ticket found")
 			return; // No ticket; skip
 		}
 
 		// Load question TS entry by quesId
 		const questionTs = await QuestionTs.findOne({ quesId: questionObjectId });
 		if (!questionTs) {
+			console.log("No question ts found")
 			return; // No question ts; skip
 		}
 
@@ -232,6 +235,8 @@ namespace UserChapterSessionService {
 		const currentUserSigma = userTicket.trueSkillScore?.sigma ?? 200;
 		const currentQMu = questionTs.difficulty?.mu ?? 10;
 		const currentQSigma = questionTs.difficulty?.sigma ?? 200;
+		console.log("current user mu: ", currentUserMu, "current user sigma: ", currentUserSigma);
+		console.log("current question mu: ", currentQMu, "current question sigma: ", currentQSigma);
 
 		const env = new TrueSkill();
 		const userRating = new Rating(currentUserMu, currentUserSigma);
@@ -255,39 +260,41 @@ namespace UserChapterSessionService {
 			mu: clampedUserMu,
 			sigma: clampedUserSigma,
 		};
+		console.log("Updated user ticket true skill score");
 
 		// Append changelog entry to user ticket
 		(userTicket as any).tsChangeLogs = (userTicket as any).tsChangeLogs || [];
 		(userTicket as any).tsChangeLogs.push({
 			timestamp: new Date(),
 			questionId: questionObjectId,
-			userId: userObjectId,
+			userId: userTicket.userId,
 			isCorrect,
 			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
 			beforeQts: { mu: currentQMu, sigma: currentQSigma },
 			afterUts: { mu: clampedUserMu, sigma: clampedUserSigma },
 			afterQts: { mu: clampedQuestionMu, sigma: clampedQuestionSigma },
 		});
-
+		console.log("Appended changelog entry to user ticket");
 		await userTicket.save();
 
 		questionTs.difficulty = {
 			mu: clampedQuestionMu,
 			sigma: clampedQuestionSigma,
 		};
-
+		console.log("Updated question ts true skill score");
 		// Append changelog entry to question ts
 		(questionTs as any).tsChangeLogs = (questionTs as any).tsChangeLogs || [];
 		(questionTs as any).tsChangeLogs.push({
 			timestamp: new Date(),
 			questionId: questionObjectId,
-			userId: userObjectId,
+			userId: userTicket.userId,
 			isCorrect,
 			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
 			beforeQts: { mu: currentQMu, sigma: currentQSigma },
 			afterUts: { mu: clampedUserMu, sigma: clampedUserSigma },
 			afterQts: { mu: clampedQuestionMu, sigma: clampedQuestionSigma },
 		});
+		console.log("Appended changelog entry to question ts");
 		await questionTs.save();
 	};
 }
