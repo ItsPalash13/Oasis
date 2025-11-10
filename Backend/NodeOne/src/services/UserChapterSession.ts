@@ -3,6 +3,7 @@ import { UserProfile } from "../models/UserProfile";
 import mongoose from "mongoose";
 import { TrueSkill, Rating } from "ts-trueskill";
 import { QuestionTs } from "../models/QuestionTs";
+import { MU_MIN, SIGMA_MIN } from "../config/constants";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -227,9 +228,9 @@ namespace UserChapterSessionService {
 		}
 
 		// Current ratings (fallback to defaults if missing)
-		const currentUserMu = userTicket.trueSkillScore?.mu ?? 936;
+		const currentUserMu = userTicket.trueSkillScore?.mu ?? 10;
 		const currentUserSigma = userTicket.trueSkillScore?.sigma ?? 200;
-		const currentQMu = questionTs.difficulty?.mu ?? 936;
+		const currentQMu = questionTs.difficulty?.mu ?? 10;
 		const currentQSigma = questionTs.difficulty?.sigma ?? 200;
 
 		const env = new TrueSkill();
@@ -240,10 +241,19 @@ namespace UserChapterSessionService {
 		const ranks = isCorrect ? [1, 2] : [2, 1];
 		const [[newUserRating], [newQuestionRating]] = env.rate([[userRating], [questionRating]], ranks);
 
+
+		// Apply lower limits to user rating
+		const clampedUserMu = Math.max(newUserRating.mu, MU_MIN);
+		const clampedUserSigma = Math.max(newUserRating.sigma, SIGMA_MIN);
+
+		// Apply lower limits to question rating
+		const clampedQuestionMu = Math.max(newQuestionRating.mu, MU_MIN);
+		const clampedQuestionSigma = Math.max(newQuestionRating.sigma, SIGMA_MIN);
+
 		// Persist updates
 		userTicket.trueSkillScore = {
-			mu: newUserRating.mu,
-			sigma: newUserRating.sigma,
+			mu: clampedUserMu,
+			sigma: clampedUserSigma,
 		};
 
 		// Append changelog entry to user ticket
@@ -255,15 +265,15 @@ namespace UserChapterSessionService {
 			isCorrect,
 			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
 			beforeQts: { mu: currentQMu, sigma: currentQSigma },
-			afterUts: { mu: newUserRating.mu, sigma: newUserRating.sigma },
-			afterQts: { mu: newQuestionRating.mu, sigma: newQuestionRating.sigma },
+			afterUts: { mu: clampedUserMu, sigma: clampedUserSigma },
+			afterQts: { mu: clampedQuestionMu, sigma: clampedQuestionSigma },
 		});
 
 		await userTicket.save();
 
 		questionTs.difficulty = {
-			mu: newQuestionRating.mu,
-			sigma: newQuestionRating.sigma,
+			mu: clampedQuestionMu,
+			sigma: clampedQuestionSigma,
 		};
 
 		// Append changelog entry to question ts
@@ -275,8 +285,8 @@ namespace UserChapterSessionService {
 			isCorrect,
 			beforeUts: { mu: currentUserMu, sigma: currentUserSigma },
 			beforeQts: { mu: currentQMu, sigma: currentQSigma },
-			afterUts: { mu: newUserRating.mu, sigma: newUserRating.sigma },
-			afterQts: { mu: newQuestionRating.mu, sigma: newQuestionRating.sigma },
+			afterUts: { mu: clampedUserMu, sigma: clampedUserSigma },
+			afterQts: { mu: clampedQuestionMu, sigma: clampedQuestionSigma },
 		});
 		await questionTs.save();
 	};
