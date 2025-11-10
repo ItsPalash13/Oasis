@@ -4,6 +4,7 @@ import { Question } from "./../../models/Questions";
 import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
 import { QuestionTs } from "../../models/QuestionTs";
+import { endQuizSession } from "./EndQuiz";
 
 const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {
 	try {
@@ -52,10 +53,22 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
                 currentQuestionId: questionIdAsObject,
                 userChapterTicket,
             }) as any;
-            // };
 			await userChapterTicket.save();
 
 			console.log("The answer is incorrect ", isCorrect, answerIndex, wholeQuestionObject.correct);
+			
+			// Check if hearts are exhausted after processing incorrect answer
+			if (userChapterTicket.ongoing.heartsLeft <= 0) {
+				// Update TrueSkill before ending
+				await UserChapterSessionService.updateUserQuestionTrueskill({
+					userId: userChapterTicket.userId.toString(),
+					questionId: questionId.toString(),
+					isCorrect,
+				});
+				
+				// Automatically end the quiz session
+				return await endQuizSession({ sessionId, endReason: "hearts_exhausted" });
+			}
 		}
 
 		// TODO: handle trueskill and ticket update with correct and incorrect answer in mongo transaction
@@ -65,12 +78,17 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			isCorrect,
 		});
 
+		const maxScoreReached = (userChapterTicket as any).__maxScoreReached || false;
+
 		return {
 			socketResponse: "result",
 			responseData: {
 				isCorrect,
 				correctIndex: wholeQuestionObject!.correct[0], // sending first correct answer index
 				correctOption: null,
+				currentScore: userChapterTicket.ongoing.currentScore,
+				heartsLeft: userChapterTicket.ongoing.heartsLeft,
+				maxScoreReached: maxScoreReached,
 			},
 		};
 	} catch (error: any) {
@@ -96,24 +114,36 @@ const parseCorrectOption = async ({
 
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
-    userChapterTicket?.ongoing.questionsAttemptedList.push(currentQuestionId);
-    const xpToAdd = questionTrueskillData!.xp.correct || 10;
+    
+    const xpToAdd = questionTrueskillData!.xp.correct || 2;
+	const newCurrentScore = userChapterTicket?.ongoing?.currentScore + xpToAdd;
+
+	// Check if maxScore is crossed and hasn't been reached yet in this session
+	let maxScoreReached = false;
+	if (newCurrentScore > userChapterTicket.maxScore && !userChapterTicket.ongoing.maxScoreReached) {
+		userChapterTicket.maxScore = newCurrentScore;
+		maxScoreReached = true;
+	}
 
 	const updatedOngoingData: Partial<IOngoingSession> = {
 		currentQuestionId: currentQuestionId,
 		questionsAttempted: userChapterTicket?.ongoing?.questionsAttempted + 1,
-		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect,
-		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect + 1,
+		questionsCorrect: userChapterTicket?.ongoing?.questionsCorrect + 1,
+		questionsIncorrect: userChapterTicket?.ongoing?.questionsIncorrect,
 		currentStreak: 0,
-		currentScore: userChapterTicket?.ongoing?.currentScore + xpToAdd,
-		heartsLeft: userChapterTicket?.ongoing?.heartsLeft - 1,
+		currentScore: newCurrentScore,
+		heartsLeft: userChapterTicket?.ongoing?.heartsLeft,
+		maxScoreReached: maxScoreReached || userChapterTicket?.ongoing?.maxScoreReached || false,
 	};
 
-	const questionPool = userChapterTicket.ongoing.questionPool ?? [];
 	userChapterTicket.ongoing = {
 		...userChapterTicket.ongoing,
 		...(updatedOngoingData as IOngoingSession),
 	};
+	
+	// Store maxScoreReached flag for return
+	(userChapterTicket as any).__maxScoreReached = maxScoreReached;
+	
 	return userChapterTicket;
 };
 
@@ -126,10 +156,8 @@ const parseIncorrectOption = async ({
 }) => {
 
     const questionTrueskillData = await QuestionTs.findOne({ quesId: currentQuestionId.toString() }).exec();
-    userChapterTicket?.ongoing.questionsAttemptedList.push(currentQuestionId);
-
-    const xpToSubtract = questionTrueskillData!.xp.incorrect || 10;
-
+    
+    const xpToSubtract = questionTrueskillData?.xp?.incorrect ?? 1;
 	const userXp = (userChapterTicket?.ongoing?.currentScore - xpToSubtract) < 0 ? 0 : (userChapterTicket?.ongoing?.currentScore - xpToSubtract);
 
 	const updatedOngoingData: Partial<IOngoingSession> = {

@@ -63,14 +63,15 @@ namespace UserChapterSessionService {
 				_id: userChapterTicket.ongoing?._id,
 				questionsAttemptedList: [],
 				questionPool: [],
-				currentQuestionId: userChapterTicket.ongoing?.currentQuestionId,
+				currentQuestionId: new mongoose.Types.ObjectId(),
 				lastAttemptedQuestionId: userChapterTicket.ongoing?.lastAttemptedQuestionId,
 				questionsAttempted: userChapterTicket.ongoing?.questionsAttempted ?? 0,
 				questionsCorrect: userChapterTicket.ongoing?.questionsCorrect ?? 0,
 				questionsIncorrect: userChapterTicket.ongoing?.questionsIncorrect ?? 0,
 				currentStreak: userChapterTicket.ongoing?.currentStreak ?? 0,
-				currentScore: userChapterTicket.ongoing?.currentScore ?? 0,
-				heartsLeft: userChapterTicket.ongoing?.heartsLeft ?? 3,
+				currentScore: 0,
+				heartsLeft: 3,
+				maxScoreReached: false,
 			};
 			await userChapterTicket.save();
 		} else {
@@ -86,7 +87,8 @@ namespace UserChapterSessionService {
 					questionsIncorrect: 0,
 					currentStreak: 0,
 					currentScore: 0,
-					heartsLeft: 6,
+					heartsLeft: 3,
+					maxScoreReached: false,
 				},
 				maxStreak: 0,
 				maxScore: 0,

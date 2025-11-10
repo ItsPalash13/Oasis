@@ -17,6 +17,7 @@ export interface IOngoingSession {
   currentQuestionId: mongoose.Types.ObjectId;
   currentScore: number;
   heartsLeft: number;
+  maxScoreReached: boolean;
 }
 
 interface ITrueSkillChangeLogEntry {
@@ -42,6 +43,7 @@ const ongoingSchema = new Schema<IOngoingSession>({
   currentQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
   currentScore: { type: Number, default: 0 },
   heartsLeft: { type: Number, required: true, default: 3 },
+  maxScoreReached: { type: Boolean, default: false },
 }, { _id: true }); 
 
 
