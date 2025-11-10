@@ -1,7 +1,7 @@
 import { logger } from "./../../utils/logger";
 import { UserChapterSessionService } from "./../../services/UserChapterSession";
 import { Question } from "./../../models/Questions";
-import UserChapterTicket, { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
+import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
 import { QuestionTs } from "../../models/QuestionTs";
 import { endQuizSession } from "./EndQuiz";
@@ -62,7 +62,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			if (userChapterTicket.ongoing.heartsLeft <= 0) {
 				// Update TrueSkill before ending
 				await UserChapterSessionService.updateUserQuestionTrueskill({
-					userId: userChapterTicket.userId.toString(),
+					ticketId: (userChapterTicket as any)._id.toString(),
 					questionId: questionId.toString(),
 					isCorrect,
 				});
@@ -74,7 +74,7 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 
 		// TODO: handle trueskill and ticket update with correct and incorrect answer in mongo transaction
 		await UserChapterSessionService.updateUserQuestionTrueskill({
-			userId: userChapterTicket.userId.toString(),
+			ticketId: (userChapterTicket as any)._id.toString(),
 			questionId: questionId.toString(),
 			isCorrect,
 		});

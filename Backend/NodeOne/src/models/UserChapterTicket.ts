@@ -58,8 +58,8 @@ export interface IUserChapterTicket extends Document {
 }
 
 const DifficultySchema = new Schema<IDifficulty>({
-  mu: { type: Number, required: true, default: 936 },
-  sigma: { type: Number, required: true, default: 200 }
+  mu: { type: Number, required: true},
+  sigma: { type: Number, required: true}
 }, { _id: false });  // Disable _id for difficulty subdocument
 
 
@@ -72,7 +72,6 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
     trueSkillScore: {
         type: DifficultySchema,
         required: false,
-        default: {mu: 936, sigma: 200}
     },
     chapterId: {
         type: Schema.Types.ObjectId,
