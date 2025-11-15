@@ -32,6 +32,7 @@ import {
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon, Edit as EditIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import DOMPurify from 'dompurify';
 import {
   useGetQuestionsQuery,
   useCreateQuestionMutation,
@@ -497,30 +498,82 @@ const Questions = () => {
         );
       }
     },
-    { field: 'ques', headerName: 'Question', flex: 1, minWidth: 200 },
+    { 
+      field: 'ques', 
+      headerName: 'Question', 
+      flex: 1, 
+      minWidth: 200,
+      renderCell: (params) => {
+        const quesType = params.row.quesType || 'current';
+        if (quesType === 'html') {
+          return (
+            <Typography
+              variant="body2"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(params.value || '') }}
+              sx={{
+                wordBreak: 'break-word',
+                '& *': {
+                  maxWidth: '100%'
+                }
+              }}
+            />
+          );
+        }
+        return (
+          <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+            {params.value || ''}
+          </Typography>
+        );
+      }
+    },
     { 
       field: 'options', 
       headerName: 'Options', 
       flex: 1, 
       minWidth: 300,
-      renderCell: (params) => (
-        <Box>
-          {params.value?.map((option, index) => (
-            <Chip 
-              key={index} 
-              label={`${index + 1}. ${option}`} 
-              size="small" 
-              variant={Array.isArray(params.row.correct) ? 
-                (params.row.correct.includes(index) ? "filled" : "outlined") : 
-                (params.row.correct === index ? "filled" : "outlined")}
-              color={Array.isArray(params.row.correct) ? 
-                (params.row.correct.includes(index) ? "success" : "default") : 
-                (params.row.correct === index ? "success" : "default")}
-              sx={{ mr: 0.5, mb: 0.5 }}
-            />
-          ))}
-        </Box>
-      )
+      renderCell: (params) => {
+        const optionsType = params.row.optionsType || 'current';
+        return (
+          <Box>
+            {params.value?.map((option, index) => {
+              const isCorrect = Array.isArray(params.row.correct) 
+                ? params.row.correct.includes(index)
+                : params.row.correct === index;
+              
+              if (optionsType === 'html') {
+                return (
+                  <Chip
+                    key={index}
+                    label={
+                      <Typography
+                        variant="caption"
+                        component="span"
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(`${index + 1}. ${option}`) }}
+                        sx={{ '& *': { fontSize: 'inherit' } }}
+                      />
+                    }
+                    size="small"
+                    variant={isCorrect ? "filled" : "outlined"}
+                    color={isCorrect ? "success" : "default"}
+                    sx={{ mr: 0.5, mb: 0.5 }}
+                  />
+                );
+              }
+              
+              return (
+                <Chip 
+                  key={index} 
+                  label={`${index + 1}. ${option}`} 
+                  size="small" 
+                  variant={isCorrect ? "filled" : "outlined"}
+                  color={isCorrect ? "success" : "default"}
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              );
+            })}
+          </Box>
+        );
+      }
     },
     {
       field: 'quesImages',
@@ -726,16 +779,29 @@ const Questions = () => {
       headerName: 'Solution', 
       flex: 1,
       minWidth: 200,
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ 
-          overflow: 'hidden', 
-          textOverflow: 'ellipsis', 
-          whiteSpace: 'nowrap',
-          maxWidth: '100%'
-        }}>
-          {params.value || 'No solution'}
-        </Typography>
-      )
+      renderCell: (params) => {
+        const solutionType = params.row.solutionType || 'current';
+        if (solutionType === 'html') {
+          return (
+            <Typography 
+              variant="body2" 
+              sx={{ 
+              }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(params.value || 'No solution') }}
+            />
+          );
+        }
+        return (
+          <Typography variant="body2" sx={{ 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis', 
+            whiteSpace: 'nowrap',
+            maxWidth: '100%'
+          }}>
+            {params.value || 'No solution'}
+          </Typography>
+        );
+      }
     },
     {
       field: 'actions',

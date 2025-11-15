@@ -4,6 +4,8 @@ import { QuizHeader, QuestionCard, OptionCard, StyledButton, TimeDisplay, XpDisp
 import { Timer as TimerIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, Favorite as HealthIcon } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import DOMPurify from 'dompurify';
+import { renderTextWithLatex } from "../../utils/quesUtils";
 import MaxScoreNotification from "./MaxScoreNotification";
 
 const Quiz = ({ socket }) => {
@@ -424,9 +426,17 @@ const Quiz = ({ socket }) => {
 					<>
 						<QuestionCard>
 							<CardContent sx={quizStyles.questionCardContent}>
-								<Typography variant="h6" sx={quizStyles.questionTitle}>
-									{question.ques}
-								</Typography>
+								{(question.quesType || 'current') === 'html' ? (
+									<Typography 
+										variant="h6" 
+										sx={quizStyles.questionTitle}
+										dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question.ques || '') }}
+									/>
+								) : (
+									<Typography variant="h6" sx={quizStyles.questionTitle}>
+										{renderTextWithLatex(question.ques)}
+									</Typography>
+								)}
 							</CardContent>
 						</QuestionCard>
 
@@ -451,9 +461,33 @@ const Quiz = ({ socket }) => {
 										onClick={() => (result ? null : setSelectedAnswer(idx))}
 									>
 										<CardContent>
-											<Typography variant="subtitle1" align="center">
-												{opt}
-											</Typography>
+											{(question.optionsType || 'current') === 'html' ? (
+												<Typography 
+													variant="subtitle1" 
+													align="center"
+													sx={{
+														wordBreak: 'break-word',
+														'& *': {
+															maxWidth: '100%'
+														}
+													}}
+													dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(opt || '') }}
+												/>
+											) : (
+												<Typography 
+													variant="subtitle1" 
+													align="center"
+													sx={{
+														whiteSpace: 'pre-wrap',
+														wordBreak: 'break-word',
+														'& .katex': {
+															fontSize: '1em'
+														}
+													}}
+												>
+													{renderTextWithLatex(opt)}
+												</Typography>
+											)}
 										</CardContent>
 									</OptionCard>
 								</Grid>

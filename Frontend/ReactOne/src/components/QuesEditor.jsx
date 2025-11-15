@@ -20,6 +20,7 @@ import {
   InputLabel
 } from '@mui/material';
 import { CloudUpload, Image, Lock, LockOpen } from '@mui/icons-material';
+import DOMPurify from 'dompurify';
 import 'katex/dist/katex.min.css';
 import { 
   QuizContainer,
@@ -43,6 +44,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
   const [sigma, setSigma] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [optionImages, setOptionImages] = useState([[], [], [], []]);
+  const [quesType, setQuesType] = useState('current'); // 'current' or 'html'
+  const [optionsType, setOptionsType] = useState('current'); // 'current' or 'html'
+  const [solutionType, setSolutionType] = useState('current'); // 'current' or 'html'
 
   // Check if question has content (either text or images)
   const hasQuestionText = question && question.trim() !== '';
@@ -123,6 +127,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
         xpIncorrect,
         mu,
         sigma,
+        quesType,
+        optionsType,
+        solutionType,
         quesImages: questionImages.map(img => ({
           caption: img.caption,
           width: img.width,
@@ -176,6 +183,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       setSolutionImages([]);
       setOptionImages([[], [], [], []]);
       setGridSize({ xs: 12, sm: 6, md: 3 });
+      setQuesType('current');
+      setOptionsType('current');
+      setSolutionType('current');
 
     } catch (error) {
       console.error('Error saving question:', error);
@@ -196,6 +206,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       setMu(editingQuestion.questionTs?.difficulty?.mu || 0);
       setSigma(editingQuestion.questionTs?.difficulty?.sigma || 1);
       setGridSize(editingQuestion.gridSize || { xs: 12, sm: 6, md: 3 });
+      setQuesType(editingQuestion.quesType || 'current');
+      setOptionsType(editingQuestion.optionsType || 'current');
+      setSolutionType(editingQuestion.solutionType || 'current');
       
       // Set question images
       if (editingQuestion.quesImages && editingQuestion.quesImages.length > 0) {
@@ -263,6 +276,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       setQuestionImages([]);
       setSolutionImages([]);
       setOptionImages([[], [], [], []]);
+      setQuesType('current');
+      setOptionsType('current');
+      setSolutionType('current');
     }
   }, [editingQuestion]);
 
@@ -623,12 +639,23 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       {/* Question Editor */}
       <QuestionCard>
         <CardContent sx={quizStyles.questionCardContent}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Chip 
               label="Question" 
               size="small" 
               sx={quizStyles.questionChip}
             />
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Question Type</InputLabel>
+              <Select
+                value={quesType}
+                label="Question Type"
+                onChange={(e) => setQuesType(e.target.value)}
+              >
+                <MenuItem value="current">Current (LaTeX)</MenuItem>
+                <MenuItem value="html">HTML</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
           <TextField
             fullWidth
@@ -636,7 +663,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
             rows={4}
             variant="outlined"
             label="Question Text"
-            placeholder="Enter your question here... Use <tx>formula</tx> for LaTeX, <b>bold</b>, <i>italic</i>, <u>underline</u> for formatting."
+            placeholder={quesType === 'html' 
+              ? "Enter HTML question here... MathJax tags will be rendered directly."
+              : "Enter your question here... Use <tx>formula</tx> for LaTeX, <b>bold</b>, <i>italic</i>, <u>underline</u> for formatting."}
             value={question}
             onChange={handleQuestionChange}
             sx={{
@@ -808,12 +837,23 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       {/* Options Editors */}
       <QuestionCard>
         <CardContent sx={quizStyles.questionCardContent}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Chip 
               label="Options Layout" 
               size="small" 
               sx={quizStyles.questionChip}
             />
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Options Type</InputLabel>
+              <Select
+                value={optionsType}
+                label="Options Type"
+                onChange={(e) => setOptionsType(e.target.value)}
+              >
+                <MenuItem value="current">Current (LaTeX)</MenuItem>
+                <MenuItem value="html">HTML</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
           
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -879,7 +919,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
                   rows={3}
                   variant="outlined"
                   label={`Option ${optionIndex + 1}`}
-                  placeholder={`Enter option ${optionIndex + 1}...`}
+                  placeholder={optionsType === 'html' 
+                    ? `Enter HTML option ${optionIndex + 1}... MathJax tags will be rendered directly.`
+                    : `Enter option ${optionIndex + 1}...`}
                   value={option}
                   onChange={(e) => handleOptionChange(optionIndex, e)}
                   sx={{
@@ -1088,12 +1130,23 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
       {/* Solution Section */}
       <QuestionCard>
         <CardContent sx={quizStyles.questionCardContent}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Chip 
               label="Solution" 
               size="small" 
               sx={quizStyles.questionChip}
             />
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Solution Type</InputLabel>
+              <Select
+                value={solutionType}
+                label="Solution Type"
+                onChange={(e) => setSolutionType(e.target.value)}
+              >
+                <MenuItem value="current">Current (LaTeX)</MenuItem>
+                <MenuItem value="html">HTML</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
           
           <TextField
@@ -1102,7 +1155,9 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
             rows={4}
             variant="outlined"
             label="Solution"
-            placeholder="Enter solution explanation... Use <tx>formula</tx> for LaTeX, <b>bold</b>, <i>italic</i>, <u>underline</u> for formatting."
+            placeholder={solutionType === 'html' 
+              ? "Enter HTML solution here... MathJax tags will be rendered directly."
+              : "Enter solution explanation... Use <tx>formula</tx> for LaTeX, <b>bold</b>, <i>italic</i>, <u>underline</u> for formatting."}
             value={solution}
             onChange={(e) => setSolution(e.target.value)}
             sx={{
@@ -1369,12 +1424,20 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
             </Box>
             {(hasQuestionText || hasQuestionImages) ? (
               hasQuestionText ? (
-                <Typography 
-                  gutterBottom
-                  sx={quizStyles.questionTitle}
-                >
-                  {renderTextWithLatex(question)}
-                </Typography>
+                quesType === 'html' ? (
+                  <Typography 
+                    gutterBottom
+                    sx={quizStyles.questionTitle}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question) }}
+                  />
+                ) : (
+                  <Typography 
+                    gutterBottom
+                    sx={quizStyles.questionTitle}
+                  >
+                    {renderTextWithLatex(question)}
+                  </Typography>
+                )
               ) : (
                 <Typography 
                   gutterBottom
@@ -1460,18 +1523,32 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Solution:
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    '& .katex': {
-                      fontSize: '1em'
-                    }
-                  }}
-                >
-                  {renderTextWithLatex(solution)}
-                </Typography>
+                {solutionType === 'html' ? (
+                  <Typography 
+                    variant="body2" 
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      '& .katex': {
+                        fontSize: '1em'
+                      }
+                    }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(solution) }}
+                  />
+                ) : (
+                  <Typography 
+                    variant="body2" 
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      '& .katex': {
+                        fontSize: '1em'
+                      }
+                    }}
+                  >
+                    {renderTextWithLatex(solution)}
+                  </Typography>
+                )}
                 
                 {/* Solution Images Preview */}
                 {solutionImages.some(img => img.url) && (
@@ -1557,19 +1634,34 @@ const QuesEditor = ({ selectedChapter, selectedSection, selectedTopics = [], edi
                     
                     if (hasOptionText || hasOptionImages) {
                       return hasOptionText ? (
-                        <Typography 
-                          variant="body1" 
-                          align="center"
-                          sx={{
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            '& .katex': {
-                              fontSize: '1em'
-                            }
-                          }}
-                        >
-                          {renderTextWithLatex(option)}
-                        </Typography>
+                        optionsType === 'html' ? (
+                          <Typography 
+                            variant="body1" 
+                            align="center"
+                            sx={{
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              '& .katex': {
+                                fontSize: '1em'
+                              }
+                            }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(option) }}
+                          />
+                        ) : (
+                          <Typography 
+                            variant="body1" 
+                            align="center"
+                            sx={{
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              '& .katex': {
+                                fontSize: '1em'
+                              }
+                            }}
+                          >
+                            {renderTextWithLatex(option)}
+                          </Typography>
+                        )
                       ) : (
                         <></>
                       );

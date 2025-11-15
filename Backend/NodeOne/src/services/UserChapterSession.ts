@@ -79,6 +79,10 @@ namespace UserChapterSessionService {
 			userChapterTicket = new UserChapterTicket({
 				userId: userObjectId,
 				chapterId: chapterObjectId,
+				trueSkillScore: {
+					mu: 15,
+					sigma: 10,
+				},
 				ongoing: {
 					questionsAttempted: 0,
 					questionPoolUsed: [],

@@ -1,16 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 interface IQuestionImage {
-  file?: File;
-  url: string;
-  caption: string;
-  width: number;
-  height: number;
-  lockRatio: boolean;
-  originalRatio: number;
-}
-
-interface IQuestionImage {
   url: string;
   caption: string;
   width: number;
@@ -29,6 +19,9 @@ interface IQuestion extends Document {
   solutionImages?: IQuestionImage[];
   gridSize?: { xs: number; sm: number; md: number };
   solution: string;
+  quesType?: 'current' | 'html';
+  optionsType?: 'current' | 'html';
+  solutionType?: 'current' | 'html';
   chapterId: mongoose.Types.ObjectId; 
   sectionId?: mongoose.Types.ObjectId;
   topics: Array<{ id: mongoose.Types.ObjectId | string; name: string }>;
@@ -129,6 +122,21 @@ const QuestionSchema = new Schema<IQuestion>({
   },
   solution: {
     type: String
+  },
+  quesType: {
+    type: String,
+    enum: ['current', 'html'],
+    default: 'current'
+  },
+  optionsType: {
+    type: String,
+    enum: ['current', 'html'],
+    default: 'current'
+  },
+  solutionType: {
+    type: String,
+    enum: ['current', 'html'],
+    default: 'current'
   },
   chapterId: {
     type: mongoose.Schema.Types.ObjectId,

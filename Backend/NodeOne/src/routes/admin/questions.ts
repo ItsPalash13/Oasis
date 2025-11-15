@@ -21,7 +21,8 @@ router.post('/', upload.array('files'), async (req: Request, res: Response) => {
     const { 
       ques, options, correct, chapterId, sectionId, topics, 
       xpCorrect, xpIncorrect, mu, sigma, solution,
-      quesImages, optionImages, solutionImages, gridSize
+      quesImages, optionImages, solutionImages, gridSize,
+      quesType, optionsType, solutionType
     } = JSON.parse(req.body.data);
 
     // Validate required fields
@@ -104,7 +105,10 @@ router.post('/', upload.array('files'), async (req: Request, res: Response) => {
       quesImages: quesImages || [],
       optionImages: optionImages || [[], [], [], []],
       solutionImages: solutionImages || [],
-      gridSize: gridSize || { xs: 12, sm: 6, md: 3 }
+      gridSize: gridSize || { xs: 12, sm: 6, md: 3 },
+      quesType: quesType || 'current',
+      optionsType: optionsType || 'current',
+      solutionType: solutionType || 'current'
     });
 
     const savedQuestion = await question.save();
@@ -680,7 +684,8 @@ router.put('/:id', upload.array('files'), async (req: Request, res: Response) =>
     const { 
       ques, options, correct, chapterId, sectionId, topics, 
       xpCorrect, xpIncorrect, mu, sigma, solution,
-      quesImages, optionImages, solutionImages, gridSize
+      quesImages, optionImages, solutionImages, gridSize,
+      quesType, optionsType, solutionType
     } = parsedData;
     
     console.log('Parsed data:', {
@@ -1001,6 +1006,9 @@ router.put('/:id', upload.array('files'), async (req: Request, res: Response) =>
     if (optionImages) question.optionImages = processedOptionImages as any;
     if (solutionImages) question.solutionImages = processedSolutionImages as any;
     if (gridSize) question.gridSize = gridSize;
+    if (quesType !== undefined) question.quesType = quesType || 'current';
+    if (optionsType !== undefined) question.optionsType = optionsType || 'current';
+    if (solutionType !== undefined) question.solutionType = solutionType || 'current';
 
     await question.save();
 
