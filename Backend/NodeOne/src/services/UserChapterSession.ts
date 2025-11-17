@@ -12,7 +12,11 @@ interface IStartChapterSessionResponse {
 	chapterId: string;
 	userChapterTicket: string;
 }
-
+const difficultyAccuracyMapping = {
+	"easy": 0.9,
+	"medium": 0.8,
+	"hard": 0.5,
+}
 namespace UserChapterSessionService {
 	export const getCurrentSessionBySocketTicket = async ({ socketTicket }: { socketTicket: string }) => {
 		console.log("TESTING SOCKET TICKET : ", socketTicket);
@@ -251,6 +255,26 @@ namespace UserChapterSessionService {
 		const [[newUserRating], [newQuestionRating]] = env.rate([[userRating], [questionRating]], ranks);
 
 
+		const numberOfAttempts = userTicket.ongoing?.questionsAttempted || 1;
+		const accuracy = userTicket.ongoing?.questionsCorrect
+			? userTicket.ongoing.questionsCorrect / numberOfAttempts
+			: 0;
+
+		if (numberOfAttempts >= 10) {
+			// Adjust sigma based on accuracy over last 10 questions
+			const targetAccuracy = difficultyAccuracyMapping[
+				currentQMu <= 10 ? "easy" : currentQMu <= 20 ? "medium" : "hard"
+			] || 0.7;
+			
+
+			const accuracyDelta = accuracy - targetAccuracy;
+			
+			// user accuracy ranges from 0 to 1
+
+			// 
+			newUserRating.sigma += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * 5;
+			console.log("Adjusted user sigma based on accuracy: ", newUserRating.sigma);
+		}
 		// Apply lower limits to user rating
 		const clampedUserMu = Math.max(newUserRating.mu, MU_MIN);
 		const clampedUserSigma = Math.max(newUserRating.sigma, SIGMA_MIN);

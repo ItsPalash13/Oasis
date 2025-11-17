@@ -14,6 +14,7 @@ export interface IOngoingSession {
   questionsAttemptedList: Array<mongoose.Types.ObjectId>;
   questionPool: Array<mongoose.Types.ObjectId>;
   lastAttemptedQuestionId: mongoose.Types.ObjectId;
+  lastKAccuracy?: number;
   currentQuestionId: mongoose.Types.ObjectId;
   currentScore: number;
   heartsLeft: number;
@@ -39,6 +40,7 @@ const ongoingSchema = new Schema<IOngoingSession>({
   currentStreak: { type: Number, default: 0 },
   questionPool: [{ type: Schema.Types.ObjectId, ref: "Question" }],
   questionsAttemptedList: [{ type: Schema.Types.ObjectId, ref: "Question" }],
+  lastKAccuracy: { type: Number, default: null },
   lastAttemptedQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
   currentQuestionId: { type: Schema.Types.ObjectId, ref: "Question" },
   currentScore: { type: Number, default: 0 },
