@@ -7,8 +7,10 @@ interface IDifficulty {
 
 interface IQuestionTs extends Document {
   quesId: mongoose.Types.ObjectId;
+  type?: 'single' | 'multicorrect' | 'numerical';
   difficulty: IDifficulty;
   xp: {correct: number, incorrect: number};
+  chapterId:string;
   tsChangeLogs?: Array<{
     timestamp: Date;
     questionId: mongoose.Types.ObjectId;
@@ -32,6 +34,11 @@ const QuestionTsSchema = new Schema<IQuestionTs>({
     required: true,
     ref: 'Question'  // Reference to the Question model
   },
+  type: {
+    type: String,
+    enum: ['single', 'multicorrect', 'numerical'],
+    required: false
+  },
   difficulty: { 
     type: DifficultySchema, 
     required: true 
@@ -40,6 +47,10 @@ const QuestionTsSchema = new Schema<IQuestionTs>({
     type: {correct: Number, incorrect: Number},
     required: true,
     default: {correct: 0, incorrect: 0}
+  },
+  chapterId: {
+    type: String,
+    required: true
   },
   tsChangeLogs: {
     type: [new Schema({

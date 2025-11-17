@@ -16,18 +16,22 @@ export const fetchUserChapterTicketQuestionPool = async ({
 	const muFilterObject =   { $lte: userTrueSkillData.mu };
 
 	if (questionPool?.length < 5) {
-		console.log("REACHED HERE ", userChapterTicket);
+		console.log("REACHED HERE ", {
+			chapterId: userChapterTicket.chapterId.toString(),
+			"difficulty.mu": muFilterObject, //TODO TrueSkill error here
+			quesId: { $nin: questionAttemptedList },
+			type: 'single',
+		});
 		const questions = await QuestionTs.find({
 			chapterId: userChapterTicket.chapterId.toString(),
 			"difficulty.mu": muFilterObject, //TODO TrueSkill error here
 			quesId: { $nin: questionAttemptedList },
-		})
-			.populate("quesId")
-			.sort({ "difficulty.mu": 1 }) // Sort by mu ascending (easiest first)
-			.limit(10)
-			.exec();
+			type: 'single',
+		}).populate("quesId").sort({ "difficulty.mu": 1 }).limit(10).exec();
+		console.log("QUESTIONS1 :", questions);
 		return questions;
 	}
+	console.log("NO QUESTIONS FOUND");
 	return [];
 };
 export const fetchQuestionsByChapterIdAndMu = async ({
@@ -44,6 +48,7 @@ export const fetchQuestionsByChapterIdAndMu = async ({
 	const questions = await QuestionTs.find({
 		chapterId,
 		"difficulty.mu": muFilterObject,
+		type: 'single',
 	})
 		.populate("quesId")
 		.sort({ "difficulty.mu": 1 }) // Sort by mu ascending (easiest first)
@@ -59,6 +64,7 @@ export const fetchQuestionByMu = async ({
 }): Promise<IQuestionTs | null> => {
 	const question = await QuestionTs.findOne({
 		"difficulty.mu": { $gt: mu },
+		type: 'single',
 	})
 		.populate("quesId")
 		.sort({ "difficulty.mu": 1 }) // Sort by mu ascending (easiest first)

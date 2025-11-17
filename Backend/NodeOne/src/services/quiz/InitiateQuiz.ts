@@ -54,6 +54,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			userChapterTicket: userChapterTicket,
 			userTrueSkillData: userTrueskillData.skill,
 		});
+		console.log("QUESTION LIST :", questionList);
 		let questionAttemptedList = userChapterTicket.ongoing.questionsAttemptedList || [];
 		let questionPool = userChapterTicket.ongoing.questionPool || [];
 
