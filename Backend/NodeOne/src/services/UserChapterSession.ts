@@ -3,7 +3,7 @@ import { UserProfile } from "../models/UserProfile";
 import mongoose from "mongoose";
 import { TrueSkill, Rating } from "ts-trueskill";
 import { QuestionTs } from "../models/QuestionTs";
-import { MU_MIN, SIGMA_MIN } from "../config/constants";
+import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../config/constants";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -268,11 +268,19 @@ namespace UserChapterSessionService {
 			
 
 			const accuracyDelta = accuracy - targetAccuracy;
-			
+
+			let scalingFactor = SIGMA_LT_SCALING_FACTOR;
+			if (accuracyDelta >= 0) {
+				scalingFactor = SIGMA_GT_SCALING_FACTOR;
+			}
 			// user accuracy ranges from 0 to 1
 
-			// 
-			newUserRating.sigma += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * 5;
+			// 5 is a scaling factor to control the impact of accuracy on sigma adjustment
+			newUserRating.sigma += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * scalingFactor;
+			
+			// need to test this. ChatGPT generated formula for handling edge cases
+			//newUserRating.sigma += -(accuracyDelta) * Math.sqrt(Math.max(0.02, Math.min(0.98, accuracy)) * (1 - Math.max(0.02, Math.min(0.98, accuracy)))) * scalingFactor;
+
 			console.log("Adjusted user sigma based on accuracy: ", newUserRating.sigma);
 		}
 		// Apply lower limits to user rating
