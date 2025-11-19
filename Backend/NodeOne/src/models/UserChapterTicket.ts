@@ -54,6 +54,7 @@ export interface IUserChapterTicket extends Document {
     chapterId: mongoose.Types.ObjectId;
     trueSkillScore? : IDifficulty;
     ongoing: IOngoingSession;
+    lastPlayedTs: Date;
     maxStreak: number;
     maxScore: number;
     tsChangeLogs?: ITrueSkillChangeLogEntry[];
@@ -80,6 +81,11 @@ const UserChapterTicketSchema = new Schema<IUserChapterTicket>({
         ref: 'Chapter',
         required: true
     }, 
+    lastPlayedTs: {
+        type: Date,
+        required: true,
+        default: () => new Date()
+    },
     ongoing: ongoingSchema,
     tsChangeLogs: {
       type: [new Schema<ITrueSkillChangeLogEntry>({

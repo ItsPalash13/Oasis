@@ -1,9 +1,10 @@
-import UserChapterTicket, { IOngoingSession } from "../models/UserChapterTicket";
-import { UserProfile } from "../models/UserProfile";
+import UserChapterTicket, { IOngoingSession } from "../../models/UserChapterTicket";
+import { UserProfile } from "../../models/UserProfile";
 import mongoose from "mongoose";
 import { TrueSkill, Rating } from "ts-trueskill";
-import { QuestionTs } from "../models/QuestionTs";
-import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../config/constants";
+import { QuestionTs } from "../../models/QuestionTs";
+import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../../config/constants";
+import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -62,6 +63,7 @@ namespace UserChapterSessionService {
 			chapterId: chapterObjectId,
 		});
 
+		const updatedUserSigma = await getUpdatedUserSigmaByLastPlayed({ userChapterTicket: userChapterTicket! });
 		if (userChapterTicket) {
 			// If ticket exists, fill/update the ongoing object
 			userChapterTicket.ongoing = {
@@ -78,6 +80,8 @@ namespace UserChapterSessionService {
 				heartsLeft: 3,
 				maxScoreReached: false,
 			};
+			userChapterTicket.trueSkillScore!.sigma = updatedUserSigma!;
+			userChapterTicket.lastPlayedTs = new Date();
 			await userChapterTicket.save();
 		} else {
 			// If ticket doesn't exist, create it with default ongoing values
@@ -88,6 +92,7 @@ namespace UserChapterSessionService {
 					mu: 15,
 					sigma: 10,
 				},
+				lastPlayedTs: new Date(),
 				ongoing: {
 					questionsAttempted: 0,
 					questionPoolUsed: [],
@@ -102,6 +107,7 @@ namespace UserChapterSessionService {
 				maxStreak: 0,
 				maxScore: 0,
 			});
+			userChapterTicket.trueSkillScore!.sigma = updatedUserSigma!;
 			await userChapterTicket.save();
 		}
 
@@ -127,6 +133,7 @@ namespace UserChapterSessionService {
 			};
 		}
 
+			
 		return {
 			user: {
 				userId: user.userId,
@@ -260,7 +267,9 @@ namespace UserChapterSessionService {
 			? userTicket.ongoing.questionsCorrect / numberOfAttempts
 			: 0;
 
-		if (numberOfAttempts >= 10) {
+
+		let userSigmaUpdated = newUserRating.sigma;
+		if (numberOfAttempts >= 3) {
 			// Adjust sigma based on accuracy over last 10 questions
 			const targetAccuracy = difficultyAccuracyMapping[
 				currentQMu <= 10 ? "easy" : currentQMu <= 20 ? "medium" : "hard"
@@ -276,16 +285,16 @@ namespace UserChapterSessionService {
 			// user accuracy ranges from 0 to 1
 
 			// 5 is a scaling factor to control the impact of accuracy on sigma adjustment
-			newUserRating.sigma += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * scalingFactor;
+			userSigmaUpdated += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * scalingFactor;
 			
 			// need to test this. ChatGPT generated formula for handling edge cases
 			//newUserRating.sigma += -(accuracyDelta) * Math.sqrt(Math.max(0.02, Math.min(0.98, accuracy)) * (1 - Math.max(0.02, Math.min(0.98, accuracy)))) * scalingFactor;
 
-			console.log("Adjusted user sigma based on accuracy: ", newUserRating.sigma);
+			console.log("Adjusted user sigma based on accuracy: ", userSigmaUpdated);
 		}
 		// Apply lower limits to user rating
 		const clampedUserMu = Math.max(newUserRating.mu, MU_MIN);
-		const clampedUserSigma = Math.max(newUserRating.sigma, SIGMA_MIN);
+		const clampedUserSigma = Math.max(userSigmaUpdated, SIGMA_MIN);
 
 		// Apply lower limits to question rating
 		const clampedQuestionMu = Math.max(newQuestionRating.mu, MU_MIN);
