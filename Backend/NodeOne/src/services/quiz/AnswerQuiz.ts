@@ -40,15 +40,15 @@ const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: numb
 			await userChapterTicket.save();
 		} else {
 
-            // if (userChapterTicket.ongoing.heartsLeft - 1 <= 0) {
-            //     return {
-            //         socketResponse: "quizEnded",
-            //         responseData: {
-            //             type: "failure",
-            //             message: "No hearts left",
-            //         },
-            //     };
-            // }
+            if (userChapterTicket.ongoing.heartsLeft - 1 <= 0) {
+                return {
+                    socketResponse: "quizEnded",
+                    responseData: {
+                        type: "failure",
+                        message: "No hearts left",
+                    },
+                };
+            }
 			
             userChapterTicket = await parseIncorrectOption({
                 currentQuestionId: questionIdAsObject,
