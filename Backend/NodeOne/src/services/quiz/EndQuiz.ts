@@ -1,5 +1,5 @@
 import { logger } from "./../../utils/logger";
-import { UserChapterSessionService } from "./../../services/UserChapterSession";
+import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
 import { IOngoingSession,  } from "models/UserChapterTicket";
 
 const endQuizSession = async ({ sessionId, endReason = "manual_end" }: { sessionId?: string; endReason?: string }) => {

@@ -1,9 +1,10 @@
 import { fetchUserChapterTicketQuestionPool } from "./../../services/questions/FetchQuestions";
 import { logger } from "./../../utils/logger";
-import { UserChapterSessionService } from "./../../services/UserChapterSession";
+import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession } from "../../models/UserChapterTicket";
 import { QuestionTs } from "../../models/QuestionTs";
+
 
 const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 	try {
@@ -156,5 +157,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		};
 	}
 };
+
+
 
 export { initiateQuizSession };

@@ -1,5 +1,5 @@
 import { logger } from "./../../utils/logger";
-import { UserChapterSessionService } from "./../../services/UserChapterSession";
+import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
 import { Question } from "./../../models/Questions";
 import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
