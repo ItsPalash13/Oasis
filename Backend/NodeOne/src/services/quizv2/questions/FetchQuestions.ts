@@ -1,6 +1,6 @@
-import { IQuestionTs, QuestionTs } from "./../../models/QuestionTs";
-import { IUserChapterTicket } from "./../../models/UserChapterTicket";
-import { ISkill } from "../../models/UserTs";
+import { IQuestionTs, QuestionTs } from "./../../../models/QuestionTs";
+import { IUserChapterTicket } from "./../../../models/UserChapterTicket";
+import { ISkill } from "../../../models/UserTs";
 
 export const fetchUserChapterTicketQuestionPool = async ({
 	userChapterTicket,

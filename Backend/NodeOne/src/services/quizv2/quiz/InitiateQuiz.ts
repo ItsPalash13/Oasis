@@ -1,9 +1,9 @@
-import { fetchUserChapterTicketQuestionPool } from "./../../services/questions/FetchQuestions";
-import { logger } from "./../../utils/logger";
+import { fetchUserChapterTicketQuestionPool } from "./../../../services/quizv2/questions/FetchQuestions";
+import { logger } from "../../../utils/logger";
 import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
-import { Question } from "./../../models/Questions";
-import { IOngoingSession } from "../../models/UserChapterTicket";
-import { QuestionTs } from "../../models/QuestionTs";
+import { Question } from "../../../models/Questions";
+import { IOngoingSession } from "../../../models/UserChapterTicket";
+import { QuestionTs } from "../../../models/QuestionTs";
 
 
 const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {

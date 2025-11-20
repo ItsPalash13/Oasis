@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
-import { UserChapterSessionService } from "../services/userchapter-session/UserChapterSession";
+import { UserChapterSessionService } from "../services/quizv2/userchapter-session/UserChapterSession";
 import authMiddleware from "../middleware/authMiddleware";
 
 const router = express.Router();

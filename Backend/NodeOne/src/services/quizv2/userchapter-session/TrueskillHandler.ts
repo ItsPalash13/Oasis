@@ -1,5 +1,5 @@
-import { SIGMA_DECAY_CONST } from "../../config/constants";
-import { IUserChapterTicket } from "../../models/UserChapterTicket";
+import { SIGMA_DECAY_CONST } from "../../../config/constants";
+import { IUserChapterTicket } from "../../../models/UserChapterTicket";
 
 const DEFAULT_SIGMA = 10;
 

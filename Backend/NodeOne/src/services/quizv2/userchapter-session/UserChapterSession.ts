@@ -1,9 +1,9 @@
-import UserChapterTicket, { IOngoingSession } from "../../models/UserChapterTicket";
-import { UserProfile } from "../../models/UserProfile";
+import UserChapterTicket, { IOngoingSession } from "../../../models/UserChapterTicket";
+import { UserProfile } from "../../../models/UserProfile";
 import mongoose from "mongoose";
 import { TrueSkill, Rating } from "ts-trueskill";
-import { QuestionTs } from "../../models/QuestionTs";
-import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../../config/constants";
+import { QuestionTs } from "../../../models/QuestionTs";
+import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../../../config/constants";
 import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
 
 interface IStartChapterSessionResponse {

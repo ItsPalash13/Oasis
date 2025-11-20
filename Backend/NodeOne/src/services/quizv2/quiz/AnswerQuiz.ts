@@ -1,9 +1,9 @@
-import { logger } from "./../../utils/logger";
+import { logger } from "../../../utils/logger";
 import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
-import { Question } from "./../../models/Questions";
-import { IOngoingSession, IUserChapterTicket  } from "../../models/UserChapterTicket";
+import { Question } from "../../../models/Questions";
+import { IOngoingSession, IUserChapterTicket  } from "../../../models/UserChapterTicket";
 import mongoose, { mongo } from "mongoose";
-import { QuestionTs } from "../../models/QuestionTs";
+import { QuestionTs } from "../../../models/QuestionTs";
 import { endQuizSession } from "./EndQuiz";
 
 const answerQuizSession = async ({ answerIndex, sessionId }: { answerIndex: number; sessionId?: string }) => {

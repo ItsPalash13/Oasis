@@ -1,4 +1,4 @@
-import { logger } from "./../../utils/logger";
+import { logger } from "../../../utils/logger";
 import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
 import { IOngoingSession,  } from "models/UserChapterTicket";
 

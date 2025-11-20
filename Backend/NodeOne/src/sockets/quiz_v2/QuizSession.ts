@@ -1,8 +1,8 @@
 import { Socket } from "socket.io";
 import { logger } from "./../../utils/logger";
-import { initiateQuizSession } from "../../services/quiz/InitiateQuiz";
-import { answerQuizSession } from "../../services/quiz/AnswerQuiz";
-import { endQuizSession } from "../../services/quiz/EndQuiz";
+import { initiateQuizSession } from "../../services/quizv2/quiz/InitiateQuiz";
+import { answerQuizSession } from "../../services/quizv2/quiz/AnswerQuiz";
+import { endQuizSession } from "../../services/quizv2/quiz/EndQuiz";
 
 export const quizV2Handler = (socket: Socket) => {
 	logger.info(` Quiz v2 socket connected: ${socket.id}`);
