@@ -63,7 +63,10 @@ namespace UserChapterSessionService {
 			chapterId: chapterObjectId,
 		});
 
-		const updatedUserSigma = await getUpdatedUserSigmaByLastPlayed({ userChapterTicket: userChapterTicket! });
+		let updatedUserSigma: number | undefined;
+		if (userChapterTicket) {
+			updatedUserSigma = await getUpdatedUserSigmaByLastPlayed({ userChapterTicket });
+		}
 		if (userChapterTicket) {
 			// If ticket exists, fill/update the ongoing object
 			userChapterTicket.ongoing = {
@@ -80,7 +83,10 @@ namespace UserChapterSessionService {
 				heartsLeft: 3,
 				maxScoreReached: false,
 			};
-			userChapterTicket.trueSkillScore!.sigma = updatedUserSigma!;
+			userChapterTicket.trueSkillScore = {
+				mu: userChapterTicket.trueSkillScore?.mu ?? 15,
+				sigma: updatedUserSigma ?? userChapterTicket.trueSkillScore?.sigma ?? 10,
+			};
 			userChapterTicket.lastPlayedTs = new Date();
 			await userChapterTicket.save();
 		} else {
@@ -107,7 +113,6 @@ namespace UserChapterSessionService {
 				maxStreak: 0,
 				maxScore: 0,
 			});
-			userChapterTicket.trueSkillScore!.sigma = updatedUserSigma!;
 			await userChapterTicket.save();
 		}
 
