@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { useStartGameMutation } from '../features/api/chapterAPI';
+import { useStartGameV3Mutation } from '../features/api/chapterAPI';
 import { setquizSession } from '../features/auth/quizSessionSlice';
 import {
   Typography,
@@ -12,7 +12,7 @@ import { StyledChapterCard, chapterCardStyles } from '../theme/chapterCardTheme'
 const ChapterCard = ({ chapter, onClick }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [startGame] = useStartGameMutation();
+  const [startGameV3] = useStartGameV3Mutation();
   const isActive = chapter.status !== false; // Use status from Chapter data
 
   const handleChapterClick = () => {
@@ -31,19 +31,19 @@ const ChapterCard = ({ chapter, onClick }) => {
     // Old v1 navigation:
     // navigate(`/chapter/${chapter._id}`);
 
-    // New v2 (dummy) start flow
+    // New v3 start flow
     (async () => {
       try {
-        console.log('Starting Quiz v2 via /level_v2/start');
-        const result = await startGame(chapter._id).unwrap();
+        console.log('Starting Quiz v3 via /level_v3/start');
+        const result = await startGameV3(chapter._id).unwrap();
         console.log('Game started result:', result);
         // Map `{ userChapterTicket }` into `{ data: { session: { id } } }` if backend returns ticket
         const mapped = result && result.data ? result : { data: { session: { id: result.userChapterTicket } } };
         dispatch(setquizSession(mapped.data.session));
-        console.log('Navigating to /quiz_v2/', mapped.data.session.id);
-        navigate(`/quiz_v2/${mapped.data.session.id}`);
+        console.log('Navigating to /quiz_v3/', mapped.data.session.id);
+        navigate(`/quiz_v3/${mapped.data.session.id}`);
       } catch (err) {
-        console.error('Quiz v2 start failed:', err);
+        console.error('Quiz v3 start failed:', err);
         // Fallback: if start fails, go to chapter page
         navigate(`/chapter/${chapter._id}`);
       }

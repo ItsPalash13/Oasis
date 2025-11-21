@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 
 import { logger } from '../utils/logger';
 import { quizV2Handler } from './quiz_v2/QuizSession';
+import { quizV3Handler } from './quiz_v3/QuizSession';
 
 export const initializeSocketHandlers = (io: Server) => {
   io.on('connection', (socket) => {
@@ -12,7 +13,8 @@ export const initializeSocketHandlers = (io: Server) => {
 
     //quizSessionHandlers(socket);
     //quizQuestionHandlers(socket);
-    quizV2Handler(socket);
+    //quizV2Handler(socket);
+    quizV3Handler(socket);
 
     // Handle ping
     socket.on('ping', () => {

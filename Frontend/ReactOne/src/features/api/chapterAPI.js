@@ -36,6 +36,13 @@ export const chapterApi = createApi({
         method: 'POST',
         body: { chapterId }
       })
+    }),
+    startGameV3: builder.mutation({
+      query: (chapterId) => ({
+        url: '/level_v3/start',
+        method: 'POST',
+        body: { chapterId }
+      })
     })
   }),
 });
@@ -44,5 +51,6 @@ export const {
   useGetAllChaptersQuery,
   useGetChaptersBySubjectQuery,
   useGetChapterByIdQuery,
-  useStartGameMutation
+  useStartGameMutation,
+  useStartGameV3Mutation
 } = chapterApi; 
