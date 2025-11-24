@@ -1,16 +1,10 @@
-import { SIGMA_DECAY_CONST, MU_MIN, SIGMA_MIN, SIGMA_LT_SCALING_FACTOR, SIGMA_GT_SCALING_FACTOR } from "../../../config/constants";
+import { SIGMA_DECAY_CONST } from "../../../config/constants";
 import UserChapterSession, { IUserChapterSession } from "../../../models/UserChapterSession";
 import { TrueSkill, Rating } from "ts-trueskill";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
 
 const DEFAULT_SIGMA = 10;
-
-const difficultyAccuracyMapping = {
-	"easy": 0.9,
-	"medium": 0.8,
-	"hard": 0.5,
-};
 
 export const getUpdatedUserSigmaByLastPlayed = async ({ userChapterSession }: { userChapterSession: IUserChapterSession }) => {
 	try {
@@ -55,7 +49,8 @@ interface TrueSkillUpdate {
 
 /**
  * Update TrueSkill ratings for user and questions in batch.
- * Calculates all updates first, then applies them together.
+ * User rating is updated using a single multi-player match with all questions.
+ * Question ratings are updated individually using 1v1 matches with initial user rating.
  */
 export const updateUserQuestionTrueskillBatch = async ({
 	sessionId,
@@ -96,20 +91,20 @@ export const updateUserQuestionTrueskillBatch = async ({
 		questionTsMap.set(qts.quesId.toString(), qts);
 	});
 
-	// Current user ratings (will be updated as we process each question)
-	let currentUserMu = userSession.trueSkillScore?.mu ?? 15;
-	let currentUserSigma = userSession.trueSkillScore?.sigma ?? 10;
-
-	// Store all updates to apply later
-	const updates: TrueSkillUpdate[] = [];
-	const questionUpdates: Map<string, { mu: number; sigma: number }> = new Map();
+	// Store initial user rating (same for all calculations)
+	const initialUserMu = userSession.trueSkillScore?.mu ?? 15;
+	const initialUserSigma = userSession.trueSkillScore?.sigma ?? 10;
+	const initialUserRating = new Rating(initialUserMu, initialUserSigma);
 
 	const env = new TrueSkill();
-	const numberOfAttempts = userSession.ongoing?.questionsAttempted || 0;
-	const questionsCorrect = userSession.ongoing?.questionsCorrect || 0;
-	const accuracy = numberOfAttempts > 0 ? questionsCorrect / numberOfAttempts : 0;
+	const updates: TrueSkillUpdate[] = [];
 
-	// Calculate all TrueSkill updates first
+	// Build arrays for multi-player match (user + all questions)
+	const questionRatings: Rating[] = [];
+	const ranks: number[] = [0]; // User rank is always 0 (user is the player)
+	const questionData: Array<{ questionId: string; beforeQts: { mu: number; sigma: number } }> = [];
+
+	// Prepare question ratings and ranks for multi-player match
 	for (const answer of answeredQuestions) {
 		const questionTs = questionTsMap.get(answer.questionId);
 		if (!questionTs) {
@@ -119,66 +114,70 @@ export const updateUserQuestionTrueskillBatch = async ({
 
 		const currentQMu = questionTs.difficulty?.mu ?? 15;
 		const currentQSigma = questionTs.difficulty?.sigma ?? 10;
-
-		// Store before values
-		const beforeUts = { mu: currentUserMu, sigma: currentUserSigma };
-		const beforeQts = { mu: currentQMu, sigma: currentQSigma };
-
-		// Calculate TrueSkill update
-		const userRating = new Rating(currentUserMu, currentUserSigma);
 		const questionRating = new Rating(currentQMu, currentQSigma);
 
-		// Rank 1 is winner (lower is better). If user is correct, user wins
-		const ranks = answer.isCorrect ? [1, 2] : [2, 1];
-		const [[newUserRating], [newQuestionRating]] = env.rate([[userRating], [questionRating]], ranks);
-
-		// Adjust user sigma based on accuracy (similar to v2 logic)
-		let userSigmaUpdated = newUserRating.sigma;
-		if (numberOfAttempts + answeredQuestions.length >= 3) {
-			const targetAccuracy = difficultyAccuracyMapping[
-				currentQMu <= 10 ? "easy" : currentQMu <= 20 ? "medium" : "hard"
-			] || 0.7;
-
-			const accuracyDelta = accuracy - targetAccuracy;
-			let scalingFactor = SIGMA_LT_SCALING_FACTOR;
-			if (accuracyDelta >= 0) {
-				scalingFactor = SIGMA_GT_SCALING_FACTOR;
-			}
-
-			userSigmaUpdated += -(accuracyDelta) * Math.sqrt(accuracy * (1 - accuracy)) * scalingFactor;
-		}
-
-		// Apply lower limits
-		const clampedUserMu = Math.max(newUserRating.mu, MU_MIN);
-		const clampedUserSigma = Math.max(userSigmaUpdated, SIGMA_MIN);
-		const clampedQuestionMu = Math.max(newQuestionRating.mu, MU_MIN);
-		const clampedQuestionSigma = Math.max(newQuestionRating.sigma, SIGMA_MIN);
-
-		// Update current user ratings for next iteration (sequential updates)
-		currentUserMu = clampedUserMu;
-		currentUserSigma = clampedUserSigma;
-
-		// Store update
-		updates.push({
-			questionId: new mongoose.Types.ObjectId(answer.questionId),
-			isCorrect: answer.isCorrect,
-			beforeUts,
-			beforeQts,
-			afterUts: { mu: clampedUserMu, sigma: clampedUserSigma },
-			afterQts: { mu: clampedQuestionMu, sigma: clampedQuestionSigma },
-		});
-
-		// Store question update
-		questionUpdates.set(answer.questionId, {
-			mu: clampedQuestionMu,
-			sigma: clampedQuestionSigma,
+		questionRatings.push(questionRating);
+		// Question rank: 0 if user was correct (user wins), 1 if user was incorrect (question wins)
+		ranks.push(answer.isCorrect ? 0 : 1);
+		
+		questionData.push({
+			questionId: answer.questionId,
+			beforeQts: { mu: currentQMu, sigma: currentQSigma },
 		});
 	}
 
-	// Now apply all updates in batch
+	// Calculate user rating using multi-player match
+	// Format: [[userRating], [q1Rating], [q2Rating], ...]
+	const allRatings = [[initialUserRating], ...questionRatings.map(r => [r])];
+	const updatedRatings = env.rate(allRatings, ranks);
+	
+	// Extract updated user rating (first element)
+	const newUserRating = updatedRatings[0][0];
+	const finalUserMu = newUserRating.mu;
+	const finalUserSigma = newUserRating.sigma;
+
+	// Store before values for user
+	const beforeUts = { mu: initialUserMu, sigma: initialUserSigma };
+
+	// Now calculate individual 1v1 updates for each question using initial user rating
+	const questionUpdates: Map<string, { mu: number; sigma: number }> = new Map();
+	
+	for (let i = 0; i < questionData.length; i++) {
+		const { questionId, beforeQts } = questionData[i];
+		const answer = answeredQuestions.find(a => a.questionId === questionId);
+		if (!answer) continue;
+
+		const questionRating = questionRatings[i];
+		
+		// Perform 1v1 match using initial user rating
+		// Rank: [1, 2] if user is correct (user wins), [2, 1] if user is incorrect (question wins)
+		const oneVoneRanks = answer.isCorrect ? [1, 2] : [2, 1];
+		const [[], [newQuestionRating]] = env.rate([[initialUserRating], [questionRating]], oneVoneRanks);
+
+		const finalQuestionMu = newQuestionRating.mu;
+		const finalQuestionSigma = newQuestionRating.sigma;
+
+		// Store question update
+		questionUpdates.set(questionId, {
+			mu: finalQuestionMu,
+			sigma: finalQuestionSigma,
+		});
+
+		// Store update for changelog
+		updates.push({
+			questionId: new mongoose.Types.ObjectId(questionId),
+			isCorrect: answer.isCorrect,
+			beforeUts,
+			beforeQts,
+			afterUts: { mu: finalUserMu, sigma: finalUserSigma },
+			afterQts: { mu: finalQuestionMu, sigma: finalQuestionSigma },
+		});
+	}
+
+	// Update user session with final rating
 	userSession.trueSkillScore = {
-		mu: currentUserMu,
-		sigma: currentUserSigma,
+		mu: finalUserMu,
+		sigma: finalUserSigma,
 	};
 
 	// Append changelog entries
