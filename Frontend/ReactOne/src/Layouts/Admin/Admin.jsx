@@ -45,13 +45,13 @@ export default function Admin() {
     const allTabs = [
       { label: 'Subjects', component: 'Subjects' },
       { label: 'Chapters', component: 'Chapters' },
-      { label: 'Topics', component: 'Topics' },
-      { label: 'Sections', component: 'Sections' },
-      { label: 'Units', component: 'Units' },
+      // { label: 'Topics', component: 'Topics' },
+      // { label: 'Sections', component: 'Sections' },
+      // { label: 'Units', component: 'Units' },
       { label: 'Questions', component: 'Questions' },
-      { label: 'Levels', component: 'Levels' },
+      // { label: 'Levels', component: 'Levels' },
       { label: 'Users', component: 'Users' },
-      { label: 'Badges', component: 'Badges' },
+      // { label: 'Badges', component: 'Badges' },
       { label: 'Organizations', component: 'Organizations' }
     ];
 
@@ -138,13 +138,13 @@ export default function Admin() {
         const components = {
           'Subjects': <SubjectAdmin />,
           'Chapters': <ChapterAdmin />,
-          'Topics': <TopicsAdmin />,
-          'Sections': <SectionsAdmin />,
-          'Units': <UnitsAdmin />,
+          // 'Topics': <TopicsAdmin />,
+          // 'Sections': <SectionsAdmin />,
+          // 'Units': <UnitsAdmin />,
           'Questions': <QuestionsAdmin />,
-          'Levels': <LevelsAdmin />,
+          // 'Levels': <LevelsAdmin />,
           'Users': <UsersAdmin />,
-          'Badges': <BadgeAdmin />,
+          // 'Badges': <BadgeAdmin />,
           'Organizations': <OrganizationAdmin />
         };
         
