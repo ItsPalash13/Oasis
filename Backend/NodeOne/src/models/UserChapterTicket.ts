@@ -114,4 +114,4 @@ const UserChapterTicket = mongoose.model<IUserChapterTicket>('UserChapterTicket'
 
 export type UserChapterTicketType = typeof UserChapterTicket;
 
-export default UserChapterTicket;
+// export default UserChapterTicket;

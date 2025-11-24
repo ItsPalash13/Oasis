@@ -4,6 +4,8 @@ import { Question } from "../../../models/Questions";
 import { updateUserQuestionTrueskillBatch } from "../userchapter-session/TrueskillHandler";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
+import { USER_RATING_DEFAULT } from "../../../config/constants";
+import UserRatingService from "../user/rating/UserRatingService";
 
 interface AnswerSubmission {
 	questionId: string;
@@ -67,7 +69,7 @@ const submitQuizSession = async ({
 		// Create a map for quick lookup
 		const questionMap = new Map();
 		questions.forEach(q => {
-			questionMap.set(q._id.toString(), q);
+			questionMap.set((q._id as any).toString(), q);
 		});
 
 		// Process each answer and check correctness
@@ -138,6 +140,12 @@ const submitQuizSession = async ({
 			userChapterSession.maxScore = currentScore;
 		}
 
+		const updatedUserRating = UserRatingService.calculateUserRatingByCurrentRatingAndMu({
+			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
+			mu: userChapterSession.trueSkillScore?.mu || 3,
+		});
+
+		userChapterSession.userRating = updatedUserRating;
 		userChapterSession.lastPlayedTs = new Date();
 		await userChapterSession.save();
 

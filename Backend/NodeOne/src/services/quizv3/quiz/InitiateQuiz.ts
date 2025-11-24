@@ -95,9 +95,9 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 
 		// Parse questions for frontend
 		const parsedQuestions = questions.map((q, index) => {
-			const questionTs = questionTsMap.get(q._id.toString());
+			const questionTs = questionTsMap.get((q._id as any).toString());
 			return {
-				id: q._id.toString(),
+				id: (q._id as any).toString(),
 				ques: q.ques,
 				options: q.options,
 				correctAnswer: q.correct,

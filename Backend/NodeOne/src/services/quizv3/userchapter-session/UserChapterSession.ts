@@ -67,6 +67,7 @@ namespace UserChapterSessionService {
 				mu: userChapterSession.trueSkillScore?.mu ?? 15,
 				sigma: updatedUserSigma ?? userChapterSession.trueSkillScore?.sigma ?? 10,
 			};
+			userChapterSession.userRating = userChapterSession.userRating ?? 0;
 			userChapterSession.lastPlayedTs = new Date();
 		} else {
 			// If session doesn't exist, create it with default values (without ongoing)
@@ -77,6 +78,7 @@ namespace UserChapterSessionService {
 					mu: 15,
 					sigma: 10,
 				},
+				userRating: 0,
 				lastPlayedTs: new Date(),
 				maxScore: 0,
 			});

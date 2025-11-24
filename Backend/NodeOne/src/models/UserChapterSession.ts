@@ -45,6 +45,7 @@ export interface IUserChapterSession extends Document {
   trueSkillScore?: IDifficulty;
   ongoing?: IOngoingSessionV3;
   lastPlayedTs: Date;
+  userRating: number;
   maxScore: number;
   tsChangeLogs?: ITrueSkillChangeLogEntry[];
 }
@@ -63,6 +64,11 @@ const UserChapterSessionSchema = new Schema<IUserChapterSession>({
   trueSkillScore: {
     type: DifficultySchema,
     required: false,
+  },
+  userRating: {
+    type: Number,
+    required: true,
+    default: 0
   },
   chapterId: {
     type: Schema.Types.ObjectId,
