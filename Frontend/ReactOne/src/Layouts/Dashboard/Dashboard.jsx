@@ -11,7 +11,6 @@ import { useTheme } from '@mui/material/styles';
 const ChaptersBySubject = ({ darkMode }) => {
   const subjects = [
     { name: 'Physics', slug: 'phy', icon: '' },
-    { name: 'Mathematics', slug: 'math', icon: '' },
     { name: 'Chemistry', slug: 'chem', icon: '' }
   ];
 

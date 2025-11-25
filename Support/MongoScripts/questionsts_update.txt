@@ -1,0 +1,100 @@
+const cursor = db.questions.aggregate([
+  { 
+    $match: { 
+      chapterId: ObjectId("6918c031a230eb058f3eb240") 
+    } 
+  },
+
+  // -------- Normalize exam prefix --------
+  {
+    $addFields: {
+      prefix: {
+        $switch: {
+          branches: [
+            // AIMPT (NEET)
+            { case: { $regexMatch: { input: "$exam_year", regex: /^NEET/i } }, then: "AIMPT" },
+            { case: { $regexMatch: { input: "$exam_year", regex: /^AIMPT/i } }, then: "AIMPT" },
+
+            // WB JEE (includes MHT CET)
+            { case: { $regexMatch: { input: "$exam_year", regex: /^MHT CET/i } }, then: "WB JEE" },
+            { case: { $regexMatch: { input: "$exam_year", regex: /^WB JEE/i } }, then: "WB JEE" },
+
+            // COMEDK
+            { case: { $regexMatch: { input: "$exam_year", regex: /^COMEDK/i } }, then: "COMEDK" },
+
+            // BITSAT
+            { case: { $regexMatch: { input: "$exam_year", regex: /^BITSAT/i } }, then: "BITSAT" },
+
+            // AIEEE (JEE Main)
+            { case: { $regexMatch: { input: "$exam_year", regex: /^JEE Main/i } }, then: "AIEEE" },
+            { case: { $regexMatch: { input: "$exam_year", regex: /^AIEEE/i } }, then: "AIEEE" },
+
+            // IIT-JEE (JEE Advanced)
+            { case: { $regexMatch: { input: "$exam_year", regex: /^JEE Advanced/i } }, then: "IIT-JEE" },
+            { case: { $regexMatch: { input: "$exam_year", regex: /^IIT-JEE/i } }, then: "IIT-JEE" }
+          ],
+          default: null
+        }
+      }
+    }
+  },
+
+  // -------- Assign difficulty --------
+  {
+    $addFields: {
+      difficulty: {
+        mu: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$prefix", "AIMPT"] }, then: 3.5 },
+              { case: { $eq: ["$prefix", "WB JEE"] }, then: 7.0 },
+              { case: { $eq: ["$prefix", "COMEDK"] }, then: 10.5 },
+              { case: { $eq: ["$prefix", "BITSAT"] }, then: 14.0 },
+              { case: { $eq: ["$prefix", "AIEEE"] }, then: 17.5 },
+              { case: { $eq: ["$prefix", "IIT-JEE"] }, then: 21.0 }
+            ],
+            default: null
+          }
+        },
+        sigma: 3
+      },
+
+      xp: { correct: 2, incorrect: 0 }
+    }
+  },
+
+  // -------- Final structure --------
+  {
+    $project: {
+      _id: 0,
+      quesId: "$_id",
+      chapterId: { $toString: "$chapterId" },
+      difficulty: 1,
+      xp: 1
+    }
+  }
+], { allowDiskUse: true });
+
+
+// -------- Bulk upsert into questionsts --------
+let ops = [];
+
+cursor.forEach(doc => {
+  ops.push({
+    updateOne: {
+      filter: { quesId: doc.quesId },
+      update: { $set: doc },
+      upsert: true
+    }
+  });
+
+  if (ops.length >= 500) {
+    db.questionsts.bulkWrite(ops, { ordered: false });
+    ops = [];
+  }
+});
+
+// run pending
+if (ops.length) {
+  db.questionsts.bulkWrite(ops, { ordered: false });
+}
