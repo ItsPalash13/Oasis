@@ -99,7 +99,7 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
             </Typography>
             {isActive && rankName && (
               <Chip
-                label={rankName}
+                label={`${rankName}, ${userRating}`}
                 size="small"
                 sx={{
                   height: '20px',
