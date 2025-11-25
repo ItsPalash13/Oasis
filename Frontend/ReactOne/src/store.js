@@ -3,6 +3,7 @@ import { userApi } from './features/api/userAPI';
 import { levelApi } from './features/api/levelAPI';
 import { chapterApi } from './features/api/chapterAPI';
 import { performanceApi } from './features/api/performanceAPI';
+import { metadataApi } from './features/api/metadataAPI';
 import authReducer from './features/auth/authSlice';
 import levelSessionReducer from './features/auth/levelSessionSlice';
 import quizSessionReducer from './features/auth/quizSessionSlice';
@@ -17,6 +18,7 @@ export const store = configureStore({
     [levelApi.reducerPath]: levelApi.reducer,
     [chapterApi.reducerPath]: chapterApi.reducer,
     [performanceApi.reducerPath]: performanceApi.reducer,
+    [metadataApi.reducerPath]: metadataApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -25,6 +27,7 @@ export const store = configureStore({
       levelApi.middleware,
       chapterApi.middleware,
       performanceApi.middleware,
+      metadataApi.middleware,
       adminApi.middleware
     ),
 });

@@ -7,6 +7,8 @@ export interface IMetadata extends Document {
   imageUrl: string;
   description?: string;
   status?: boolean;
+  minRank?: number;
+  maxRank?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +44,14 @@ const MetadataSchema = new Schema<IMetadata>(
     status: {
       type: Boolean,
       default: true
+    },
+    minRank: {
+      type: Number,
+      required: false
+    },
+    maxRank: {
+      type: Number,
+      required: false
     }
   },
   {

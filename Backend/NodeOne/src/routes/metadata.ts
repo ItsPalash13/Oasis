@@ -4,7 +4,7 @@ import { IMetadata, Metadata} from "../models/Metadata";
 
 const router = express.Router();
 
-const getAllMetadataRouter = async (req: Request, res: Response, next: NextFunction) => {
+const getAllMetadataRouter = async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const metadataList: IMetadata[] = await Metadata.find().exec();
         return res.json({ success: true, data: metadataList });

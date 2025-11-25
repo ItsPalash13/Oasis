@@ -1,0 +1,33 @@
+[
+  {
+    "metadataId": "rank_silver",
+    "metadataType": "Rank",
+    "metadataName": "Silver",
+    "imageUrl": "https://via.placeholder.com/100/C0C0C0/FFFFFF?text=Silver",
+    "description": "Silver rank - Beginner level",
+    "status": true,
+    "minRank": 0,
+    "maxRank": 499
+  },
+  {
+    "metadataId": "rank_gold",
+    "metadataType": "Rank",
+    "metadataName": "Gold",
+    "imageUrl": "https://via.placeholder.com/100/FFD700/000000?text=Gold",
+    "description": "Gold rank - Intermediate level",
+    "status": true,
+    "minRank": 500,
+    "maxRank": 999
+  },
+  {
+    "metadataId": "rank_platinum",
+    "metadataType": "Rank",
+    "metadataName": "Platinum",
+    "imageUrl": "https://via.placeholder.com/100/E5E4E2/000000?text=Platinum",
+    "description": "Platinum rank - Advanced level",
+    "status": true,
+    "minRank": 1000,
+    "maxRank": 9999
+  }
+]
+

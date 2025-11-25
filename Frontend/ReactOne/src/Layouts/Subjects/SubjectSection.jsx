@@ -12,7 +12,7 @@ import { useGetChaptersBySubjectQuery } from '../../features/api/chapterAPI';
 import ChapterCard from '../../components/ChapterCard';
 import { subjectSectionStyles } from '../../theme/subjectSectionTheme';
 
-const SubjectSection = ({ subject }) => {
+const SubjectSection = ({ subject, metadataList = [], chapterSessionsMap = {} }) => {
   const { data: chaptersData, isLoading, error } = useGetChaptersBySubjectQuery(subject.slug);
   const scrollContainerRef = React.useRef(null);
   const [showScrollButtons, setShowScrollButtons] = React.useState(false);
@@ -103,14 +103,19 @@ const SubjectSection = ({ subject }) => {
             ref={scrollContainerRef}
             sx={subjectSectionStyles.chaptersContainer}
           >
-            {chapters.map((chapter) => (
-              <Box key={chapter._id} sx={subjectSectionStyles.chapterItem}>
-                <ChapterCard 
-                  chapter={chapter} 
-                  onClick={handleChapterClick}
-                />
-              </Box>
-            ))}
+            {chapters.map((chapter) => {
+              const userRating = chapterSessionsMap[chapter._id] || 0;
+              return (
+                <Box key={chapter._id} sx={subjectSectionStyles.chapterItem}>
+                  <ChapterCard 
+                    chapter={chapter} 
+                    onClick={handleChapterClick}
+                    userRating={userRating}
+                    metadataList={metadataList}
+                  />
+                </Box>
+              );
+            })}
           </Box>
         </Box>
       ) : (
