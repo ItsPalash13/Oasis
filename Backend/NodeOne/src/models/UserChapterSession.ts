@@ -39,11 +39,33 @@ const ongoingSchemaV3 = new Schema<IOngoingSessionV3>({
   currentScore: { type: Number, default: 0 },
 }, { _id: true });
 
+
+export interface IUserChapterAnalytics {
+  totalQuestionsAttempted: number;
+  totalQuestionsCorrect: number;
+  totalQuestionsIncorrect: number;
+
+  questionsAttemptPerDay: number,
+  estDaysToComplete: number,
+  strengthStatus: number; // 0 - 5 
+}
+
+const UserChapterAnalyticsSchema = new Schema<IUserChapterAnalytics>({
+  totalQuestionsAttempted: { type: Number, default: 0 },
+  totalQuestionsCorrect: { type: Number, default: 0 },
+  totalQuestionsIncorrect: { type: Number, default: 0 },
+
+  questionsAttemptPerDay: { type: Number, default: 0 },
+  estDaysToComplete: { type: Number, default: 0 },
+  strengthStatus: { type: Number, default: 0 },
+});
+
 export interface IUserChapterSession extends Document {
   userId: mongoose.Types.ObjectId;
   chapterId: mongoose.Types.ObjectId;
   trueSkillScore?: IDifficulty;
   ongoing?: IOngoingSessionV3;
+  analytics: IUserChapterAnalytics;
   lastPlayedTs: Date;
   userRating: number;
   maxScore: number;
@@ -82,6 +104,10 @@ const UserChapterSessionSchema = new Schema<IUserChapterSession>({
   },
   ongoing: {
     type: ongoingSchemaV3,
+    required: false,
+  },
+  analytics: {
+    type: UserChapterAnalyticsSchema,
     required: false,
   },
   tsChangeLogs: {

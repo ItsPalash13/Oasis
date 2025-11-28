@@ -74,6 +74,14 @@ namespace UserChapterSessionService {
 			userChapterSession = new UserChapterSession({
 				userId: userObjectId,
 				chapterId: chapterObjectId,
+				analytics: {
+					totalQuestionsAttempted: 0,
+					totalQuestionsCorrect: 0,
+					totalQuestionsIncorrect: 0,
+					questionsAttemptPerDay: 0,
+					estDaysToComplete: 0,
+					strengthStatus: 0,
+				},
 				trueSkillScore: {
 					mu: 15,
 					sigma: 10,
