@@ -102,6 +102,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			}
 
 			// Check if answer is correct
+			console.log("Question IS ", JSON.stringify(question, null, 2));
 			const isCorrect = question.correct.includes(answer.answerIndex);
 			questionsAttempted++;
 
@@ -188,28 +189,56 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		// Calculate accuracy
 		const accuracy = questionsAttempted > 0 ? Math.round((questionsCorrect / questionsAttempted) * 100) : 0;
 
+		// Initialize analytics if not present
+		if (!userProfile.analytics) {
+			userProfile.analytics = {
+				totalQuestionsAttempted: 0,
+				totalQuestionsCorrect: 0,
+				totalQuestionsIncorrect: 0,
+				strengths: [],
+				weaknesses: [],
+			};
+		}
+
+		// Initialize analytics properties if not present
+		if (userProfile.analytics.totalQuestionsAttempted === undefined || userProfile.analytics.totalQuestionsAttempted === null) {
+			userProfile.analytics.totalQuestionsAttempted = 0;
+		}
+		if (userProfile.analytics.totalQuestionsCorrect === undefined || userProfile.analytics.totalQuestionsCorrect === null) {
+			userProfile.analytics.totalQuestionsCorrect = 0;
+		}
+		if (userProfile.analytics.totalQuestionsIncorrect === undefined || userProfile.analytics.totalQuestionsIncorrect === null) {
+			userProfile.analytics.totalQuestionsIncorrect = 0;
+		}
+		if (!Array.isArray(userProfile.analytics.strengths)) {
+			userProfile.analytics.strengths = [];
+		}
+		if (!Array.isArray(userProfile.analytics.weaknesses)) {
+			userProfile.analytics.weaknesses = [];
+		}
+
 		// update UserProfile
-		userProfile.analytics!.totalQuestionsAttempted += questionsAttempted;
-		userProfile.analytics!.totalQuestionsCorrect += questionsCorrect;
-		userProfile.analytics!.totalQuestionsIncorrect += questionsIncorrect;
+		userProfile.analytics.totalQuestionsAttempted += questionsAttempted;
+		userProfile.analytics.totalQuestionsCorrect += questionsCorrect;
+		userProfile.analytics.totalQuestionsIncorrect += questionsIncorrect;
 
 		if (updatedStrength >= 4) {
-			userProfile.analytics!.strengths.push(userChapterSession.chapterId);
+			userProfile.analytics.strengths.push(userChapterSession.chapterId);
 			// Remove from weaknesses if present
-			userProfile.analytics!.weaknesses = userProfile.analytics!.weaknesses.filter(
+			userProfile.analytics.weaknesses = userProfile.analytics.weaknesses.filter(
 				(tid) => tid.toString() !== userChapterSession.chapterId.toString()
 			);
 		} else if (updatedStrength <= 2) {
-			userProfile.analytics!.weaknesses.push(userChapterSession.chapterId);
+			userProfile.analytics.weaknesses.push(userChapterSession.chapterId);
 			// Remove from strengths if present
-			userProfile.analytics!.strengths = userProfile.analytics!.strengths.filter(
+			userProfile.analytics.strengths = userProfile.analytics.strengths.filter(
 				(tid) => tid.toString() !== userChapterSession.chapterId.toString()
 			);
 		}
 		
 		// Remove duplicates from strengths and weaknesses
 		const seenStrengths = new Set<string>();
-		userProfile.analytics!.strengths = userProfile.analytics!.strengths.filter((tid) => {
+		userProfile.analytics.strengths = userProfile.analytics.strengths.filter((tid) => {
 			const str = tid.toString();
 			if (seenStrengths.has(str)) return false;
 			seenStrengths.add(str);
@@ -217,7 +246,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		});
 		
 		const seenWeaknesses = new Set<string>();
-		userProfile.analytics!.weaknesses = userProfile.analytics!.weaknesses.filter((tid) => {
+		userProfile.analytics.weaknesses = userProfile.analytics.weaknesses.filter((tid) => {
 			const str = tid.toString();
 			if (seenWeaknesses.has(str)) return false;
 			seenWeaknesses.add(str);

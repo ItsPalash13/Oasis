@@ -31,10 +31,19 @@ router.get('/info/:userId', authMiddleware, async (req: Request, res: Response) 
     if (!authUser || authUser.id !== userId) {
       return res.status(403).json({ success: false, error: 'Forbidden' });
     }
-    const user = await UserProfile.findOne({ userId }).populate({
-      path: 'badges.badgeId',
-      select: 'badgeName badgeType badgeslug badgeDescription badgelevel',
-    });
+    const user = await UserProfile.findOne({ userId })
+      .populate({
+        path: 'badges.badgeId',
+        select: 'badgeName badgeType badgeslug badgeDescription badgelevel',
+      })
+      .populate({
+        path: 'analytics.strengths',
+        select: '_id topic',
+      })
+      .populate({
+        path: 'analytics.weaknesses',
+        select: '_id topic',
+      });
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
