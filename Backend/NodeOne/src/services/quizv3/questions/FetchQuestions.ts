@@ -1,5 +1,7 @@
+import { Question } from "../../../models/Questions";
 import { IQuestionTs, QuestionTs } from "./../../../models/QuestionTs";
 import { IUserChapterSession } from "./../../../models/UserChapterSession";
+import mongoose from "mongoose";
 
 export const fetchQuestionsByChapterIdAndMuRange = async ({
 	chapterId,
@@ -47,3 +49,16 @@ export const fetchUserChapterSessionQuestionPool = async ({
 	return questions;
 };
 
+export const getQuestionCountByChapterId = async ({chapterId}: {chapterId: string}) => {
+	const result = await Question.aggregate([
+		{
+			$match: {
+				chapterId: new mongoose.Types.ObjectId(chapterId)
+			}
+		},
+		{
+			$count: "total"
+		}
+	]);
+	return result[0]?.total || 0;
+};

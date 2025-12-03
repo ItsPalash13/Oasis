@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import { USER_RATING_DEFAULT } from "../../../config/constants";
 import UserRatingService from "../user/rating/UserRatingService";
 import { UserProfile } from "../../../models/UserProfile";
+import { getQuestionCountByChapterId } from "../questions/FetchQuestions";
 
 interface AnswerSubmission {
 	questionId: string;
@@ -151,7 +152,9 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 					(new Date().getTime() - userChapterSession.lastPlayedTs.getTime()) / (1000 * 60 * 60 * 24)
 				)
 		);
-
+		const questionCount = await getQuestionCountByChapterId({chapterId: userChapterSession.chapterId.toString()});
+		const progressPercentage = (questionsCorrect / questionCount) * 100;
+		userChapterSession.analytics.estDaysToComplete = userChapterSession.analytics.questionsAttemptPerDay * (100 / progressPercentage);
 		const currentStrength = Math.min(
 			5,
 			Math.floor(
@@ -164,7 +167,6 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			0.6 * currentStrength + 0.4 * userChapterSession.analytics.strengthStatus
 		);
 		userChapterSession.analytics.strengthStatus = updatedStrength;
-		userChapterSession.analytics.estDaysToComplete = 0; // TODO implement estimation logic
 
 		// Update maxScore if current score is higher
 		if (currentScore > userChapterSession.maxScore) {
