@@ -8,7 +8,7 @@ interface IDifficulty {
 export interface IOngoingSessionV3 {
   _id?: mongoose.Types.ObjectId;
   questions: Array<mongoose.Types.ObjectId>; // Array of question IDs (currently 3)
-  answers: Array<{ questionId: mongoose.Types.ObjectId; answerIndex: number | null }>; // User's answers
+  answers: Array<{ questionId: mongoose.Types.ObjectId; answerIndex: number | number[] | null }>; // User's answers
   questionsAttempted: number;
   questionsCorrect: number;
   questionsIncorrect: number;
@@ -31,7 +31,7 @@ const ongoingSchemaV3 = new Schema<IOngoingSessionV3>({
   questions: [{ type: Schema.Types.ObjectId, ref: "Question" }],
   answers: [{
     questionId: { type: Schema.Types.ObjectId, ref: "Question" },
-    answerIndex: { type: Number, default: null }
+    answerIndex: { type: Schema.Types.Mixed, default: null } // Can be number, number[], or null
   }],
   questionsAttempted: { type: Number, default: 0 },
   questionsCorrect: { type: Number, default: 0 },

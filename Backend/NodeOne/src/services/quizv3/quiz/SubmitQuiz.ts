@@ -7,7 +7,7 @@ import mongoose from "mongoose";
 
 interface AnswerSubmission {
 	questionId: string;
-	answerIndex: number | null;
+	answerIndex: number | number[] | null;
 }
 
 const submitQuizSession = async ({ 
@@ -67,7 +67,7 @@ const submitQuizSession = async ({
 		// Create a map for quick lookup
 		const questionMap = new Map();
 		questions.forEach(q => {
-			questionMap.set(q._id.toString(), q);
+			questionMap.set((q._id as mongoose.Types.ObjectId).toString(), q);
 		});
 
 		// Process each answer and check correctness
@@ -76,7 +76,7 @@ const submitQuizSession = async ({
 		let questionsAttempted = 0;
 		let currentScore = 0;
 
-		const processedAnswers: Array<{ questionId: string; answerIndex: number | null; isCorrect: boolean }> = [];
+		const processedAnswers: Array<{ questionId: string; answerIndex: number | number[] | null; isCorrect: boolean }> = [];
 
 		for (const answer of answers) {
 			const question = questionMap.get(answer.questionId);
@@ -86,7 +86,7 @@ const submitQuizSession = async ({
 			}
 
 			// Skip unanswered questions
-			if (answer.answerIndex === null) {
+			if (answer.answerIndex === null || (Array.isArray(answer.answerIndex) && answer.answerIndex.length === 0)) {
 				processedAnswers.push({
 					questionId: answer.questionId,
 					answerIndex: null,
@@ -95,8 +95,27 @@ const submitQuizSession = async ({
 				continue;
 			}
 
-			// Check if answer is correct
-			const isCorrect = question.correct.includes(answer.answerIndex);
+			// Determine if question is multicorrect
+			const isMulticorrect = question.type === 'multicorrect';
+			let isCorrect: boolean;
+
+			if (isMulticorrect) {
+				// For multicorrect: user must select ALL correct answers and NO incorrect answers
+				const userAnswers = Array.isArray(answer.answerIndex) ? answer.answerIndex : [answer.answerIndex];
+				const correctAnswers = question.correct;
+				
+				// Check if arrays have same length and contain same elements (order doesn't matter)
+				const userAnswersSorted = [...userAnswers].sort((a, b) => a - b);
+				const correctAnswersSorted = [...correctAnswers].sort((a, b) => a - b);
+				
+				isCorrect = userAnswersSorted.length === correctAnswersSorted.length &&
+					userAnswersSorted.every((val, idx) => val === correctAnswersSorted[idx]);
+			} else {
+				// For single: check if answer is in correct array
+				const userAnswer = Array.isArray(answer.answerIndex) ? answer.answerIndex[0] : answer.answerIndex;
+				isCorrect = question.correct.includes(userAnswer);
+			}
+
 			questionsAttempted++;
 
 			if (isCorrect) {
@@ -144,7 +163,10 @@ const submitQuizSession = async ({
 		// Update TrueSkill in batch for all answered questions
 		await updateUserQuestionTrueskillBatch({
 			sessionId: userChapterSession.ongoing._id!.toString(),
-			answers: processedAnswers.filter(a => a.answerIndex !== null),
+			answers: processedAnswers.filter(a => 
+				a.answerIndex !== null && 
+				!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
+			),
 		});
 
 		// Calculate accuracy

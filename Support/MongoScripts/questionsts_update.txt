@@ -1,7 +1,7 @@
 const cursor = db.questions.aggregate([
   { 
     $match: { 
-      chapterId: ObjectId("6918c031a230eb058f3eb240") 
+      chapterId: ObjectId("688fa60c0d69f09617d032df") 
     } 
   },
 
@@ -98,3 +98,43 @@ cursor.forEach(doc => {
 if (ops.length) {
   db.questionsts.bulkWrite(ops, { ordered: false });
 }
+
+______________________________________________________________
+
+var chapterId = ObjectId("688fa60c0d69f09617d032df");
+
+// Find all questions for the chapter
+var cursor = db.questions.find({ chapterId: chapterId }, { _id: 1, correct: 1 });
+
+cursor.forEach(function(q) {
+  var type = null;
+
+  if (Array.isArray(q.correct)) {
+    if (q.correct.length === 1) {
+      if (typeof q.correct[0] === "string") {
+        type = "numerical";
+      } else if (typeof q.correct[0] === "number") {
+        type = "single";
+      }
+    } else if (q.correct.length > 1) {
+      type = "multicorrect";
+    }
+  }
+
+  if (type) {
+    db.questionsts.updateMany(
+      { quesId: q._id },
+      { $set: { type: type } }
+    );
+  }
+});
+
+
+_____________________________________________________________
+// mongo shell
+db.questions.updateMany(
+  { chapterId: ObjectId("688fa60c0d69f09617d032df") },
+  {
+    $set: { source: "examside", updatedAt: new Date() }
+  }
+);

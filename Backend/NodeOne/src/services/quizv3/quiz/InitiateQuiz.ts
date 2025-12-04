@@ -54,7 +54,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			// Try to get more questions with a wider range or from attempted list
 			const allQuestions = await QuestionTs.find({
 				chapterId: userChapterSession.chapterId.toString(),
-				type: 'single',
+				type: { $in: ['single', 'multicorrect'] },
 			})
 				.populate("quesId")
 				.limit(3)
@@ -90,17 +90,20 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		// Create a map for quick lookup
 		const questionTsMap = new Map();
 		questionTsData.forEach(qts => {
-			questionTsMap.set(qts.quesId.toString(), qts);
+			const quesId = qts.quesId as mongoose.Types.ObjectId;
+			questionTsMap.set(quesId.toString(), qts);
 		});
 
 		// Parse questions for frontend
-		const parsedQuestions = questions.map((q, index) => {
-			const questionTs = questionTsMap.get(q._id.toString());
+		const parsedQuestions = questions.map((q) => {
+			const questionId = (q._id as mongoose.Types.ObjectId).toString();
+			const questionTs = questionTsMap.get(questionId);
 			return {
-				id: q._id.toString(),
+				id: questionId,
 				ques: q.ques,
 				options: q.options,
 				correctAnswer: q.correct,
+				type: q.type || 'single',
 				quesType: q.quesType || 'current',
 				optionsType: q.optionsType || 'current',
 				solutionType: q.solutionType || 'current',
