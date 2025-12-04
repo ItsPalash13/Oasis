@@ -40,11 +40,17 @@ const ongoingSchemaV3 = new Schema<IOngoingSessionV3>({
 }, { _id: true });
 
 
+export interface IUserAttemptWindow {
+  timestamp: Date;
+  averageAccuracy: number;
+}
+
 export interface IUserChapterAnalytics {
   totalQuestionsAttempted: number;
   totalQuestionsCorrect: number;
   totalQuestionsIncorrect: number;
 
+  userAttemptWindowList?: IUserAttemptWindow[];
   questionsAttemptPerDay: number,
   estDaysToComplete: number,
   strengthStatus: number; // 0 - 5 
@@ -55,6 +61,10 @@ const UserChapterAnalyticsSchema = new Schema<IUserChapterAnalytics>({
   totalQuestionsCorrect: { type: Number, default: 0 },
   totalQuestionsIncorrect: { type: Number, default: 0 },
 
+  userAttemptWindowList: [{
+    timestamp: { type: Date, required: true, default: () => new Date() },
+    averageAccuracy: { type: Number, required: true, default: 0 },
+  }],
   questionsAttemptPerDay: { type: Number, default: 0 },
   estDaysToComplete: { type: Number, default: 0 },
   strengthStatus: { type: Number, default: 0 },

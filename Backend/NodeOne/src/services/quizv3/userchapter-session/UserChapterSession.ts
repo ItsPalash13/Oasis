@@ -2,6 +2,7 @@ import UserChapterSession, { IOngoingSessionV3 } from "../../../models/UserChapt
 import { UserProfile } from "../../../models/UserProfile";
 import mongoose from "mongoose";
 import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
+import { USER_DEFAULT_MU, USER_DEFAULT_SIGMA } from "../../../config/constants";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -83,8 +84,8 @@ namespace UserChapterSessionService {
 					strengthStatus: 0,
 				},
 				trueSkillScore: {
-					mu: 15,
-					sigma: 10,
+					mu: USER_DEFAULT_MU,
+					sigma: USER_DEFAULT_SIGMA,
 				},
 				userRating: 0,
 				lastPlayedTs: new Date(),

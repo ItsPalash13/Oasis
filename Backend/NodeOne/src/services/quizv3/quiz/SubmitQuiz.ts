@@ -43,14 +43,28 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			socketTicket: sessionId,
 		});
 
-		// Ensure ongoing exists
+		// Ensure ongoing exists, create if it doesn't
 		if (!userChapterSession.ongoing) {
-			return {
-				socketResponse: "quizError",
-				responseData: {
-					type: "failure",
-					message: "Ongoing session not found",
-				},
+			userChapterSession.ongoing = {
+				_id: new mongoose.Types.ObjectId(sessionId),
+				questions: [],
+				answers: [],
+				questionsAttempted: 0,
+				questionsCorrect: 0,
+				questionsIncorrect: 0,
+				currentScore: 0,
+			};
+		}
+
+		// Ensure analytics exists, create if it doesn't
+		if (!userChapterSession.analytics) {
+			userChapterSession.analytics = {
+				totalQuestionsAttempted: 0,
+				totalQuestionsCorrect: 0,
+				totalQuestionsIncorrect: 0,
+				questionsAttemptPerDay: 0,
+				estDaysToComplete: 0,
+				strengthStatus: 0,
 			};
 		}
 
@@ -155,17 +169,27 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		const questionCount = await getQuestionCountByChapterId({chapterId: userChapterSession.chapterId.toString()});
 		const progressPercentage = (questionsCorrect / questionCount) * 100;
 		userChapterSession.analytics.estDaysToComplete = userChapterSession.analytics.questionsAttemptPerDay * (100 / progressPercentage);
-		const currentStrength = Math.min(
-			5,
-			Math.floor(
-				(userChapterSession.analytics.totalQuestionsCorrect /
-					Math.max(1, userChapterSession.analytics.totalQuestionsAttempted)) *
-					5
-			)
-		);
-		const updatedStrength = Math.round(
-			0.6 * currentStrength + 0.4 * userChapterSession.analytics.strengthStatus
-		);
+		
+
+
+		const currentAccuracy = questionsAttempted > 0 ? (questionsCorrect / questionsAttempted) * 100 : 0;
+
+		if (!userChapterSession.analytics.userAttemptWindowList) {
+			userChapterSession.analytics.userAttemptWindowList = [];
+		}
+		userChapterSession.analytics.userAttemptWindowList.push({
+			timestamp: new Date(),
+			averageAccuracy: currentAccuracy,
+		});
+		// Keep only last 10 entries
+		if (userChapterSession.analytics.userAttemptWindowList.length > 10) {
+			userChapterSession.analytics.userAttemptWindowList.shift();
+		}
+
+		const userOnAverageAccuracy = userChapterSession.analytics.userAttemptWindowList.reduce((sum, entry) => sum + entry.averageAccuracy, 0) / userChapterSession.analytics.userAttemptWindowList.length;
+
+		// get updated strength with userOnAverageAccuracy (0-100) mapped to (0-5)
+		const updatedStrength = Math.min(5, Math.max(0, Math.round((userOnAverageAccuracy / 100) * 5)));
 		userChapterSession.analytics.strengthStatus = updatedStrength;
 
 		// Update maxScore if current score is higher
@@ -257,6 +281,12 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		
 		await userProfile.save();
 
+		// Map processedAnswers to questionResults with only questionId and isCorrect
+		const questionResults = processedAnswers.map((answer) => ({
+			questionId: answer.questionId,
+			isCorrect: answer.isCorrect,
+		}));
+
 		// Return results
 		return {
 			socketResponse: "results",
@@ -267,6 +297,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 				currentScore,
 				accuracy,
 				maxScore: userChapterSession.maxScore,
+				questionResults,
 			},
 		};
 	} catch (error: any) {
