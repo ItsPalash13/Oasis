@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   Avatar, 
@@ -22,6 +22,8 @@ import { useTheme } from '@mui/material/styles';
 import { selectCurrentUser } from '../../features/auth/authSlice';
 // @ts-ignore
 import { useGetUserInfoQuery, useUpdateUserInfoMutation, useGetMonthlyLeaderboardQuery } from '../../features/api/userAPI';
+// @ts-ignore
+import { useGetAllChaptersQuery } from '../../features/api/chapterAPI';
 import AvatarSelector from '../../components/AvatarSelector';
 import AvatarColorPicker from '../../components/AvatarColorPicker';
 import Leaderboard from '../../components/Leaderboard';
@@ -30,6 +32,11 @@ import { getAvatarSrc, getDefaultAvatar, getDefaultAvatarBgColor } from '../../u
 interface Topic {
   _id: string;
   topic: string;
+}
+
+interface Chapter {
+  _id: string;
+  name: string;
 }
 
 interface UserAnalytics {
@@ -70,11 +77,37 @@ const Profile: React.FC = () => {
   const badges = userInfo?.badges || [];
   const analytics = userInfo?.analytics;
 
-  // Helper to get topic name (handles both populated objects and IDs)
-  const getTopicName = (topic: Topic | string): string => {
-    if (typeof topic === 'string') return topic;
-    return topic?.topic || 'Unknown Topic';
+  // Fetch all chapters to create a lookup map
+  const { data: chaptersData } = useGetAllChaptersQuery(undefined, { skip: !analytics });
+  const chapters = chaptersData?.data || [];
+  
+  // Create a map of chapter ID to chapter name for quick lookup
+  const chapterMap = useMemo(() => {
+    const map = new Map<string, string>();
+    chapters.forEach((chapter: Chapter) => {
+      map.set(chapter._id, chapter.name);
+    });
+    return map;
+  }, [chapters]);
+
+  // Helper to get chapter/topic name (handles both populated objects and IDs)
+  const getTopicName = (item: Topic | Chapter | string): string => {
+    if (typeof item === 'string') {
+      // If it's a string ID, try to look it up in the chapter map
+      return chapterMap.get(item) || 'Unknown Chapter';
+    }
+    // If it's an object, check if it has 'name' (Chapter) or 'topic' (Topic)
+    if ('name' in item && item.name) return item.name;
+    if ('topic' in item && item.topic) return item.topic;
+    return 'Unknown';
   };
+
+  // Log analytics when it is fetched to inspect strengths/weaknesses payload
+  useEffect(() => {
+    if (analytics) {
+      console.log('THE DATA FOR ANALYTICS', { userId, analytics });
+    }
+  }, [analytics, userId]);
 
   // Calculate accuracy
   const accuracy = analytics?.totalQuestionsAttempted && analytics.totalQuestionsAttempted > 0
@@ -414,18 +447,21 @@ const Profile: React.FC = () => {
                 </Box>
                 {analytics.strengths && analytics.strengths.length > 0 ? (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {analytics.strengths.map((topic, idx) => (
-                      <Chip
-                        key={idx}
-                        label={getTopicName(topic)}
-                        color="success"
-                        icon={<CheckCircleIcon />}
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                        }}
-                      />
-                    ))}
+                    {analytics.strengths.map((item, idx) => {
+                      const itemId = typeof item === 'string' ? item : item?._id || idx;
+                      return (
+                        <Chip
+                          key={itemId}
+                          label={getTopicName(item)}
+                          color="success"
+                          icon={<CheckCircleIcon />}
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                          }}
+                        />
+                      );
+                    })}
                   </Box>
                 ) : (
                   <Typography color="text.secondary" fontStyle="italic">
@@ -456,18 +492,21 @@ const Profile: React.FC = () => {
                 </Box>
                 {analytics.weaknesses && analytics.weaknesses.length > 0 ? (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {analytics.weaknesses.map((topic, idx) => (
-                      <Chip
-                        key={idx}
-                        label={getTopicName(topic)}
-                        color="error"
-                        icon={<CancelIcon />}
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.9rem',
-                        }}
-                      />
-                    ))}
+                    {analytics.weaknesses.map((item, idx) => {
+                      const itemId = typeof item === 'string' ? item : item?._id || idx;
+                      return (
+                        <Chip
+                          key={itemId}
+                          label={getTopicName(item)}
+                          color="error"
+                          icon={<CancelIcon />}
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                          }}
+                        />
+                      );
+                    })}
                   </Box>
                 ) : (
                   <Typography color="text.secondary" fontStyle="italic">

@@ -31,6 +31,19 @@ router.get('/info/:userId', authMiddleware, async (req: Request, res: Response) 
     if (!authUser || authUser.id !== userId) {
       return res.status(403).json({ success: false, error: 'Forbidden' });
     }
+    
+    // First fetch without populate to see raw data
+    const userRaw = await UserProfile.findOne({ userId }).lean();
+    if (userRaw) {
+      console.log('BACKEND - Raw analytics data:', {
+        userId,
+        strengths: userRaw.analytics?.strengths,
+        weaknesses: userRaw.analytics?.weaknesses,
+        strengthsType: userRaw.analytics?.strengths?.map((s: any) => typeof s),
+        weaknessesType: userRaw.analytics?.weaknesses?.map((w: any) => typeof w),
+      });
+    }
+    
     const user = await UserProfile.findOne({ userId })
       .populate({
         path: 'badges.badgeId',
@@ -38,17 +51,28 @@ router.get('/info/:userId', authMiddleware, async (req: Request, res: Response) 
       })
       .populate({
         path: 'analytics.strengths',
-        select: '_id topic',
+        select: '_id name',
+        model: 'Chapter',
       })
       .populate({
         path: 'analytics.weaknesses',
-        select: '_id topic',
+        select: '_id name',
+        model: 'Chapter',
       });
+    
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
+    
+    console.log('BACKEND - After populate analytics data:', {
+      userId,
+      strengths: user.analytics?.strengths,
+      weaknesses: user.analytics?.weaknesses,
+    });
+    
     return res.json({ success: true, data: user });
   } catch (error) {
+    console.error('BACKEND - Error fetching user info:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
