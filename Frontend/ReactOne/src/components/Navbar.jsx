@@ -184,7 +184,7 @@ const Navbar = ({ darkMode, onDarkModeToggle, onSidebarToggle, showSidebarToggle
           {session ? (
             <>
               {/* Health and XP Display */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+              {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
                 <Chip
                   icon={<HealthIcon />}
                   label={`${userHealth}`}
@@ -226,7 +226,7 @@ const Navbar = ({ darkMode, onDarkModeToggle, onSidebarToggle, showSidebarToggle
                     }}
                   />
                 )}
-              </Box>
+              </Box> */}
               
               {/* Notifications Bell 
               <Box sx={{ position: 'relative', mr: 1 }}>

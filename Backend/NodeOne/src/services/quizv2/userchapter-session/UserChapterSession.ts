@@ -3,7 +3,7 @@ import { UserProfile } from "../../../models/UserProfile";
 import mongoose from "mongoose";
 import { TrueSkill, Rating } from "ts-trueskill";
 import { QuestionTs } from "../../../models/QuestionTs";
-import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN } from "../../../config/constants";
+import { MU_MIN, SIGMA_GT_SCALING_FACTOR, SIGMA_LT_SCALING_FACTOR, SIGMA_MIN, USER_DEFAULT_MU, USER_DEFAULT_SIGMA } from "../../../config/constants";
 import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
 
 interface IStartChapterSessionResponse {
@@ -95,8 +95,8 @@ namespace UserChapterSessionService {
 				userId: userObjectId,
 				chapterId: chapterObjectId,
 				trueSkillScore: {
-					mu: 15,
-					sigma: 10,
+					mu: USER_DEFAULT_MU,
+					sigma: USER_DEFAULT_SIGMA,
 				},
 				lastPlayedTs: new Date(),
 				ongoing: {

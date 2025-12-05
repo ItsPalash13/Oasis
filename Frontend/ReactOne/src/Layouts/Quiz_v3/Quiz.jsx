@@ -286,186 +286,367 @@ const Quiz = ({ socket }) => {
 					<CircularProgress />
 				</Box>
 			) : quizSubmitted && quizResults ? (
-				<Box sx={{ mt: 3, maxWidth: 550, mx: "auto" }}>
-					{/* Results Display */}
-					<QuestionCard>
-						<CardContent sx={{ p: 3 }}>
-							{/* Header Message */}
-							<Box sx={{ textAlign: "center", mb: 3 }}>
-								<Typography
-									variant="h4"
-									sx={{
-										fontWeight: "bold",
-										mb: 0.5,
-										color: "primary.main",
-									}}
-								>
-									🎯
-								</Typography>
-								<Typography
-									variant="h6"
-									sx={{
-										fontWeight: "bold",
-										mb: 1,
-										color: "primary.main",
-									}}
-								>
-									Quiz Completed!
-								</Typography>
-								<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-									Great effort! Here's how you performed.
-								</Typography>
-							</Box>
+				<>
+					<Box sx={{ mt: 3, maxWidth: 550, mx: "auto" }}>
+						{/* Results Display */}
+						<QuestionCard>
+							<CardContent sx={{ p: 3 }}>
+								{/* Header Message */}
+								<Box sx={{ textAlign: "center", mb: 3 }}>
+									<Typography
+										variant="h4"
+										sx={{
+											fontWeight: "bold",
+											mb: 0.5,
+											color: "primary.main",
+										}}
+									>
+										🎯
+									</Typography>
+									<Typography
+										variant="h6"
+										sx={{
+											fontWeight: "bold",
+											mb: 1,
+											color: "primary.main",
+										}}
+									>
+										Quiz Completed!
+									</Typography>
+									<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+										Great effort! Here's how you performed.
+									</Typography>
+								</Box>
 
-							{/* Score Display */}
-							<Box
-								sx={{
-									display: "flex",
-									justifyContent: "center",
-									mb: 3,
-								}}
-							>
-								<XpDisplay
+								{/* Score Display */}
+								<Box
 									sx={{
-										p: 2,
-										minWidth: 200,
+										display: "flex",
 										justifyContent: "center",
-										boxShadow: "0 6px 20px rgba(245, 158, 11, 0.35)",
+										mb: 3,
 									}}
 								>
-									<StarIcon sx={{ fontSize: "2rem" }} />
-									<Box sx={{ ml: 1 }}>
-										<Typography variant="h3" sx={{ fontWeight: "bold", lineHeight: 1, mb: 0.25 }}>
-											{quizResults.currentScore || 0}
-										</Typography>
-										<Typography variant="body1" sx={{ fontWeight: "bold", opacity: 0.9 }}>
-											Total XP
-										</Typography>
-									</Box>
-								</XpDisplay>
-							</Box>
+									<XpDisplay
+										sx={{
+											p: 2,
+											minWidth: 200,
+											justifyContent: "center",
+											boxShadow: "0 6px 20px rgba(245, 158, 11, 0.35)",
+										}}
+									>
+										<StarIcon sx={{ fontSize: "2rem" }} />
+										<Box sx={{ ml: 1 }}>
+											<Typography variant="h3" sx={{ fontWeight: "bold", lineHeight: 1, mb: 0.25 }}>
+												{quizResults.currentScore || 0}
+											</Typography>
+											<Typography variant="body1" sx={{ fontWeight: "bold", opacity: 0.9 }}>
+												Total XP
+											</Typography>
+										</Box>
+									</XpDisplay>
+								</Box>
 
-							{/* Stats Grid */}
-							<Grid container spacing={2} sx={{ mb: 3 }}>
-								<Grid size={{ xs: 6, sm: 3 }}>
-									<Card
-										sx={{
-											textAlign: "center",
-											p: 2,
-											borderRadius: 2,
-											background: (theme) =>
-												theme.palette.mode === "dark"
-													? "rgba(76, 175, 80, 0.15)"
-													: "rgba(76, 175, 80, 0.1)",
-											border: "2px solid",
-											borderColor: "success.main",
-											boxShadow: (theme) =>
-												theme.palette.mode === "dark"
-													? "0 4px 12px rgba(76, 175, 80, 0.2)"
-													: "0 4px 12px rgba(76, 175, 80, 0.15)",
-										}}
-									>
-										<Typography variant="h4" sx={{ fontWeight: "bold", color: "success.main", mb: 0.5 }}>
-											{quizResults.questionsCorrect || 0}
-										</Typography>
-										<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-											Correct
-										</Typography>
-									</Card>
+								{/* Stats Grid */}
+								<Grid container spacing={2} sx={{ mb: 3 }}>
+									<Grid size={{ xs: 6, sm: 3 }}>
+										<Card
+											sx={{
+												textAlign: "center",
+												p: 2,
+												borderRadius: 2,
+												background: (theme) =>
+													theme.palette.mode === "dark"
+														? "rgba(76, 175, 80, 0.15)"
+														: "rgba(76, 175, 80, 0.1)",
+												border: "2px solid",
+												borderColor: "success.main",
+												boxShadow: (theme) =>
+													theme.palette.mode === "dark"
+														? "0 4px 12px rgba(76, 175, 80, 0.2)"
+														: "0 4px 12px rgba(76, 175, 80, 0.15)",
+											}}
+										>
+											<Typography variant="h4" sx={{ fontWeight: "bold", color: "success.main", mb: 0.5 }}>
+												{quizResults.questionsCorrect || 0}
+											</Typography>
+											<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+												Correct
+											</Typography>
+										</Card>
+									</Grid>
+									<Grid size={{ xs: 6, sm: 3 }}>
+										<Card
+											sx={{
+												textAlign: "center",
+												p: 2,
+												borderRadius: 2,
+												background: (theme) =>
+													theme.palette.mode === "dark"
+														? "rgba(244, 67, 54, 0.15)"
+														: "rgba(244, 67, 54, 0.1)",
+												border: "2px solid",
+												borderColor: "error.main",
+												boxShadow: (theme) =>
+													theme.palette.mode === "dark"
+														? "0 4px 12px rgba(244, 67, 54, 0.2)"
+														: "0 4px 12px rgba(244, 67, 54, 0.15)",
+											}}
+										>
+											<Typography variant="h4" sx={{ fontWeight: "bold", color: "error.main", mb: 0.5 }}>
+												{quizResults.questionsIncorrect || 0}
+											</Typography>
+											<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+												Incorrect
+											</Typography>
+										</Card>
+									</Grid>
+									<Grid size={{ xs: 6, sm: 3 }}>
+										<Card
+											sx={{
+												textAlign: "center",
+												p: 2,
+												borderRadius: 2,
+												background: (theme) =>
+													theme.palette.mode === "dark"
+														? "rgba(255, 255, 255, 0.05)"
+														: "rgba(0, 0, 0, 0.03)",
+												border: (theme) =>
+													theme.palette.mode === "dark"
+														? "2px solid rgba(255, 255, 255, 0.1)"
+														: "2px solid rgba(0, 0, 0, 0.1)",
+											}}
+										>
+											<Typography variant="h4" sx={{ fontWeight: "bold", mb: 0.5 }}>
+												{quizResults.questionsAttempted || 0}
+											</Typography>
+											<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+												Attempted
+											</Typography>
+										</Card>
+									</Grid>
+									<Grid size={{ xs: 6, sm: 3 }}>
+										<Card
+											sx={{
+												textAlign: "center",
+												p: 2,
+												borderRadius: 2,
+												background: (theme) =>
+													theme.palette.mode === "dark"
+														? "rgba(33, 150, 243, 0.15)"
+														: "rgba(33, 150, 243, 0.1)",
+												border: "2px solid",
+												borderColor: "primary.main",
+											}}
+										>
+											<Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main", mb: 0.5 }}>
+												{quizResults.accuracy || 0}%
+											</Typography>
+											<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+												Accuracy
+											</Typography>
+										</Card>
+									</Grid>
 								</Grid>
-								<Grid size={{ xs: 6, sm: 3 }}>
-									<Card
-										sx={{
-											textAlign: "center",
-											p: 2,
-											borderRadius: 2,
-											background: (theme) =>
-												theme.palette.mode === "dark"
-													? "rgba(244, 67, 54, 0.15)"
-													: "rgba(244, 67, 54, 0.1)",
-											border: "2px solid",
-											borderColor: "error.main",
-											boxShadow: (theme) =>
-												theme.palette.mode === "dark"
-													? "0 4px 12px rgba(244, 67, 54, 0.2)"
-													: "0 4px 12px rgba(244, 67, 54, 0.15)",
-										}}
-									>
-										<Typography variant="h4" sx={{ fontWeight: "bold", color: "error.main", mb: 0.5 }}>
-											{quizResults.questionsIncorrect || 0}
-										</Typography>
-										<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-											Incorrect
-										</Typography>
-									</Card>
-								</Grid>
-								<Grid size={{ xs: 6, sm: 3 }}>
-									<Card
-										sx={{
-											textAlign: "center",
-											p: 2,
-											borderRadius: 2,
-											background: (theme) =>
-												theme.palette.mode === "dark"
-													? "rgba(255, 255, 255, 0.05)"
-													: "rgba(0, 0, 0, 0.03)",
-											border: (theme) =>
-												theme.palette.mode === "dark"
-													? "2px solid rgba(255, 255, 255, 0.1)"
-													: "2px solid rgba(0, 0, 0, 0.1)",
-										}}
-									>
-										<Typography variant="h4" sx={{ fontWeight: "bold", mb: 0.5 }}>
-											{quizResults.questionsAttempted || 0}
-										</Typography>
-										<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-											Attempted
-										</Typography>
-									</Card>
-								</Grid>
-								<Grid size={{ xs: 6, sm: 3 }}>
-									<Card
-										sx={{
-											textAlign: "center",
-											p: 2,
-											borderRadius: 2,
-											background: (theme) =>
-												theme.palette.mode === "dark"
-													? "rgba(33, 150, 243, 0.15)"
-													: "rgba(33, 150, 243, 0.1)",
-											border: "2px solid",
-											borderColor: "primary.main",
-										}}
-									>
-										<Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main", mb: 0.5 }}>
-											{quizResults.accuracy || 0}%
-										</Typography>
-										<Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-											Accuracy
-										</Typography>
-									</Card>
-								</Grid>
-							</Grid>
+							</CardContent>
+						</QuestionCard>
+					</Box>
 
-							{/* Navigation Button */}
-							<Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 3 }}>
-								<StyledButton
-									variant="contained"
-									size="medium"
-									onClick={() => navigate(-1)}
-									sx={{
-										px: 3,
-										py: 1,
-										fontSize: "0.9rem",
-										fontWeight: 600,
-									}}
-								>
-									Back to Chapters
-								</StyledButton>
-							</Box>
-						</CardContent>
-					</QuestionCard>
-				</Box>
+					{/* Review Answers Section */}
+					<Box sx={{ mt: 4, width: "100%", maxWidth: "1400px", mx: "auto", px: 3 }}>
+						<QuestionCard>
+							<CardContent sx={{ p: 3 }}>
+								{/* Review Header */}
+								<Box sx={{ textAlign: "center", mb: 3 }}>
+									<Typography
+										variant="h5"
+										sx={{
+											fontWeight: "bold",
+											mb: 1,
+											color: "primary.main",
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											gap: 1,
+										}}
+									>
+										🎯 Review Answers - Quiz Completed!
+									</Typography>
+									<Typography variant="body2" color="text.secondary">
+										Here's how you performed. Scroll down to review your answers.
+									</Typography>
+								</Box>
+
+								{/* Scrollable Questions Review */}
+								{(() => {
+									// Create a map for quick lookup of question results (created once outside the map)
+									const questionResultsMap = new Map();
+									if (quizResults?.questionResults) {
+										quizResults.questionResults.forEach((result) => {
+											questionResultsMap.set(result.questionId, result.isCorrect);
+										});
+									}
+
+									return (
+										<Box
+											sx={{
+												maxHeight: "60vh",
+												overflowY: "auto",
+												pr: 1,
+												"&::-webkit-scrollbar": {
+													width: "8px",
+												},
+												"&::-webkit-scrollbar-track": {
+													background: (theme) =>
+														theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)",
+													borderRadius: "4px",
+												},
+												"&::-webkit-scrollbar-thumb": {
+													background: (theme) =>
+														theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.2)",
+													borderRadius: "4px",
+													"&:hover": {
+														background: (theme) =>
+															theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.3)",
+													},
+												},
+											}}
+										>
+											{questions.map((question, questionIndex) => {
+												// Convert question.id to string for comparison
+												const questionIdStr = question.id?.toString();
+												const userAnswerIndex = selectedAnswers[question.id];
+												const isCorrect = questionResultsMap.get(questionIdStr) || false;
+												const hasUserAnswer = userAnswerIndex !== null && userAnswerIndex !== undefined;
+
+												return (
+													<Box key={question.id} sx={{ mb: 4 }}>
+														{/* Question Number and Text */}
+														<Box sx={{ mb: 2 }}>
+															<Typography variant="subtitle2" sx={{ color: "text.secondary", mb: 1 }}>
+																Question {questionIndex + 1} of {questions.length}
+															</Typography>
+															{question.quesType === 'html' ? (
+																<Typography 
+																	variant="h6" 
+																	sx={quizStyles.questionTitle}
+																	dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(question.ques || '') }}
+																/>
+															) : (
+																<Typography variant="h6" sx={quizStyles.questionTitle}>
+																	{renderTextWithLatex(question.ques)}
+																</Typography>
+															)}
+														</Box>
+
+														{/* Options */}
+														<Grid container spacing={2} sx={{ mt: 1 }}>
+															{question.options?.map((opt, idx) => {
+																const isSelected = userAnswerIndex === idx;
+																let className = "";
+																let label = "";
+
+																// Only show user's answer with correct/incorrect indicator
+																if (isSelected && hasUserAnswer) {
+																	if (isCorrect) {
+																		className = "correct-answer";
+																		label = "Your Answer (Correct)";
+																	} else {
+																		className = "wrong";
+																		label = "Your Answer (Incorrect)";
+																	}
+																}
+
+														return (
+															<Grid key={idx} size={{ xs: 12, sm: 6 }}>
+																<Box sx={{ position: "relative" }}>
+																	<OptionCard
+																		className={className}
+																		sx={{
+																			cursor: "default",
+																			opacity: isSelected ? 1 : 0.7,
+																		}}
+																	>
+																		<CardContent>
+																			{question.optionsType === 'html' ? (
+																				<Typography 
+																					variant="subtitle1" 
+																					align="center"
+																					sx={{
+																						wordBreak: 'break-word',
+																						'& *': {
+																							maxWidth: '100%'
+																						}
+																					}}
+																					dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(opt || '') }}
+																				/>
+																			) : (
+																				<Typography 
+																					variant="subtitle1" 
+																					align="center"
+																					sx={{
+																						whiteSpace: 'pre-wrap',
+																						wordBreak: 'break-word',
+																						'& .katex': {
+																							fontSize: '1em'
+																						}
+																					}}
+																				>
+																					{renderTextWithLatex(opt)}
+																				</Typography>
+																			)}
+																		</CardContent>
+																	</OptionCard>
+																	{label && (
+																		<Typography
+																			variant="caption"
+																			sx={{
+																				position: "absolute",
+																				top: -8,
+																				right: 8,
+																				px: 1,
+																				py: 0.5,
+																				borderRadius: 1,
+																				backgroundColor: isCorrect ? "success.main" : "error.main",
+																				color: "white",
+																				fontWeight: 600,
+																				fontSize: "0.7rem",
+																			}}
+																		>
+																			{label}
+																		</Typography>
+																	)}
+																</Box>
+															</Grid>
+														);
+													})}
+												</Grid>
+											</Box>
+										);
+									})}
+										</Box>
+									);
+								})()}
+
+								{/* Navigation Button */}
+								<Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 4 }}>
+									<StyledButton
+										variant="contained"
+										size="medium"
+										onClick={() => navigate(-1)}
+										sx={{
+											px: 3,
+											py: 1,
+											fontSize: "0.9rem",
+											fontWeight: 600,
+										}}
+									>
+										Back to Chapters
+									</StyledButton>
+								</Box>
+							</CardContent>
+						</QuestionCard>
+					</Box>
+				</>
 			) : (
 				<Box sx={{ display: "flex", gap: 2, mt: 3, position: "relative", width: "100%", overflowX: "hidden" }}>
 					{/* Main Content Area */}

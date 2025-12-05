@@ -1,14 +1,16 @@
 import React from 'react';
 import { Box, Chip } from '@mui/material';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import SubjectSection from '../Subjects/SubjectSection';
 import { dashboardStyles } from '../../theme/dashboardTheme';
 import { authClient } from '../../lib/auth-client';
 import { setSession } from '../../features/auth/authSlice';
 import { useTheme } from '@mui/material/styles';
+import { useGetAllMetadataQuery } from '../../features/api/metadataAPI';
+import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
 
 // Chapters by Subject Component
-const ChaptersBySubject = ({ darkMode }) => {
+const ChaptersBySubject = ({ darkMode, metadataList, chapterSessionsMap }) => {
   const subjects = [
     { name: 'Physics', slug: 'phy', icon: '' },
     { name: 'Chemistry', slug: 'chem', icon: '' }
@@ -17,7 +19,12 @@ const ChaptersBySubject = ({ darkMode }) => {
   return (
     <Box sx={dashboardStyles.chaptersContainer}>
       {subjects.map((subject) => (
-        <SubjectSection key={subject.slug} subject={subject} />
+        <SubjectSection 
+          key={subject.slug} 
+          subject={subject}
+          metadataList={metadataList}
+          chapterSessionsMap={chapterSessionsMap}
+        />
       ))}
     </Box>
   );
@@ -29,6 +36,33 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
   
   // Get session data from auth client
   const { data: session, refetch: refetchSession } = authClient.useSession();
+  
+  // Get user from Redux store
+  const user = useSelector((state) => state?.auth?.user);
+  
+  // Fetch metadata and chapter sessions
+  const { data: metadataData, isLoading: metadataLoading } = useGetAllMetadataQuery(undefined, {
+    skip: !user // Skip if user is not authenticated
+  });
+  
+  const { data: chapterSessionsData, isLoading: sessionsLoading } = useGetChapterSessionsQuery(undefined, {
+    skip: !user // Skip if user is not authenticated
+  });
+  
+  // Process metadata list
+  const metadataList = metadataData?.data || [];
+  
+  // Create a map of chapterId -> userRating for quick lookup
+  const chapterSessionsMap = React.useMemo(() => {
+    if (!chapterSessionsData?.data) return {};
+    const map = {};
+    chapterSessionsData.data.forEach((session) => {
+      if (session.chapterId) {
+        map[session.chapterId.toString()] = session.userRating || 0;
+      }
+    });
+    return map;
+  }, [chapterSessionsData]);
   
   // Helper function to serialize dates in an object
   const serializeDates = (obj) => {
@@ -139,7 +173,11 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
       </Box>
 
       {/* Chapters by Subject */}
-      <ChaptersBySubject darkMode={darkMode} />
+      <ChaptersBySubject 
+        darkMode={darkMode}
+        metadataList={metadataList}
+        chapterSessionsMap={chapterSessionsMap}
+      />
     </Box>
   );
 };

@@ -20,6 +20,24 @@ type TSavedQuestion = {
   questionId: mongoose.Types.ObjectId;
   savedAt: Date;
 }
+
+interface IUserAnalytics {
+  totalQuestionsAttempted: number;
+  totalQuestionsCorrect: number;
+  totalQuestionsIncorrect: number;
+
+  strengths: mongoose.Types.ObjectId[]; // Array of Topic IDs
+  weaknesses: mongoose.Types.ObjectId[]; // Array of Topic IDs
+}
+
+const UserAnalyticsSchema = new Schema<IUserAnalytics>({
+  totalQuestionsAttempted: { type: Number, default: 0 },
+  totalQuestionsCorrect: { type: Number, default: 0 },
+  totalQuestionsIncorrect: { type: Number, default: 0 },
+  strengths: [{ type: Schema.Types.ObjectId, ref: 'Topic' }],
+  weaknesses: [{ type: Schema.Types.ObjectId, ref: 'Topic' }],
+});
+
 // Define the interface for the UserProfile document
 interface UserProfileDocument extends Document {
   userId: string;
@@ -44,7 +62,7 @@ interface UserProfileDocument extends Document {
   onboardingCompleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
-
+  analytics?: IUserAnalytics;
   savedQuestions?: Array<TSavedQuestion>;
 }
 
@@ -76,6 +94,7 @@ const UserProfileSchema: Schema = new Schema(
     health: { type: Number, default: 6 },
     totalCoins: { type: Number, default: 0 },
     badges: { type: [UserBadgeSchema], default: [] },
+    analytics: { type: UserAnalyticsSchema, required: false },
     monthlyXp: { type: Object, default: {} }, // YYYY/MM format keys with totalXp values
     savedQuestions: [{
       questionId: { type: Schema.Types.ObjectId, ref: 'Question', required: true },

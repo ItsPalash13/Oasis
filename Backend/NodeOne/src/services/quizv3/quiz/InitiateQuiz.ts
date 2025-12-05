@@ -95,11 +95,10 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		});
 
 		// Parse questions for frontend
-		const parsedQuestions = questions.map((q) => {
-			const questionId = (q._id as mongoose.Types.ObjectId).toString();
-			const questionTs = questionTsMap.get(questionId);
+		const parsedQuestions = questions.map((q, index) => {
+			const questionTs = questionTsMap.get((q._id as any).toString());
 			return {
-				id: questionId,
+				id: (q._id as any).toString(),
 				ques: q.ques,
 				options: q.options,
 				correctAnswer: q.correct,

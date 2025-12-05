@@ -4,19 +4,17 @@ import { Question } from "../../../models/Questions";
 import { updateUserQuestionTrueskillBatch } from "../userchapter-session/TrueskillHandler";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
+import { USER_RATING_DEFAULT } from "../../../config/constants";
+import UserRatingService from "../user/rating/UserRatingService";
+import { UserProfile } from "../../../models/UserProfile";
+import { getQuestionCountByChapterId } from "../questions/FetchQuestions";
 
 interface AnswerSubmission {
 	questionId: string;
 	answerIndex: number | number[] | null;
 }
 
-const submitQuizSession = async ({ 
-	sessionId, 
-	answers 
-}: { 
-	sessionId?: string; 
-	answers: AnswerSubmission[];
-}) => {
+const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; answers: AnswerSubmission[] }) => {
 	try {
 		if (!sessionId) {
 			return {
@@ -45,29 +43,52 @@ const submitQuizSession = async ({
 			socketTicket: sessionId,
 		});
 
-		// Ensure ongoing exists
+		// Ensure ongoing exists, create if it doesn't
 		if (!userChapterSession.ongoing) {
-			return {
-				socketResponse: "quizError",
-				responseData: {
-					type: "failure",
-					message: "Ongoing session not found",
-				},
+			userChapterSession.ongoing = {
+				_id: new mongoose.Types.ObjectId(sessionId),
+				questions: [],
+				answers: [],
+				questionsAttempted: 0,
+				questionsCorrect: 0,
+				questionsIncorrect: 0,
+				currentScore: 0,
+			};
+		}
+
+		// Ensure analytics exists, create if it doesn't
+		if (!userChapterSession.analytics) {
+			userChapterSession.analytics = {
+				totalQuestionsAttempted: 0,
+				totalQuestionsCorrect: 0,
+				totalQuestionsIncorrect: 0,
+				questionsAttemptPerDay: 0,
+				estDaysToComplete: 0,
+				strengthStatus: 0,
+			};
+		}
+
+		const userProfile = await UserProfile.findOne({ userId: userChapterSession.userId.toString() });
+		if (!userProfile) {
+			throw {
+				statusCode: 404,
+				code: "UserProfileNotFound",
+				message: "User profile not found",
 			};
 		}
 
 		// Get all question IDs from session
-		const questionIds = userChapterSession.ongoing.questions.map(q => q.toString());
-		
+		const questionIds = userChapterSession.ongoing.questions.map((q) => q.toString());
+
 		// Fetch all questions to check correctness
 		const questions = await Question.find({
-			_id: { $in: questionIds }
+			_id: { $in: questionIds },
 		}).exec();
 
 		// Create a map for quick lookup
 		const questionMap = new Map();
-		questions.forEach(q => {
-			questionMap.set((q._id as mongoose.Types.ObjectId).toString(), q);
+		questions.forEach((q) => {
+			questionMap.set((q._id as any).toString(), q);
 		});
 
 		// Process each answer and check correctness
@@ -143,20 +164,63 @@ const submitQuizSession = async ({
 		}
 
 		// Update session with answers and stats
-		userChapterSession.ongoing.answers = answers.map(a => ({
+		userChapterSession.ongoing.answers = answers.map((a) => ({
 			questionId: new mongoose.Types.ObjectId(a.questionId),
-			answerIndex: a.answerIndex
+			answerIndex: a.answerIndex,
 		}));
 		userChapterSession.ongoing.questionsAttempted = questionsAttempted;
 		userChapterSession.ongoing.questionsCorrect = questionsCorrect;
 		userChapterSession.ongoing.questionsIncorrect = questionsIncorrect;
 		userChapterSession.ongoing.currentScore = currentScore;
 
+		// update analytics
+		userChapterSession.analytics.totalQuestionsAttempted += questionsAttempted;
+		userChapterSession.analytics.totalQuestionsCorrect += questionsCorrect;
+		userChapterSession.analytics.totalQuestionsIncorrect += questionsIncorrect;
+		userChapterSession.analytics.questionsAttemptPerDay = Math.round(
+			userChapterSession.analytics.totalQuestionsAttempted /
+				Math.max(
+					1,
+					(new Date().getTime() - userChapterSession.lastPlayedTs.getTime()) / (1000 * 60 * 60 * 24)
+				)
+		);
+		const questionCount = await getQuestionCountByChapterId({chapterId: userChapterSession.chapterId.toString()});
+		const progressPercentage = (questionsCorrect / questionCount) * 100;
+		userChapterSession.analytics.estDaysToComplete = userChapterSession.analytics.questionsAttemptPerDay * (100 / progressPercentage);
+		
+
+
+		const currentAccuracy = questionsAttempted > 0 ? (questionsCorrect / questionsAttempted) * 100 : 0;
+
+		if (!userChapterSession.analytics.userAttemptWindowList) {
+			userChapterSession.analytics.userAttemptWindowList = [];
+		}
+		userChapterSession.analytics.userAttemptWindowList.push({
+			timestamp: new Date(),
+			averageAccuracy: currentAccuracy,
+		});
+		// Keep only last 10 entries
+		if (userChapterSession.analytics.userAttemptWindowList.length > 10) {
+			userChapterSession.analytics.userAttemptWindowList.shift();
+		}
+
+		const userOnAverageAccuracy = userChapterSession.analytics.userAttemptWindowList.reduce((sum, entry) => sum + entry.averageAccuracy, 0) / userChapterSession.analytics.userAttemptWindowList.length;
+
+		// get updated strength with userOnAverageAccuracy (0-100) mapped to (0-5)
+		const updatedStrength = Math.min(5, Math.max(0, Math.round((userOnAverageAccuracy / 100) * 5)));
+		userChapterSession.analytics.strengthStatus = updatedStrength;
+
 		// Update maxScore if current score is higher
 		if (currentScore > userChapterSession.maxScore) {
 			userChapterSession.maxScore = currentScore;
 		}
 
+		const updatedUserRating = UserRatingService.calculateUserRatingByCurrentRatingAndMu({
+			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
+			mu: userChapterSession.trueSkillScore?.mu || 3,
+		});
+
+		userChapterSession.userRating = updatedUserRating;
 		userChapterSession.lastPlayedTs = new Date();
 		await userChapterSession.save();
 
@@ -170,9 +234,79 @@ const submitQuizSession = async ({
 		});
 
 		// Calculate accuracy
-		const accuracy = questionsAttempted > 0 
-			? Math.round((questionsCorrect / questionsAttempted) * 100)
-			: 0;
+		const accuracy = questionsAttempted > 0 ? Math.round((questionsCorrect / questionsAttempted) * 100) : 0;
+
+		// Initialize analytics if not present
+		if (!userProfile.analytics) {
+			userProfile.analytics = {
+				totalQuestionsAttempted: 0,
+				totalQuestionsCorrect: 0,
+				totalQuestionsIncorrect: 0,
+				strengths: [],
+				weaknesses: [],
+			};
+		}
+
+		// Initialize analytics properties if not present
+		if (userProfile.analytics.totalQuestionsAttempted === undefined || userProfile.analytics.totalQuestionsAttempted === null) {
+			userProfile.analytics.totalQuestionsAttempted = 0;
+		}
+		if (userProfile.analytics.totalQuestionsCorrect === undefined || userProfile.analytics.totalQuestionsCorrect === null) {
+			userProfile.analytics.totalQuestionsCorrect = 0;
+		}
+		if (userProfile.analytics.totalQuestionsIncorrect === undefined || userProfile.analytics.totalQuestionsIncorrect === null) {
+			userProfile.analytics.totalQuestionsIncorrect = 0;
+		}
+		if (!Array.isArray(userProfile.analytics.strengths)) {
+			userProfile.analytics.strengths = [];
+		}
+		if (!Array.isArray(userProfile.analytics.weaknesses)) {
+			userProfile.analytics.weaknesses = [];
+		}
+
+		// update UserProfile
+		userProfile.analytics.totalQuestionsAttempted += questionsAttempted;
+		userProfile.analytics.totalQuestionsCorrect += questionsCorrect;
+		userProfile.analytics.totalQuestionsIncorrect += questionsIncorrect;
+
+		if (updatedStrength >= 4) {
+			userProfile.analytics.strengths.push(userChapterSession.chapterId);
+			// Remove from weaknesses if present
+			userProfile.analytics.weaknesses = userProfile.analytics.weaknesses.filter(
+				(tid) => tid.toString() !== userChapterSession.chapterId.toString()
+			);
+		} else if (updatedStrength <= 2) {
+			userProfile.analytics.weaknesses.push(userChapterSession.chapterId);
+			// Remove from strengths if present
+			userProfile.analytics.strengths = userProfile.analytics.strengths.filter(
+				(tid) => tid.toString() !== userChapterSession.chapterId.toString()
+			);
+		}
+		
+		// Remove duplicates from strengths and weaknesses
+		const seenStrengths = new Set<string>();
+		userProfile.analytics.strengths = userProfile.analytics.strengths.filter((tid) => {
+			const str = tid.toString();
+			if (seenStrengths.has(str)) return false;
+			seenStrengths.add(str);
+			return true;
+		});
+		
+		const seenWeaknesses = new Set<string>();
+		userProfile.analytics.weaknesses = userProfile.analytics.weaknesses.filter((tid) => {
+			const str = tid.toString();
+			if (seenWeaknesses.has(str)) return false;
+			seenWeaknesses.add(str);
+			return true;
+		});
+		
+		await userProfile.save();
+
+		// Map processedAnswers to questionResults with only questionId and isCorrect
+		const questionResults = processedAnswers.map((answer) => ({
+			questionId: answer.questionId,
+			isCorrect: answer.isCorrect,
+		}));
 
 		// Return results
 		return {
@@ -184,6 +318,7 @@ const submitQuizSession = async ({
 				currentScore,
 				accuracy,
 				maxScore: userChapterSession.maxScore,
+				questionResults,
 			},
 		};
 	} catch (error: any) {
@@ -199,4 +334,3 @@ const submitQuizSession = async ({
 };
 
 export { submitQuizSession };
-

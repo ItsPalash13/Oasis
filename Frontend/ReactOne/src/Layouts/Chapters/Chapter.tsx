@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Container, 
   Grid, 
@@ -6,9 +6,9 @@ import {
   Box
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-// import { useDispatch } from 'react-redux';
-// import { useStartGameMutation } from '../../features/api/chapterAPI';
-// import { setquizSession } from '../../features/auth/quizSessionSlice';
+import { useSelector } from 'react-redux';
+import { useGetAllMetadataQuery } from '../../features/api/metadataAPI';
+import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
 // @ts-ignore
 import axios from 'axios';
 // @ts-ignore
@@ -27,8 +27,30 @@ interface Chapter {
 const Chapters: React.FC = () => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const navigate = useNavigate();
-  // const dispatch = useDispatch();
-  // const [startGame] = useStartGameMutation();
+  const user = useSelector((state: any) => state?.auth?.user);
+  
+  // Fetch metadata and chapter sessions
+  const { data: metadataData } = useGetAllMetadataQuery(undefined, {
+    skip: !user
+  });
+  
+  const { data: chapterSessionsData } = useGetChapterSessionsQuery(undefined, {
+    skip: !user
+  });
+  
+  const metadataList = metadataData?.data || [];
+  
+  // Create a map of chapterId -> userRating for quick lookup
+  const chapterSessionsMap = useMemo(() => {
+    if (!chapterSessionsData?.data) return {};
+    const map: { [key: string]: number } = {};
+    chapterSessionsData.data.forEach((session: any) => {
+      if (session.chapterId) {
+        map[session.chapterId.toString()] = session.userRating || 0;
+      }
+    });
+    return map;
+  }, [chapterSessionsData]);
 
   useEffect(() => {
     const fetchChapters = async () => {
@@ -58,18 +80,23 @@ const Chapters: React.FC = () => {
           Chapters
         </Typography>
         <Grid container spacing={3}>
-          {chapters.map((chapter) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={chapter._id}>
-              <ChapterCard 
-                chapter={{
-                  ...chapter,
-                  image: chapter.thumbnailUrl
-                }}
-                // old v1 (at call-site): onClick={() => chapter.status && handleChapterClick(chapter._id)}
-                // new v2 is now handled inside ChapterCard.jsx; no onClick override here
-              />
-            </Grid>
-          ))}
+          {chapters.map((chapter) => {
+            const userRating = chapterSessionsMap[chapter._id] || 0;
+            return (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={chapter._id}>
+                <ChapterCard 
+                  chapter={{
+                    ...chapter,
+                    image: chapter.thumbnailUrl
+                  }}
+                  userRating={userRating}
+                  metadataList={metadataList}
+                  // old v1 (at call-site): onClick={() => chapter.status && handleChapterClick(chapter._id)}
+                  // new v2 is now handled inside ChapterCard.jsx; no onClick override here
+                />
+              </Grid>
+            );
+          })}
         </Grid>
       </Container>
     </Box>

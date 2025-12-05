@@ -16,7 +16,7 @@ import {
   Chip,
   Grid
 } from '@mui/material';
-import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, Star as CoinsIcon, Favorite as HealthIcon, Whatshot as StreakIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, Star as CoinsIcon, Favorite as HealthIcon, Whatshot as StreakIcon, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 // @ts-ignore
 import { selectCurrentUser } from '../../features/auth/authSlice';
@@ -27,6 +27,19 @@ import AvatarColorPicker from '../../components/AvatarColorPicker';
 import Leaderboard from '../../components/Leaderboard';
 import { getAvatarSrc, getDefaultAvatar, getDefaultAvatarBgColor } from '../../utils/avatarUtils';
 
+interface Topic {
+  _id: string;
+  topic: string;
+}
+
+interface UserAnalytics {
+  totalQuestionsAttempted?: number;
+  totalQuestionsCorrect?: number;
+  totalQuestionsIncorrect?: number;
+  strengths?: Topic[] | string[];
+  weaknesses?: Topic[] | string[];
+}
+
 interface UserInfo {
   _id?: string;
   name?: string;
@@ -36,6 +49,7 @@ interface UserInfo {
   avatar?: string;
   avatarBgColor?: string;
   badges?: Array<{ badgeId: string; level: number }>;
+  analytics?: UserAnalytics;
   [key: string]: any;
 }
 
@@ -54,6 +68,18 @@ const Profile: React.FC = () => {
   const { data, isLoading, error, refetch } = useGetUserInfoQuery(userId, { skip: !userId });
   const userInfo: UserInfo = data?.data || user;
   const badges = userInfo?.badges || [];
+  const analytics = userInfo?.analytics;
+
+  // Helper to get topic name (handles both populated objects and IDs)
+  const getTopicName = (topic: Topic | string): string => {
+    if (typeof topic === 'string') return topic;
+    return topic?.topic || 'Unknown Topic';
+  };
+
+  // Calculate accuracy
+  const accuracy = analytics?.totalQuestionsAttempted && analytics.totalQuestionsAttempted > 0
+    ? Math.round((analytics.totalQuestionsCorrect || 0) / analytics.totalQuestionsAttempted * 100)
+    : 0;
   
   // Fetch monthly leaderboard
   const { data: leaderboardData, isLoading: leaderboardLoading, error: leaderboardError } = useGetMonthlyLeaderboardQuery();
@@ -273,6 +299,187 @@ const Profile: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+      {/* Analytics Section */}
+      {analytics && (
+        <Box sx={{ width: '100%', maxWidth: 900, mt: 4 }}>
+          <Typography variant="h5" fontWeight={700} gutterBottom align="left" sx={{ mb: 3, color: 'text.primary' }}>
+            <AssessmentIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+            Your Analytics
+          </Typography>
+          
+          {/* Statistics Cards */}
+          <Grid container spacing={2} sx={{ mb: 4 }}>
+            <Grid item xs={6} sm={3}>
+              <Card
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  textAlign: 'center',
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total Attempted
+                </Typography>
+                <Typography variant="h4" fontWeight={700} color="text.primary">
+                  {analytics.totalQuestionsAttempted || 0}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Card
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  textAlign: 'center',
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Correct Answers
+                </Typography>
+                <Typography variant="h4" fontWeight={700} color="success.main">
+                  {analytics.totalQuestionsCorrect || 0}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Card
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  textAlign: 'center',
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Incorrect Answers
+                </Typography>
+                <Typography variant="h4" fontWeight={700} color="error.main">
+                  {analytics.totalQuestionsIncorrect || 0}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Card
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  textAlign: 'center',
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Accuracy
+                </Typography>
+                <Typography variant="h4" fontWeight={700} color="primary.main">
+                  {accuracy}%
+                </Typography>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Strengths and Weaknesses */}
+          <Grid container spacing={3}>
+            {/* Strengths */}
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  height: '100%',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <TrendingUpIcon sx={{ color: 'success.main', mr: 1 }} />
+                  <Typography variant="h6" fontWeight={700} color="text.primary">
+                    Your Strengths
+                  </Typography>
+                </Box>
+                {analytics.strengths && analytics.strengths.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {analytics.strengths.map((topic, idx) => (
+                      <Chip
+                        key={idx}
+                        label={getTopicName(topic)}
+                        color="success"
+                        icon={<CheckCircleIcon />}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography color="text.secondary" fontStyle="italic">
+                    No strengths identified yet. Keep practicing!
+                  </Typography>
+                )}
+              </Card>
+            </Grid>
+
+            {/* Weaknesses */}
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  height: '100%',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <TrendingDownIcon sx={{ color: 'error.main', mr: 1 }} />
+                  <Typography variant="h6" fontWeight={700} color="text.primary">
+                    Areas to Improve
+                  </Typography>
+                </Box>
+                {analytics.weaknesses && analytics.weaknesses.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {analytics.weaknesses.map((topic, idx) => (
+                      <Chip
+                        key={idx}
+                        label={getTopicName(topic)}
+                        color="error"
+                        icon={<CancelIcon />}
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography color="text.secondary" fontStyle="italic">
+                    Great job! No areas need improvement right now.
+                  </Typography>
+                )}
+              </Card>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
+
       {/* Badges Section */}
       <Box sx={{ width: '100%', maxWidth: 900, mt: 4}}>
         <Typography variant="h5" fontWeight={700} gutterBottom align="left" sx={{ mb: 2, color: 'text.primary' }}>
@@ -291,7 +498,7 @@ const Profile: React.FC = () => {
             const badgeLevel = badgeDef.badgelevel?.[level] || {};
             return (
               <Grid item xs={6} sm={4} md={3} key={idx}>
-                <Tooltip title={<>
+                <Tooltip title={<> 
                   <Typography variant="subtitle2" fontWeight={600}>{badgeDef.badgeName}</Typography>
                   <Typography variant="body2">{badgeDef.badgeDescription}</Typography>
                   <Typography variant="caption" color="primary">Level: {level + 1}</Typography>

@@ -6,14 +6,19 @@ import { setquizSession } from '../features/auth/quizSessionSlice';
 import {
   Typography,
   Box,
+  Chip,
 } from '@mui/material';
 import { StyledChapterCard, chapterCardStyles } from '../theme/chapterCardTheme';
+import { getRankForRating } from '../utils/rankUtils';
 
-const ChapterCard = ({ chapter, onClick }) => {
+const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [startGameV3] = useStartGameV3Mutation();
   const isActive = chapter.status !== false; // Use status from Chapter data
+  
+  // Get rank name based on userRating
+  const rankName = getRankForRating(userRating, metadataList);
 
   const handleChapterClick = () => {
     console.log("ChapterCard clicked");
@@ -82,15 +87,31 @@ const ChapterCard = ({ chapter, onClick }) => {
       )}
       <Box sx={chapterCardStyles.cardContent}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography 
-            variant="h6" 
-            sx={{
-              ...chapterCardStyles.title,
-              color: isActive ? 'inherit' : 'text.secondary'
-            }}
-          >
-            {chapter.name}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+            <Typography 
+              variant="h6" 
+              sx={{
+                ...chapterCardStyles.title,
+                color: isActive ? 'inherit' : 'text.secondary'
+              }}
+            >
+              {chapter.name}
+            </Typography>
+            {isActive && rankName && (
+              <Chip
+                label={`${rankName}, ${userRating}`}
+                size="small"
+                sx={{
+                  height: '20px',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'inherit',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+              />
+            )}
+          </Box>
           
           {!isActive && (
             <Typography

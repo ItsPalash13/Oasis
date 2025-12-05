@@ -2,6 +2,7 @@ import UserChapterSession, { IOngoingSessionV3 } from "../../../models/UserChapt
 import { UserProfile } from "../../../models/UserProfile";
 import mongoose from "mongoose";
 import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
+import { USER_DEFAULT_MU, USER_DEFAULT_SIGMA } from "../../../config/constants";
 
 interface IStartChapterSessionResponse {
 	user: {
@@ -67,16 +68,26 @@ namespace UserChapterSessionService {
 				mu: userChapterSession.trueSkillScore?.mu ?? 15,
 				sigma: updatedUserSigma ?? userChapterSession.trueSkillScore?.sigma ?? 10,
 			};
+			userChapterSession.userRating = userChapterSession.userRating ?? 0;
 			userChapterSession.lastPlayedTs = new Date();
 		} else {
 			// If session doesn't exist, create it with default values (without ongoing)
 			userChapterSession = new UserChapterSession({
 				userId: userObjectId,
 				chapterId: chapterObjectId,
-				trueSkillScore: {
-					mu: 15,
-					sigma: 10,
+				analytics: {
+					totalQuestionsAttempted: 0,
+					totalQuestionsCorrect: 0,
+					totalQuestionsIncorrect: 0,
+					questionsAttemptPerDay: 0,
+					estDaysToComplete: 0,
+					strengthStatus: 0,
 				},
+				trueSkillScore: {
+					mu: USER_DEFAULT_MU,
+					sigma: USER_DEFAULT_SIGMA,
+				},
+				userRating: 0,
 				lastPlayedTs: new Date(),
 				maxScore: 0,
 			});

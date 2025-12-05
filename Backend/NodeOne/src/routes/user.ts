@@ -1,7 +1,9 @@
 import express, { NextFunction } from 'express';
 import { UserProfile } from '../models/UserProfile';
+import UserChapterSession from '../models/UserChapterSession';
 import authMiddleware from '../middleware/authMiddleware';
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -29,10 +31,19 @@ router.get('/info/:userId', authMiddleware, async (req: Request, res: Response) 
     if (!authUser || authUser.id !== userId) {
       return res.status(403).json({ success: false, error: 'Forbidden' });
     }
-    const user = await UserProfile.findOne({ userId }).populate({
-      path: 'badges.badgeId',
-      select: 'badgeName badgeType badgeslug badgeDescription badgelevel',
-    });
+    const user = await UserProfile.findOne({ userId })
+      .populate({
+        path: 'badges.badgeId',
+        select: 'badgeName badgeType badgeslug badgeDescription badgelevel',
+      })
+      .populate({
+        path: 'analytics.strengths',
+        select: '_id topic',
+      })
+      .populate({
+        path: 'analytics.weaknesses',
+        select: '_id topic',
+      });
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -91,6 +102,32 @@ router.patch('/settings/:userId', authMiddleware, async (req: Request, res: Resp
     // Accept and echo back settings for now
     return res.json({ success: true, data: req.body });
   } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET user chapter sessions
+router.get('/chapter-sessions', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    // Find all UserChapterSessions for this user
+    const sessions = await UserChapterSession.find({ 
+      userId: new mongoose.Types.ObjectId(userId) 
+    })
+    .select('chapterId userRating')
+    .lean();
+
+    return res.json({ 
+      success: true, 
+      data: sessions 
+    });
+  } catch (error) {
+    console.error('Error fetching user chapter sessions:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

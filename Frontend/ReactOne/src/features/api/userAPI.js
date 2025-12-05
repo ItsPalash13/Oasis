@@ -65,6 +65,13 @@ export const userApi = createApi({
         params: month ? { month } : {}
       }),
       providesTags: ['UserProfile']
+    }),
+    getChapterSessions: builder.query({
+      query: () => ({
+        url: `/user/chapter-sessions`,
+        method: 'GET'
+      }),
+      providesTags: ['UserProfile']
     })
   })
 });
@@ -73,6 +80,7 @@ export const {
   useUpdateUserInfoMutation,
   useGetUserSettingsQuery,
   useUpdateUserSettingsMutation,
-  useGetMonthlyLeaderboardQuery
+  useGetMonthlyLeaderboardQuery,
+  useGetChapterSessionsQuery
 } = userApi;
 
