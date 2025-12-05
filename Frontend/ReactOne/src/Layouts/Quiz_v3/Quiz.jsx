@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Box, Card, CardContent, CircularProgress, Grid, Typography, IconButton, Drawer, Collapse } from "@mui/material";
+import { Box, Card, CardContent, CircularProgress, Grid, Typography, IconButton, Drawer, Collapse, Chip } from "@mui/material";
 import { QuizHeader, QuestionCard, OptionCard, StyledButton, XpDisplay, quizStyles } from "../../theme/quizTheme";
-import { ArrowBack as ArrowBackIcon, Star as StarIcon, BookmarkBorder, Bookmark, ChevronRight, ChevronLeft, BugReport, Close } from "@mui/icons-material";
+import { ArrowBack as ArrowBackIcon, Star as StarIcon, BookmarkBorder, Bookmark, ChevronRight, ChevronLeft, BugReport, Close, CheckBox, RadioButtonChecked } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import DOMPurify from 'dompurify';
@@ -15,7 +15,7 @@ const Quiz = ({ socket }) => {
 	const sessionId = quizSession?.id || quizId;
 	const [isLoading, setIsLoading] = useState(true);
 	const [questions, setQuestions] = useState([]);
-	const [selectedAnswers, setSelectedAnswers] = useState({}); // { questionId: answerIndex }
+	const [selectedAnswers, setSelectedAnswers] = useState({}); // { questionId: answerIndex | answerIndex[] }
 	const [quizSubmitted, setQuizSubmitted] = useState(false);
 	const [quizResults, setQuizResults] = useState(null);
 	const [currentScore, setCurrentScore] = useState(0);
@@ -98,10 +98,32 @@ const Quiz = ({ socket }) => {
 
 	const handleAnswerSelect = (questionId, answerIndex) => {
 		if (quizSubmitted) return; // Don't allow changes after submission
-		setSelectedAnswers(prev => ({
-			...prev,
-			[questionId]: answerIndex
-		}));
+		
+		const question = questions.find(q => q.id === questionId);
+		const isMulticorrect = question?.type === 'multicorrect';
+		
+		setSelectedAnswers(prev => {
+			if (isMulticorrect) {
+				// For multicorrect: toggle the selection
+				const currentAnswers = prev[questionId] || [];
+				const currentArray = Array.isArray(currentAnswers) ? currentAnswers : (currentAnswers !== null && currentAnswers !== undefined ? [currentAnswers] : []);
+				
+				const newAnswers = currentArray.includes(answerIndex)
+					? currentArray.filter(idx => idx !== answerIndex) // Remove if already selected
+					: [...currentArray, answerIndex]; // Add if not selected
+				
+				return {
+					...prev,
+					[questionId]: newAnswers.length > 0 ? newAnswers : null
+				};
+			} else {
+				// For single: replace the selection
+				return {
+					...prev,
+					[questionId]: answerIndex
+				};
+			}
+		});
 		
 		// Update answered state
 		const questionIndex = questions.findIndex(q => q.id === questionId);
@@ -184,7 +206,11 @@ const Quiz = ({ socket }) => {
 		if (questions.length === 0) return;
 		
 		// Check if at least one question is answered
-		const answeredCount = Object.values(selectedAnswers).filter(a => a !== null && a !== undefined).length;
+		const answeredCount = Object.values(selectedAnswers).filter(a => 
+			a !== null && 
+			a !== undefined && 
+			!(Array.isArray(a) && a.length === 0)
+		).length;
 		if (answeredCount === 0) {
 			alert("Please answer at least one question before submitting.");
 			return;
@@ -194,10 +220,21 @@ const Quiz = ({ socket }) => {
 			setIsLoading(true);
 			
 			// Prepare answers array
-			const answers = questions.map(q => ({
-				questionId: q.id,
-				answerIndex: selectedAnswers[q.id] ?? null
-			}));
+			const answers = questions.map(q => {
+				const answer = selectedAnswers[q.id];
+				// For multicorrect, ensure it's an array; for single, ensure it's a number or null
+				if (q.type === 'multicorrect') {
+					return {
+						questionId: q.id,
+						answerIndex: Array.isArray(answer) ? answer : (answer !== null && answer !== undefined ? [answer] : null)
+					};
+				} else {
+					return {
+						questionId: q.id,
+						answerIndex: Array.isArray(answer) ? answer[0] : (answer ?? null)
+					};
+				}
+			});
 
 			socket.emit("submit", { answers, sessionId });
 		}
@@ -632,17 +669,80 @@ const Quiz = ({ socket }) => {
 							{(() => {
 								const question = questions[currentQuestionIndex];
 								const questionIndex = currentQuestionIndex;
-								const isCorrect = quizResults && question.correctAnswer?.includes(selectedAnswers[question.id]);
-								const isIncorrect = quizResults && selectedAnswers[question.id] !== null && selectedAnswers[question.id] !== undefined && !isCorrect;
+								const currentAnswer = selectedAnswers[question.id];
+								const isMulticorrect = question.type === 'multicorrect';
+								
+								// Determine if answer is correct (for display purposes)
+								let isCorrect = false;
+								let isIncorrect = false;
+								if (quizResults && currentAnswer !== null && currentAnswer !== undefined) {
+									if (isMulticorrect) {
+										const userAnswers = Array.isArray(currentAnswer) ? currentAnswer : [currentAnswer];
+										const correctAnswers = question.correctAnswer || [];
+										const userSorted = [...userAnswers].sort((a, b) => a - b);
+										const correctSorted = [...correctAnswers].sort((a, b) => a - b);
+										isCorrect = userSorted.length === correctSorted.length &&
+											userSorted.every((val, idx) => val === correctSorted[idx]);
+										isIncorrect = !isCorrect;
+									} else {
+										isCorrect = question.correctAnswer?.includes(currentAnswer);
+										isIncorrect = !isCorrect;
+									}
+								}
 								
 								return (
 									<>
 										<QuestionCard>
 											<CardContent sx={quizStyles.questionCardContent}>
 												<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-													<Typography variant="subtitle2" sx={{ color: "text.secondary" }}>
-														Question {questionIndex + 1} of {questions.length}
-													</Typography>
+													<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+														<Typography variant="subtitle2" sx={{ color: "text.secondary" }}>
+															Question {questionIndex + 1} of {questions.length}
+														</Typography>
+														{isMulticorrect ? (
+															<Chip
+																icon={<CheckBox sx={{ fontSize: "0.875rem" }} />}
+																label="Multiple Correct"
+																size="small"
+																sx={{
+																	height: "24px",
+																	fontSize: "0.7rem",
+																	fontWeight: 600,
+																	backgroundColor: (theme) =>
+																		theme.palette.mode === "dark" 
+																			? "rgba(33, 150, 243, 0.2)" 
+																			: "rgba(33, 150, 243, 0.1)",
+																	color: "primary.main",
+																	border: "1px solid",
+																	borderColor: "primary.main",
+																	"& .MuiChip-icon": {
+																		color: "primary.main",
+																	},
+																}}
+															/>
+														) : (
+															<Chip
+																icon={<RadioButtonChecked sx={{ fontSize: "0.875rem" }} />}
+																label="Single Correct"
+																size="small"
+																sx={{
+																	height: "24px",
+																	fontSize: "0.7rem",
+																	fontWeight: 600,
+																	backgroundColor: (theme) =>
+																		theme.palette.mode === "dark" 
+																			? "rgba(156, 39, 176, 0.2)" 
+																			: "rgba(156, 39, 176, 0.1)",
+																	color: "secondary.main",
+																	border: "1px solid",
+																	borderColor: "secondary.main",
+																	"& .MuiChip-icon": {
+																		color: "secondary.main",
+																	},
+																}}
+															/>
+														)}
+													</Box>
 													{!quizSubmitted && (
 														<IconButton
 															size="small"
@@ -675,14 +775,18 @@ const Quiz = ({ socket }) => {
 
 										<Grid container spacing={3} sx={{ mt: 2 }}>
 											{question.options?.map((opt, idx) => {
-												const isSelected = selectedAnswers[question.id] === idx;
+												const currentAnswer = selectedAnswers[question.id];
+												const isMulticorrect = question.type === 'multicorrect';
+												const isSelected = isMulticorrect
+													? Array.isArray(currentAnswer) && currentAnswer.includes(idx)
+													: currentAnswer === idx;
 												const isCorrectAnswer = question.correctAnswer?.includes(idx);
 												let className = "";
 												
 												if (quizSubmitted && quizResults) {
 													if (isCorrectAnswer) {
 														className = "correct-answer";
-													} else if (isSelected && isIncorrect) {
+													} else if (isSelected && !isCorrectAnswer) {
 														className = "wrong";
 													}
 												} else if (isSelected) {

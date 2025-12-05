@@ -57,7 +57,7 @@ export const updateUserQuestionTrueskillBatch = async ({
 	answers,
 }: {
 	sessionId: string;
-	answers: Array<{ questionId: string; answerIndex: number | null; isCorrect: boolean }>;
+	answers: Array<{ questionId: string; answerIndex: number | number[] | null; isCorrect: boolean }>;
 }): Promise<void> => {
 	const sessionObjectId = new mongoose.Types.ObjectId(sessionId);
 	
@@ -71,8 +71,11 @@ export const updateUserQuestionTrueskillBatch = async ({
 		return;
 	}
 
-	// Filter out unanswered questions (answerIndex is null)
-	const answeredQuestions = answers.filter(a => a.answerIndex !== null);
+	// Filter out unanswered questions (answerIndex is null or empty array)
+	const answeredQuestions = answers.filter(a => 
+		a.answerIndex !== null && 
+		!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
+	);
 	
 	if (answeredQuestions.length === 0) {
 		console.log("No answered questions to process");

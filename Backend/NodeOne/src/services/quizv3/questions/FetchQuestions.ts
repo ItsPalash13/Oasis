@@ -20,7 +20,7 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 		chapterId,
 		"difficulty.mu": { $gte: muMin, $lte: muMax },
 		quesId: { $nin: excludeQuestionIds },
-		type: 'single',
+		type: { $in: ['single', 'multicorrect'] },
 	})
 		.populate("quesId")
 		.sort({ "difficulty.mu": 1 }) // Sort by mu ascending

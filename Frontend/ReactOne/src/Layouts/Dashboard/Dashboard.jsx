@@ -13,7 +13,6 @@ import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
 const ChaptersBySubject = ({ darkMode, metadataList, chapterSessionsMap }) => {
   const subjects = [
     { name: 'Physics', slug: 'phy', icon: '' },
-    { name: 'Mathematics', slug: 'math', icon: '' },
     { name: 'Chemistry', slug: 'chem', icon: '' }
   ];
 
