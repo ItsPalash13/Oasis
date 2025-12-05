@@ -856,8 +856,7 @@ const Quiz = ({ socket }) => {
 												<StyledButton
 													variant="contained"
 													size="large"
-													onClick={() => handleQuestionNavigate(Math.min(questions.length - 1, currentQuestionIndex + 1))}
-													disabled={currentQuestionIndex === questions.length - 1}
+													onClick={currentQuestionIndex === questions.length - 1 ? handleSubmit : () => handleQuestionNavigate(Math.min(questions.length - 1, currentQuestionIndex + 1))}
 													sx={{
 														px: 4,
 														py: 1.5,
@@ -865,7 +864,7 @@ const Quiz = ({ socket }) => {
 														fontWeight: 600,
 													}}
 												>
-													Next
+													{currentQuestionIndex === questions.length - 1 ? "Submit" : "Next"}
 												</StyledButton>
 											</Box>
 										)}
