@@ -215,8 +215,9 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			userChapterSession.maxScore = currentScore;
 		}
 
-		const updatedUserRating = UserRatingService.calculateUserRatingByCurrentRatingAndMu({
+		const updatedUserRating = await UserRatingService.calculateUserRatingByCurrentRatingAndMu({
 			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
+			chapterId: userChapterSession.chapterId,
 			mu: userChapterSession.trueSkillScore?.mu || 3,
 		});
 
