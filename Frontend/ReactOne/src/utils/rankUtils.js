@@ -7,7 +7,7 @@
 export const getRankForRating = (userRating, metadataList) => {
   // Default rank if no rating or invalid
   if (!userRating || userRating === 0 || !metadataList || metadataList.length === 0) {
-    return 'Silver';
+    return null;
   }
 
   // Filter metadata to only Rank type
@@ -17,7 +17,7 @@ export const getRankForRating = (userRating, metadataList) => {
 
   // If no rank metadata found, return default
   if (rankMetadata.length === 0) {
-    return 'Silver';
+    return null;
   }
 
   // Sort by minRank descending to check highest ranks first
@@ -30,6 +30,6 @@ export const getRankForRating = (userRating, metadataList) => {
   );
 
   // Return matching rank name or default to Silver
-  return matchingRank ? matchingRank.metadataName : 'Silver';
+  return matchingRank ? matchingRank.metadataName : null;
 };
 

@@ -1,3 +1,4 @@
+import { USER_RATING_DEFAULT, USER_RATING_MULTIPLIER } from './../config/constants';
 import mongoose, { Schema, Document } from 'mongoose';
 
 // Chapter Schema
@@ -6,6 +7,8 @@ interface IChapter extends Document {
   description: string;
   gameName: string;
   status: boolean;
+  defaultRating: number;
+  ratingMultiplier: number;
   subjectId: mongoose.Types.ObjectId;
   thumbnailUrl?: string;
 }
@@ -29,6 +32,16 @@ const ChapterSchema = new Schema<IChapter>({
   status: {
     type: Boolean,
     default: false  
+  },
+  defaultRating: {
+    type: Number,
+    required: true,
+    default: USER_RATING_DEFAULT
+  },
+  ratingMultiplier: {
+    type: Number,
+    required: true,
+    default: USER_RATING_MULTIPLIER
   },
   subjectId: {
     type: Schema.Types.ObjectId,
