@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 
 
 import { logger } from '../utils/logger';
-import { quizV2Handler } from './quiz_v2/QuizSession';
 import { quizV3Handler } from './quiz_v3/QuizSession';
 
 export const initializeSocketHandlers = (io: Server) => {

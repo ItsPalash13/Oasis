@@ -2,6 +2,7 @@ import { Question } from "../../../models/Questions";
 import { IQuestionTs, QuestionTs } from "./../../../models/QuestionTs";
 import { IUserChapterSession } from "./../../../models/UserChapterSession";
 import mongoose from "mongoose";
+import { QUESTION_FETCH_LIMIT } from "../../../config/constants";
 
 export const fetchQuestionsByChapterIdAndMuRange = async ({
 	chapterId,
@@ -24,7 +25,7 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 	})
 		.populate("quesId")
 		.sort({ "difficulty.mu": 1 }) // Sort by mu ascending
-		.limit(3)
+		.limit(QUESTION_FETCH_LIMIT)
 		.exec();
 
 	return questions;

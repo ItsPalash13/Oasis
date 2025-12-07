@@ -1,3 +1,7 @@
+import dotenv from 'dotenv';
+
+// Load environment variables if not already loaded
+dotenv.config();
 
 const MU_MIN: number = 3;
 const SIGMA_MIN: number = 3; 
@@ -12,6 +16,21 @@ const USER_RATING_MAX: number = 20000;
 const USER_RATING_DEFAULT: number = 500;
 const USER_RATING_MULTIPLIER: number = 100;
 
+const QUESTION_FETCH_LIMIT: number = parseInt(process.env.QUESTION_FETCH_LIMIT || '3', 10);
+export interface SigmaBoostConfig {
+  sigmaBase: number;    // baseline target σ
+  baseBoost: number;    // minimum σ increase
+  maxBoost: number;     // extra σ increase scaled by W
+  minHistorySize: number; // minimum accuracy history needed
+}
+
+const DEFAULT_SIGMA_BOOST_CONFIG: SigmaBoostConfig = {
+  sigmaBase: parseFloat(process.env.SIGMA_BOOST_SIGMA_BASE || '1.5'),
+  baseBoost: parseFloat(process.env.SIGMA_BOOST_BASE_BOOST || '0.5'),
+  maxBoost: parseFloat(process.env.SIGMA_BOOST_MAX_BOOST || '1.0'),
+  minHistorySize: parseInt(process.env.SIGMA_BOOST_MIN_HISTORY_SIZE || '5', 10)
+};
+
 export {
     MU_MIN,
     SIGMA_MIN,
@@ -22,5 +41,7 @@ export {
     USER_DEFAULT_SIGMA,
     USER_RATING_DEFAULT,
     USER_RATING_MAX,
-    USER_RATING_MULTIPLIER
+    USER_RATING_MULTIPLIER,
+    DEFAULT_SIGMA_BOOST_CONFIG,
+    QUESTION_FETCH_LIMIT
 }

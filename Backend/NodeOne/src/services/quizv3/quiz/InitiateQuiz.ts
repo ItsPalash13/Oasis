@@ -1,6 +1,7 @@
 import { fetchUserChapterSessionQuestionPool } from "./../../../services/quizv3/questions/FetchQuestions";
 import { logger } from "../../../utils/logger";
 import { UserChapterSessionService } from "../userchapter-session/UserChapterSession";
+import { applySigmaBoostToUserSession } from "../userchapter-session/TrueskillHandler";
 import { Question } from "../../../models/Questions";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
@@ -35,10 +36,13 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			};
 		}
 
+		// Apply sigma boost if needed (only if sigma < sigma_base)
+		await applySigmaBoostToUserSession(userChapterSession);
+
 		// Fetch user trueskill data
 		const userTrueskillData = {
-			mu: userChapterSession?.trueSkillScore?.mu || 15,
-			sigma: userChapterSession?.trueSkillScore?.sigma || 10,
+			mu: userChapterSession?.trueSkillScore?.mu || 0,
+			sigma: userChapterSession?.trueSkillScore?.sigma || 0,
 		};
 
 		// Fetch 3 questions that match trueskill range (mu ± 1)
@@ -46,8 +50,6 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 			userChapterSession: userChapterSession,
 			userTrueSkillData: userTrueskillData,
 		});
-
-		console.log("QUESTION LIST V3:", questionList);
 
 		// If we don't have 3 questions, try to get more (relax the range or get any available)
 		if (questionList.length < 3) {
@@ -95,7 +97,7 @@ const initiateQuizSession = async ({ sessionId }: { sessionId?: string }) => {
 		});
 
 		// Parse questions for frontend
-		const parsedQuestions = questions.map((q, index) => {
+		const parsedQuestions = questions.map((q) => {
 			const questionTs = questionTsMap.get((q._id as any).toString());
 			return {
 				id: (q._id as any).toString(),

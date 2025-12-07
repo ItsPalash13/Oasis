@@ -121,56 +121,7 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
 
   return (
     <Box sx={dashboardStyles.container}>
-      {/* JEE Topic Tags */}
-      <Box sx={{ mb: 1.25, px: 2 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          pt:1.5,
-          gap: 1, 
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          whiteSpace: 'nowrap',
-          scrollbarWidth: 'none', // Firefox
-          msOverflowStyle: 'none', // IE and Edge
-          '&::-webkit-scrollbar': { // Chrome, Safari, Opera
-            display: 'none'
-          },
-          pb: 1 // Add padding bottom for hidden scrollbar
-        }}>
-          {jeeTopics.map((topic, index) => {
-            const isSelected = selectedTopic === topic;
-            return (
-              <Chip
-                key={index}
-                label={topic}
-                size="small"
-                clickable
-                onClick={() => setSelectedTopic(topic)}
-                sx={{
-                  backgroundColor: isSelected 
-                    ? (theme.palette.mode === 'dark' ? '#1F1F1F' : '#FFFFFF')
-                    : 'background.paper',
-                  color: isSelected 
-                    ? (theme.palette.mode === 'dark' ? '#FFFFFF' : '#1F1F1F')
-                    : 'text.secondary',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                  fontWeight: isSelected ? 600 : 500,
-                  flexShrink: 0, // Prevent chips from shrinking
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: isSelected 
-                      ? (theme.palette.mode === 'dark' ? '#2A2A2A' : '#F5F5F5')
-                      : (theme.palette.mode === 'dark' ? '#2A2A2A' : '#F5F5F5'),
-                    borderColor: isSelected ? 'transparent' : (theme.palette.mode === 'dark' ? '#FFFFFF' : '#1F1F1F'),
-                  },
-                  transition: 'all 0.2s ease',
-                }}
-              />
-            );
-          })}
-        </Box>
-      </Box>
+
 
       {/* Chapters by Subject */}
       <ChaptersBySubject 

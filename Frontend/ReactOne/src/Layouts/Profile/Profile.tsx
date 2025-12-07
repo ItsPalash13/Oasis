@@ -5,28 +5,21 @@ import {
   Avatar, 
   Box, 
   Card, 
-  CardContent, 
   Typography, 
-  CircularProgress, 
   Alert, 
-  Button,
   IconButton,
   Tooltip,
-  Stack,
   Chip,
   Grid
 } from '@mui/material';
-import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, Star as CoinsIcon, Favorite as HealthIcon, Whatshot as StreakIcon, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Palette as PaletteIcon, Email as EmailIcon, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 // @ts-ignore
 import { selectCurrentUser } from '../../features/auth/authSlice';
 // @ts-ignore
-import { useGetUserInfoQuery, useUpdateUserInfoMutation, useGetMonthlyLeaderboardQuery } from '../../features/api/userAPI';
-// @ts-ignore
-import { useGetAllChaptersQuery } from '../../features/api/chapterAPI';
+import { useGetUserInfoQuery, useUpdateUserInfoMutation } from '../../features/api/userAPI';
 import AvatarSelector from '../../components/AvatarSelector';
 import AvatarColorPicker from '../../components/AvatarColorPicker';
-import Leaderboard from '../../components/Leaderboard';
 import { getAvatarSrc, getDefaultAvatar, getDefaultAvatarBgColor } from '../../utils/avatarUtils';
 
 interface Topic {
@@ -74,7 +67,6 @@ const Profile: React.FC = () => {
   // Fetch user info from API
   const { data, isLoading, error, refetch } = useGetUserInfoQuery(userId, { skip: !userId });
   const userInfo: UserInfo = data?.data || user;
-  const badges = userInfo?.badges || [];
   const analytics = userInfo?.analytics;
 
   // Fetch all chapters to create a lookup map
@@ -113,9 +105,6 @@ const Profile: React.FC = () => {
   const accuracy = analytics?.totalQuestionsAttempted && analytics.totalQuestionsAttempted > 0
     ? Math.round((analytics.totalQuestionsCorrect || 0) / analytics.totalQuestionsAttempted * 100)
     : 0;
-  
-  // Fetch monthly leaderboard
-  const { data: leaderboardData, isLoading: leaderboardLoading, error: leaderboardError } = useGetMonthlyLeaderboardQuery();
   
   // Update user info mutation
   const [updateUserInfo, { isLoading: isUpdating }] = useUpdateUserInfoMutation();
@@ -159,28 +148,6 @@ const Profile: React.FC = () => {
     return userInfo?.avatarBgColor || getDefaultAvatarBgColor();
   };
 
-  // --- Stats for coins, health, streak with specific colors ---
-  const stats = [
-    {
-      label: 'XP',
-      value: userInfo?.totalCoins ?? 0,
-      icon: <CoinsIcon sx={{ color: '#FFD700' }} />, // gold
-      color: 'warning',
-    },
-    {
-      label: 'Health',
-      value: userInfo?.health ?? 0,
-      icon: <HealthIcon sx={{ color: '#FF0808' }} />, // red
-      color: 'error',
-    },
-    {
-      label: 'Streak',
-      value: userInfo?.dailyAttemptsStreak ?? 0,
-      icon: <StreakIcon sx={{ color: '#ff5722' }} />, // orange
-      color: 'secondary',
-    },
-  ];
-
   if (!userId) {
     return <Alert severity="error">User not found. Please log in again.</Alert>;
   }
@@ -199,10 +166,9 @@ const Profile: React.FC = () => {
         transition: 'background 0.3s',
       }}
     >
-      {/* Profile Card and Leaderboard Side by Side */}
+      {/* Profile Card */}
       <Grid container spacing={3} sx={{ mt: { xs: 2, sm: 6 } }}>
-        {/* Profile Card */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <Card
             sx={{
               borderRadius: 4,
@@ -285,300 +251,12 @@ const Profile: React.FC = () => {
                   {userInfo?.email || 'No email'}
                 </Typography>
               </Box>
-              {/* Stats Chips */}
-              <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {stats.map((stat, idx) => (
-                  <Chip
-                    key={stat.label}
-                    icon={stat.icon}
-                    label={`${stat.value} ${stat.label}`}
-                    color={stat.color as any}
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      px: 2,
-                      boxShadow: 1,
-                      letterSpacing: 0.5,
-                    }}
-                  />
-                ))}
-              </Box>
-
-
             </Box>
 
           </Card>
         </Grid>
-
-        {/* Leaderboard */}
-        <Grid item xs={12} md={6}>
-          <Card
-            sx={{
-              borderRadius: 4,
-              boxShadow: 6,
-              p: { xs: 2, sm: 3 },
-              height: 'fit-content',
-              backgroundColor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Leaderboard 
-              data={leaderboardData?.data || []}
-              month={leaderboardData?.month}
-              isLoading={leaderboardLoading}
-              error={leaderboardError}
-            />
-          </Card>
-        </Grid>
       </Grid>
-      {/* Analytics Section */}
-      {analytics && (
-        <Box sx={{ width: '100%', maxWidth: 900, mt: 4 }}>
-          <Typography variant="h5" fontWeight={700} gutterBottom align="left" sx={{ mb: 3, color: 'text.primary' }}>
-            <AssessmentIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-            Your Analytics
-          </Typography>
-          
-          {/* Statistics Cards */}
-          <Grid container spacing={2} sx={{ mb: 4 }}>
-            <Grid item xs={6} sm={3}>
-              <Card
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  textAlign: 'center',
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Total Attempted
-                </Typography>
-                <Typography variant="h4" fontWeight={700} color="text.primary">
-                  {analytics.totalQuestionsAttempted || 0}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Card
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  textAlign: 'center',
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Correct Answers
-                </Typography>
-                <Typography variant="h4" fontWeight={700} color="success.main">
-                  {analytics.totalQuestionsCorrect || 0}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Card
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  textAlign: 'center',
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Incorrect Answers
-                </Typography>
-                <Typography variant="h4" fontWeight={700} color="error.main">
-                  {analytics.totalQuestionsIncorrect || 0}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Card
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  textAlign: 'center',
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Accuracy
-                </Typography>
-                <Typography variant="h4" fontWeight={700} color="primary.main">
-                  {accuracy}%
-                </Typography>
-              </Card>
-            </Grid>
-          </Grid>
 
-          {/* Strengths and Weaknesses */}
-          <Grid container spacing={3}>
-            {/* Strengths */}
-            <Grid item xs={12} md={6}>
-              <Card
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  height: '100%',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TrendingUpIcon sx={{ color: 'success.main', mr: 1 }} />
-                  <Typography variant="h6" fontWeight={700} color="text.primary">
-                    Your Strengths
-                  </Typography>
-                </Box>
-                {analytics.strengths && analytics.strengths.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {analytics.strengths.map((item, idx) => {
-                      const itemId = typeof item === 'string' ? item : item?._id || idx;
-                      return (
-                        <Chip
-                          key={itemId}
-                          label={getTopicName(item)}
-                          color="success"
-                          icon={<CheckCircleIcon />}
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: '0.9rem',
-                          }}
-                        />
-                      );
-                    })}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary" fontStyle="italic">
-                    No strengths identified yet. Keep practicing!
-                  </Typography>
-                )}
-              </Card>
-            </Grid>
-
-            {/* Weaknesses */}
-            <Grid item xs={12} md={6}>
-              <Card
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  boxShadow: 3,
-                  backgroundColor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  height: '100%',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TrendingDownIcon sx={{ color: 'error.main', mr: 1 }} />
-                  <Typography variant="h6" fontWeight={700} color="text.primary">
-                    Areas to Improve
-                  </Typography>
-                </Box>
-                {analytics.weaknesses && analytics.weaknesses.length > 0 ? (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {analytics.weaknesses.map((item, idx) => {
-                      const itemId = typeof item === 'string' ? item : item?._id || idx;
-                      return (
-                        <Chip
-                          key={itemId}
-                          label={getTopicName(item)}
-                          color="error"
-                          icon={<CancelIcon />}
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: '0.9rem',
-                          }}
-                        />
-                      );
-                    })}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary" fontStyle="italic">
-                    Great job! No areas need improvement right now.
-                  </Typography>
-                )}
-              </Card>
-            </Grid>
-          </Grid>
-        </Box>
-      )}
-
-      {/* Badges Section */}
-      <Box sx={{ width: '100%', maxWidth: 900, mt: 4}}>
-        <Typography variant="h5" fontWeight={700} gutterBottom align="left" sx={{ mb: 2, color: 'text.primary' }}>
-          Badges
-        </Typography>
-        <Grid container spacing={3}>
-          {badges.length === 0 && (
-            <Grid item xs={12}>
-              <Typography color="text.secondary">No badges earned yet.</Typography>
-            </Grid>
-          )}
-          {badges.map((badge, idx) => {
-            const badgeDef = badge.badgeId;
-            if (!badgeDef) return null;
-            const level = badge.level ?? 0;
-            const badgeLevel = badgeDef.badgelevel?.[level] || {};
-            return (
-              <Grid item xs={6} sm={4} md={3} key={idx}>
-                <Tooltip title={<> 
-                  <Typography variant="subtitle2" fontWeight={600}>{badgeDef.badgeName}</Typography>
-                  <Typography variant="body2">{badgeDef.badgeDescription}</Typography>
-                  <Typography variant="caption" color="primary">Level: {level + 1}</Typography>
-                </>} arrow>
-                  <Card
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      p: 2,
-                      borderRadius: 3,
-                      boxShadow: 3,
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                      '&:hover': {
-                        transform: 'scale(1.05)',
-                        boxShadow: 6,
-                      },
-                      minHeight: 180,
-                      backgroundColor: 'background.paper',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <img
-                      src={badgeLevel.badgeImage || ''}
-                      alt={badgeDef.badgeName}
-                      style={{ width: 72, height: 72, objectFit: 'contain', borderRadius: 12, marginBottom: 8, background: '#f5f5f5' }}
-                    />
-                    <Typography variant="subtitle1" fontWeight={600} align="center" sx={{ color: 'text.primary' }}>
-                      {badgeDef.badgeName}
-                    </Typography>
-                    <Typography variant="caption" color="primary" align="center" sx={{ mt: 0.5 }}>
-                      Level: {level + 1}
-                    </Typography>
-                  </Card>
-                </Tooltip>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Box>
       {/* Avatar Selector Dialog */}
       <AvatarSelector
         open={avatarSelectorOpen}
