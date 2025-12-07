@@ -18,13 +18,17 @@ interface TrueSkillUpdate {
  * User rating is updated by accumulating deltas from individual 1v1 matches with each question.
  * Question ratings are updated individually using 1v1 matches with initial user rating.
  */
+
+
+// {user: {mu: number, sigma: number}, question: {mu: number, sigma: number}}
+
 export const updateUserQuestionTrueskillBatch = async ({
 	sessionId,
 	answers,
 }: {
 	sessionId: string;
 	answers: Array<{ questionId: string; answerIndex: number | number[] | null; isCorrect: boolean }>;
-}): Promise<void> => {
+}): Promise<any> => {
 	const sessionObjectId = new mongoose.Types.ObjectId(sessionId);
 	
 	// Load user session
@@ -193,6 +197,7 @@ export const updateUserQuestionTrueskillBatch = async ({
 	}
 
 	console.log("Updated all question TrueSkill scores in batch");
+	return userSession;
 };
 
 /**

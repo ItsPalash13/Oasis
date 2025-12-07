@@ -13,7 +13,7 @@ const SIGMA_DECAY_CONST = 0.5;
 const USER_DEFAULT_MU: number = 2.5;
 const USER_DEFAULT_SIGMA: number = 5;
 const USER_RATING_MAX: number = 20000;
-const USER_RATING_DEFAULT: number = 500;
+const USER_RATING_DEFAULT: number = 0;
 const USER_RATING_MULTIPLIER: number = 100;
 
 const QUESTION_FETCH_LIMIT: number = parseInt(process.env.QUESTION_FETCH_LIMIT || '3', 10);

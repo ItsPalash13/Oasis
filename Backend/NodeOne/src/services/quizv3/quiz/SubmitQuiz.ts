@@ -39,7 +39,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		console.log("SUBMIT QUIZ V3 - SessionId:", sessionId, "Answers:", answers);
 
 		// Get user session
-		const userChapterSession = await UserChapterSessionService.getCurrentSessionBySocketTicket({
+		let userChapterSession = await UserChapterSessionService.getCurrentSessionBySocketTicket({
 			socketTicket: sessionId,
 		});
 
@@ -219,6 +219,16 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			userChapterSession.maxScore = currentScore;
 		}
 
+		// Update TrueSkill in batch for all answered questions
+		userChapterSession = await updateUserQuestionTrueskillBatch({
+			sessionId: userChapterSession.ongoing._id!.toString(),
+			answers: processedAnswers.filter(a => 
+				a.answerIndex !== null && 
+				!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
+			),
+		});
+
+
 		const updatedUserRating = await UserRatingService.calculateUserRatingByCurrentRatingAndMu({
 			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
 			chapterId: userChapterSession.chapterId,
@@ -228,16 +238,6 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		userChapterSession.userRating = updatedUserRating;
 		userChapterSession.lastPlayedTs = new Date();
 		await userChapterSession.save();
-
-		// Update TrueSkill in batch for all answered questions
-		await updateUserQuestionTrueskillBatch({
-			sessionId: userChapterSession.ongoing._id!.toString(),
-			answers: processedAnswers.filter(a => 
-				a.answerIndex !== null && 
-				!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
-			),
-		});
-
 		// Calculate accuracy
 		const accuracy = questionsAttempted > 0 ? Math.round((questionsCorrect / questionsAttempted) * 100) : 0;
 
