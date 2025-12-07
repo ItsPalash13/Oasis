@@ -1,7 +1,6 @@
 import UserChapterSession, { IOngoingSessionV3 } from "../../../models/UserChapterSession";
 import { UserProfile } from "../../../models/UserProfile";
 import mongoose from "mongoose";
-import { getUpdatedUserSigmaByLastPlayed } from "./TrueskillHandler";
 import { USER_DEFAULT_MU, USER_DEFAULT_SIGMA } from "../../../config/constants";
 
 interface IStartChapterSessionResponse {
@@ -56,17 +55,12 @@ namespace UserChapterSessionService {
 			userId: userObjectId,
 			chapterId: chapterObjectId,
 		});
-
-		let updatedUserSigma: number | undefined;
-		if (userChapterSession) {
-			updatedUserSigma = await getUpdatedUserSigmaByLastPlayed({ userChapterSession });
-		}
 		
 		if (userChapterSession) {
 			// If session exists, update TrueSkill and lastPlayedTs, but create new ongoing with new _id
 			userChapterSession.trueSkillScore = {
 				mu: userChapterSession.trueSkillScore?.mu ?? 15,
-				sigma: updatedUserSigma ?? userChapterSession.trueSkillScore?.sigma ?? 10,
+				sigma: userChapterSession.trueSkillScore?.sigma ?? 10,
 			};
 			userChapterSession.userRating = userChapterSession.userRating ?? 0;
 			userChapterSession.lastPlayedTs = new Date();

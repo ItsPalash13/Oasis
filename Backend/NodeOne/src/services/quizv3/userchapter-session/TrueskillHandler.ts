@@ -1,42 +1,8 @@
-import { SIGMA_DECAY_CONST } from "../../../config/constants";
-import UserChapterSession, { IUserChapterSession } from "../../../models/UserChapterSession";
+import UserChapterSession, { IUserChapterSession, IUserAttemptWindow } from "../../../models/UserChapterSession";
 import { TrueSkill, Rating } from "ts-trueskill";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
-
-const DEFAULT_SIGMA = 10;
-
-export const getUpdatedUserSigmaByLastPlayed = async ({ userChapterSession }: { userChapterSession: IUserChapterSession }) => {
-	try {
-		if (!userChapterSession) {
-			return DEFAULT_SIGMA;
-		}
-
-		const lastPlayedTime = userChapterSession.lastPlayedTs;
-		const currentSigma = userChapterSession.trueSkillScore?.sigma ?? DEFAULT_SIGMA;
-
-		if (!lastPlayedTime) {
-			return currentSigma;
-		}
-
-		const currentTime = new Date();
-		const timeDiff = currentTime.getTime() - lastPlayedTime.getTime();
-		const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
-
-		if (daysDiff <= 0) {
-			return currentSigma;
-		}
-
-		const delta = 1 - Math.exp(-SIGMA_DECAY_CONST * daysDiff);
-		const newUserSigma = currentSigma + currentSigma * delta;
-
-		console.log("The new user sigma is before and after ", currentSigma, newUserSigma);
-		return newUserSigma;
-	} catch (error) {
-		console.error("Error updating user sigma:", error);
-		return userChapterSession?.trueSkillScore?.sigma ?? DEFAULT_SIGMA;
-	}
-};
+import { DEFAULT_SIGMA_BOOST_CONFIG, SigmaBoostConfig, USER_DEFAULT_SIGMA } from "../../../config/constants";
 
 interface TrueSkillUpdate {
 	questionId: mongoose.Types.ObjectId;
@@ -49,7 +15,7 @@ interface TrueSkillUpdate {
 
 /**
  * Update TrueSkill ratings for user and questions in batch.
- * User rating is updated using a single multi-player match with all questions.
+ * User rating is updated by accumulating deltas from individual 1v1 matches with each question.
  * Question ratings are updated individually using 1v1 matches with initial user rating.
  */
 export const updateUserQuestionTrueskillBatch = async ({
@@ -102,12 +68,17 @@ export const updateUserQuestionTrueskillBatch = async ({
 	const env = new TrueSkill();
 	const updates: TrueSkillUpdate[] = [];
 
-	// Build arrays for multi-player match (user + all questions)
-	const questionRatings: Rating[] = [];
-	const ranks: number[] = [0]; // User rank is always 0 (user is the player)
-	const questionData: Array<{ questionId: string; beforeQts: { mu: number; sigma: number } }> = [];
+	// Initialize delta accumulators for user rating
+	let userMuDelta = 0;
+	let userSigmaDelta = 0;
+	let processedQuestionCount = 0;
 
-	// Prepare question ratings and ranks for multi-player match
+	// Store before values for user
+	const beforeUts = { mu: initialUserMu, sigma: initialUserSigma };
+
+	// Calculate individual 1v1 updates for each question using initial user rating
+	const questionUpdates: Map<string, { mu: number; sigma: number }> = new Map();
+	
 	for (const answer of answeredQuestions) {
 		const questionTs = questionTsMap.get(answer.questionId);
 		if (!questionTs) {
@@ -115,67 +86,56 @@ export const updateUserQuestionTrueskillBatch = async ({
 			continue;
 		}
 
+		processedQuestionCount++;
+
 		const currentQMu = questionTs.difficulty?.mu ?? 15;
 		const currentQSigma = questionTs.difficulty?.sigma ?? 10;
 		const questionRating = new Rating(currentQMu, currentQSigma);
-
-		questionRatings.push(questionRating);
-		// Question rank: 0 if user was correct (user wins), 1 if user was incorrect (question wins)
-		ranks.push(answer.isCorrect ? 0 : 1);
+		const beforeQts = { mu: currentQMu, sigma: currentQSigma };
 		
-		questionData.push({
-			questionId: answer.questionId,
-			beforeQts: { mu: currentQMu, sigma: currentQSigma },
-		});
-	}
-
-	// Calculate user rating using multi-player match
-	// Format: [[userRating], [q1Rating], [q2Rating], ...]
-	const allRatings = [[initialUserRating], ...questionRatings.map(r => [r])];
-	const updatedRatings = env.rate(allRatings, ranks);
-	
-	// Extract updated user rating (first element)
-	const newUserRating = updatedRatings[0][0];
-	const finalUserMu = newUserRating.mu;
-	const finalUserSigma = newUserRating.sigma;
-
-	// Store before values for user
-	const beforeUts = { mu: initialUserMu, sigma: initialUserSigma };
-
-	// Now calculate individual 1v1 updates for each question using initial user rating
-	const questionUpdates: Map<string, { mu: number; sigma: number }> = new Map();
-	
-	for (let i = 0; i < questionData.length; i++) {
-		const { questionId, beforeQts } = questionData[i];
-		const answer = answeredQuestions.find(a => a.questionId === questionId);
-		if (!answer) continue;
-
-		const questionRating = questionRatings[i];
-		
-		// Perform 1v1 match using initial user rating
+		// Perform 1v1 match using initial user rating (user stays frozen)
 		// Rank: [1, 2] if user is correct (user wins), [2, 1] if user is incorrect (question wins)
 		const oneVoneRanks = answer.isCorrect ? [1, 2] : [2, 1];
-		const [[], [newQuestionRating]] = env.rate([[initialUserRating], [questionRating]], oneVoneRanks);
+		const [[updatedUserRating], [newQuestionRating]] = env.rate([[initialUserRating], [questionRating]], oneVoneRanks);
+
+		// Calculate deltas for user rating from this match
+		const muDelta = updatedUserRating.mu - initialUserMu;
+		const sigmaDelta = updatedUserRating.sigma - initialUserSigma;
+		
+		// Accumulate deltas
+		userMuDelta += muDelta;
+		userSigmaDelta += sigmaDelta;
 
 		const finalQuestionMu = newQuestionRating.mu;
 		const finalQuestionSigma = newQuestionRating.sigma;
 
 		// Store question update
-		questionUpdates.set(questionId, {
+		questionUpdates.set(answer.questionId, {
 			mu: finalQuestionMu,
 			sigma: finalQuestionSigma,
 		});
 
-		// Store update for changelog
+		// Store update for changelog (will update afterUts after calculating final rating)
 		updates.push({
-			questionId: new mongoose.Types.ObjectId(questionId),
+			questionId: new mongoose.Types.ObjectId(answer.questionId),
 			isCorrect: answer.isCorrect,
 			beforeUts,
 			beforeQts,
-			afterUts: { mu: finalUserMu, sigma: finalUserSigma },
+			afterUts: { mu: 0, sigma: 0 }, // Placeholder, will be updated below
 			afterQts: { mu: finalQuestionMu, sigma: finalQuestionSigma },
 		});
 	}
+
+	// Calculate final user rating by applying average of accumulated deltas
+	const averageMuDelta = processedQuestionCount > 0 ? userMuDelta / processedQuestionCount : 0;
+	const averageSigmaDelta = processedQuestionCount > 0 ? userSigmaDelta / processedQuestionCount : 0;
+	const finalUserMu = initialUserMu + averageMuDelta;
+	const finalUserSigma = initialUserSigma + averageSigmaDelta;
+
+	// Update changelog entries with final user rating
+	updates.forEach(update => {
+		update.afterUts = { mu: finalUserMu, sigma: finalUserSigma };
+	});
 
 	// Update user session with final rating
 	userSession.trueSkillScore = {
@@ -233,4 +193,130 @@ export const updateUserQuestionTrueskillBatch = async ({
 	}
 
 	console.log("Updated all question TrueSkill scores in batch");
+};
+
+/**
+ * Extract recent accuracy values from userAttemptWindowList
+ */
+const getRecentAccuracies = (userAttemptWindowList: IUserAttemptWindow[] | undefined): number[] => {
+	if (!userAttemptWindowList || userAttemptWindowList.length === 0) {
+		console.log("[SigmaBoost] No accuracy history found in userAttemptWindowList");
+		return [];
+	}
+	// Extract averageAccuracy values and normalize if needed (convert percentages to [0,1])
+	const accuracies = userAttemptWindowList.map(window => {
+		const accuracy = window.averageAccuracy;
+		// If value > 1, assume it's a percentage and normalize to [0,1]
+		return accuracy > 1 ? accuracy / 100 : accuracy;
+	});
+	console.log(`[SigmaBoost] Extracted ${accuracies.length} accuracy values (normalized):`, accuracies);
+	return accuracies;
+};
+
+/**
+ * Calculate accuracy statistics: mean, standard deviation, and normalized standard deviation
+ */
+const calculateAccuracyStats = (accuracies: number[]): { mean: number; stdDev: number; stdNorm: number } => {
+	if (accuracies.length === 0) {
+		console.log("[SigmaBoost] No accuracies provided for stats calculation");
+		return { mean: 0, stdDev: 0, stdNorm: 0 };
+	}
+
+	// Calculate mean
+	const mean = accuracies.reduce((sum, acc) => sum + acc, 0) / accuracies.length;
+
+	// Calculate standard deviation
+	const variance = accuracies.reduce((sum, acc) => sum + Math.pow(acc - mean, 2), 0) / accuracies.length;
+	const stdDev = Math.sqrt(variance);
+
+	// Normalize standard deviation (max possible std dev for values in [0,1] is 0.5)
+	const stdNorm = Math.min(1, stdDev / 0.5);
+
+	console.log(`[SigmaBoost] Accuracy Stats - Mean: ${mean.toFixed(3)}, StdDev: ${stdDev.toFixed(3)}, StdNorm: ${stdNorm.toFixed(3)}`);
+
+	return { mean, stdDev, stdNorm };
+};
+
+/**
+ * Calculate stability weight W = 1 - std_norm
+ * Stable accuracy (low std dev) → W ≈ 1
+ * Unstable accuracy (high std dev) → W ≈ 0
+ */
+const calculateStabilityWeight = (accuracies: number[]): number => {
+	const { stdNorm } = calculateAccuracyStats(accuracies);
+	const W = 1 - stdNorm;
+	console.log(`[SigmaBoost] Stability Weight (W): ${W.toFixed(3)} (1 - ${stdNorm.toFixed(3)})`);
+	return W;
+};
+
+/**
+ * Apply sigma boost based on accuracy stability
+ * Only boosts if sigma < sigma_base
+ */
+const applySigmaBoost = (sigma: number, accuracies: number[], config: SigmaBoostConfig): number => {
+	console.log(`[SigmaBoost] Checking boost eligibility - Current Sigma: ${sigma.toFixed(3)}, SigmaBase: ${config.sigmaBase}`);
+	
+	// If sigma >= sigma_base, do nothing
+	if (sigma >= config.sigmaBase) {
+		console.log(`[SigmaBoost] No boost needed - sigma (${sigma.toFixed(3)}) >= sigmaBase (${config.sigmaBase})`);
+		return sigma;
+	}
+
+	// Check if we have any accuracies
+	if (accuracies.length === 0) {
+		console.log(`[SigmaBoost] No accuracy history available`);
+		return sigma;
+	}
+
+	// Get last minHistorySize values from accuracies (or all if we have fewer)
+	const recentAccuracies = accuracies.slice(-config.minHistorySize);
+	console.log(`[SigmaBoost] Using last ${recentAccuracies.length} accuracy values from ${accuracies.length} total:`, recentAccuracies);
+
+	// Calculate stability weight using recent accuracies
+	const W = calculateStabilityWeight(recentAccuracies);
+
+	// Calculate boost: Δσ = base_boost + W * max_boost
+	const baseBoostComponent = config.baseBoost;
+	const stabilityBoostComponent = W * config.maxBoost;
+	const deltaSigma = baseBoostComponent + stabilityBoostComponent;
+
+	console.log(`[SigmaBoost] Boost Calculation:`);
+	console.log(`  - Base Boost: ${baseBoostComponent.toFixed(3)}`);
+	console.log(`  - Stability Boost (W * maxBoost): ${stabilityBoostComponent.toFixed(3)} (${W.toFixed(3)} * ${config.maxBoost})`);
+	console.log(`  - Total Delta Sigma (Δσ): ${deltaSigma.toFixed(3)}`);
+
+	// Calculate new sigma: σ_new = σ + Δσ
+	const newSigma = sigma + deltaSigma;
+	
+	console.log(`[SigmaBoost] Sigma Boost Result: ${sigma.toFixed(3)} + ${deltaSigma.toFixed(3)} = ${newSigma.toFixed(3)}`);
+
+	return newSigma;
+};
+
+/**
+ * Apply sigma boost to user session based on accuracy stability
+ * Only applies boost if current sigma < sigma_base
+ */
+export const applySigmaBoostToUserSession = async (
+	userChapterSession: IUserChapterSession
+): Promise<void> => {
+	const currentSigma = userChapterSession.trueSkillScore?.sigma ?? USER_DEFAULT_SIGMA;
+
+	// Only apply boost if sigma < sigma_base
+	if (currentSigma >= DEFAULT_SIGMA_BOOST_CONFIG.sigmaBase) {
+		return;
+	}
+
+	// Get recent accuracies from userAttemptWindowList
+	const recentAccuracies = getRecentAccuracies(userChapterSession.analytics?.userAttemptWindowList);
+
+	// Apply sigma boost
+	const boostedSigma = applySigmaBoost(currentSigma, recentAccuracies, DEFAULT_SIGMA_BOOST_CONFIG);
+
+	// Only update if sigma actually changed
+	if (boostedSigma !== currentSigma && userChapterSession.trueSkillScore) {
+		userChapterSession.trueSkillScore.sigma = boostedSigma;
+		await userChapterSession.save();
+		console.log(`Applied sigma boost: ${currentSigma} → ${boostedSigma}`);
+	}
 };

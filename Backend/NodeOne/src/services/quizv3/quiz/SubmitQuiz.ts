@@ -116,26 +116,30 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 				continue;
 			}
 
-			// Determine if question is multicorrect
-			const isMulticorrect = question.type === 'multicorrect';
-			let isCorrect: boolean;
+		// Determine if question is multicorrect
+		const isMulticorrect = question.type === 'multicorrect';
+		let isCorrect: boolean;
 
-			if (isMulticorrect) {
-				// For multicorrect: user must select ALL correct answers and NO incorrect answers
-				const userAnswers = Array.isArray(answer.answerIndex) ? answer.answerIndex : [answer.answerIndex];
-				const correctAnswers = question.correct;
-				
-				// Check if arrays have same length and contain same elements (order doesn't matter)
-				const userAnswersSorted = [...userAnswers].sort((a, b) => a - b);
-				const correctAnswersSorted = [...correctAnswers].sort((a, b) => a - b);
-				
-				isCorrect = userAnswersSorted.length === correctAnswersSorted.length &&
-					userAnswersSorted.every((val, idx) => val === correctAnswersSorted[idx]);
-			} else {
-				// For single: check if answer is in correct array
-				const userAnswer = Array.isArray(answer.answerIndex) ? answer.answerIndex[0] : answer.answerIndex;
-				isCorrect = question.correct.includes(userAnswer);
-			}
+		// Check if question has correct answers
+		if (!question.correct || !Array.isArray(question.correct)) {
+			console.log(`Question ${answer.questionId} has invalid or missing correct answers`);
+			isCorrect = false;
+		} else if (isMulticorrect) {
+			// For multicorrect: user must select ALL correct answers and NO incorrect answers
+			const userAnswers = Array.isArray(answer.answerIndex) ? answer.answerIndex : [answer.answerIndex];
+			const correctAnswers = question.correct;
+			
+			// Check if arrays have same length and contain same elements (order doesn't matter)
+			const userAnswersSorted = [...userAnswers].sort((a, b) => a - b);
+			const correctAnswersSorted = [...correctAnswers].sort((a, b) => a - b);
+			
+			isCorrect = userAnswersSorted.length === correctAnswersSorted.length &&
+				userAnswersSorted.every((val, idx) => val === correctAnswersSorted[idx]);
+		} else {
+			// For single: check if answer is in correct array
+			const userAnswer = Array.isArray(answer.answerIndex) ? answer.answerIndex[0] : answer.answerIndex;
+			isCorrect = question.correct.includes(userAnswer);
+		}
 
 			questionsAttempted++;
 

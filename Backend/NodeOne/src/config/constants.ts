@@ -12,6 +12,20 @@ const USER_RATING_MAX: number = 20000;
 const USER_RATING_DEFAULT: number = 500;
 const USER_RATING_MULTIPLIER: number = 100;
 
+export interface SigmaBoostConfig {
+  sigmaBase: number;    // baseline target σ
+  baseBoost: number;    // minimum σ increase
+  maxBoost: number;     // extra σ increase scaled by W
+  minHistorySize: number; // minimum accuracy history needed
+}
+
+const DEFAULT_SIGMA_BOOST_CONFIG: SigmaBoostConfig = {
+  sigmaBase: 1.5,
+  baseBoost: 0.5,
+  maxBoost: 1.0,
+  minHistorySize: 5
+};
+
 export {
     MU_MIN,
     SIGMA_MIN,
@@ -22,5 +36,6 @@ export {
     USER_DEFAULT_SIGMA,
     USER_RATING_DEFAULT,
     USER_RATING_MAX,
-    USER_RATING_MULTIPLIER
+    USER_RATING_MULTIPLIER,
+    DEFAULT_SIGMA_BOOST_CONFIG
 }

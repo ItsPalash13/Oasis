@@ -7,5 +7,6 @@ export const dashboardStyles = {
   },
   chaptersContainer: {
     p: 3,
+    paddingTop: 0,
   },
 }; 

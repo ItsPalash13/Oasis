@@ -10,7 +10,7 @@ export default ({ mode }) => {
     // Set backend URL based on mode
     const backendUrl = mode === 'development' 
         ? 'http://localhost:3000' 
-        : 'https://nodeone-nodeone-291871152121.asia-south2.run.app';
+        : 'https://oasis-backend-989700633460.asia-south1.run.app';
 
     return defineConfig({
       plugins: [react(), tailwindcss()],
