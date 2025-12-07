@@ -961,7 +961,7 @@ const Quiz = ({ socket }) => {
 			)}
 
 			{/* TEMPORARY: Debug helper box - shows current question answer and TrueSkill data */}
-			{questions.length > 0 && !quizSubmitted && questions[currentQuestionIndex] && (
+			{import.meta.env.DEV && questions.length > 0 && !quizSubmitted && questions[currentQuestionIndex] && (
 				<>
 					{/* Toggle Button - Show only when debug box is closed */}
 					{!debugBoxOpen && (
