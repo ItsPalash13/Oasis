@@ -7,12 +7,14 @@ import { metadataApi } from './features/api/metadataAPI';
 import authReducer from './features/auth/authSlice';
 import levelSessionReducer from './features/auth/levelSessionSlice';
 import quizSessionReducer from './features/auth/quizSessionSlice';
+import metadataReducer from './features/metadata/metadataSlice';
 import { adminApi } from './features/api/adminAPI';
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     levelSession: levelSessionReducer,
     quizSession: quizSessionReducer,
+    metadata: metadataReducer,
     // RTK Query reducers
     [userApi.reducerPath]: userApi.reducer,
     [levelApi.reducerPath]: levelApi.reducer,

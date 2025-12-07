@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Box, Card, CardContent, CircularProgress, Grid, Typography, IconButton, Drawer, Collapse, Chip } from "@mui/material";
 import { QuizHeader, QuestionCard, OptionCard, StyledButton, XpDisplay, quizStyles } from "../../theme/quizTheme";
 import { ArrowBack as ArrowBackIcon, Star as StarIcon, BookmarkBorder, Bookmark, ChevronRight, ChevronLeft, BugReport, Close, CheckBox, RadioButtonChecked } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ProgressBar } from "react-progressbar-fancy";
 import DOMPurify from 'dompurify';
 import { renderTextWithLatex } from "../../utils/quesUtils";
 import QuestionPalette from "./QuestionPalette";
@@ -12,12 +13,15 @@ const Quiz = ({ socket }) => {
 	const navigate = useNavigate();
 	const { quizId } = useParams();
 	const quizSession = useSelector((state) => state?.quizSession?.session);
+	const metadataList = useSelector((state) => state?.metadata?.metadataList || []);
+	const chapterSessionsMap = useSelector((state) => state?.metadata?.chapterSessionsMap || {});
 	const sessionId = quizSession?.id || quizId;
 	const [isLoading, setIsLoading] = useState(true);
 	const [questions, setQuestions] = useState([]);
 	const [selectedAnswers, setSelectedAnswers] = useState({}); // { questionId: answerIndex | answerIndex[] }
 	const [quizSubmitted, setQuizSubmitted] = useState(false);
 	const [quizResults, setQuizResults] = useState(null);
+	const chapterId = quizResults?.chapterId || quizSession?.chapterId;
 	const [currentScore, setCurrentScore] = useState(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 	const [questionStates, setQuestionStates] = useState([]); // Array of {visited, answered, markedForReview}
@@ -25,6 +29,7 @@ const Quiz = ({ socket }) => {
 	const [paletteOpen, setPaletteOpen] = useState(true);
 	const [paletteWidth, setPaletteWidth] = useState(350);
 	const [debugBoxOpen, setDebugBoxOpen] = useState(false); // TEMPORARY: Debug box visibility state
+	const currentQuestion = questions[currentQuestionIndex] || null;
 
 	// Connect and fetch all questions
 	useEffect(() => {
@@ -184,6 +189,56 @@ const Quiz = ({ socket }) => {
 			});
 		}
 	};
+
+	// Rank progress data derived from homepage-fetched metadata and chapter session ratings
+	const rankMetadata = useMemo(() => {
+		return (metadataList || [])
+			.filter((meta) => meta.metadataType === "Rank" && meta.minRank !== undefined && meta.maxRank !== undefined)
+			.sort((a, b) => (a.minRank || 0) - (b.minRank || 0));
+	}, [metadataList]);
+
+	// Prefer rating returned with results; fallback to cached chapter sessions map
+	const mapRating = useMemo(() => {
+		if (!chapterId || !chapterSessionsMap) return null;
+		const key = chapterId?.toString ? chapterId.toString() : chapterId;
+		return chapterSessionsMap[key] ?? null;
+	}, [chapterId, chapterSessionsMap]);
+
+	const effectiveUserRating = quizResults?.userRating ?? mapRating;
+
+	const rankProgress = useMemo(() => {
+		if (!rankMetadata.length || effectiveUserRating === null || effectiveUserRating === undefined) return null;
+
+		const current = rankMetadata.find(
+			(rank) => effectiveUserRating >= rank.minRank && effectiveUserRating <= rank.maxRank
+		);
+
+		const next = rankMetadata.find((rank) => rank.minRank > effectiveUserRating);
+
+		const progressPercent = next
+			? Math.min(
+					100,
+					Math.max(
+						0,
+						((effectiveUserRating - (current?.minRank ?? 0)) / (next.minRank - (current?.minRank ?? 0))) * 100
+					)
+			  )
+			: 100;
+
+		const remainingToNext = next ? Math.max(0, next.minRank - effectiveUserRating) : 0;
+
+		const progressRaw = Number.isFinite(progressPercent) ? progressPercent : 0;
+		const progressRounded = Math.max(0, Math.min(100, Number.parseFloat(progressRaw.toFixed(2))));
+
+		return {
+			currentRankName: current?.metadataName || "Unranked",
+			nextRankName: next?.metadataName || null,
+			progressPercent: progressRounded,
+			remainingToNext,
+			nextMinRank: next?.minRank,
+			ratingValue: effectiveUserRating ?? 0
+		};
+	}, [rankMetadata, effectiveUserRating]);
 
 	// Mark current question as visited when it changes
 	useEffect(() => {
@@ -447,6 +502,63 @@ const Quiz = ({ socket }) => {
 										</Card>
 									</Grid>
 								</Grid>
+								{rankProgress && (
+									<Box sx={{ mt: 3 }}>
+										<Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
+											Medal Progress
+										</Typography>
+										<Card
+											sx={{
+												p: 2,
+												borderRadius: 2,
+												background: (theme) =>
+													theme.palette.mode === "dark"
+														? "rgba(33, 150, 243, 0.08)"
+														: "rgba(33, 150, 243, 0.06)",
+												border: "1px solid",
+												borderColor: "primary.main",
+											}}
+										>
+											<CardContent sx={{ p: 2 }}>
+												<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+													<Box>
+														<Typography variant="body2" color="text.secondary">
+															Current medal
+														</Typography>
+														<Typography variant="h6" sx={{ fontWeight: "bold", color: "primary.main" }}>
+															{rankProgress.currentRankName}
+														</Typography>
+														<Typography variant="caption" color="text.secondary">
+															Rating: {rankProgress.ratingValue ?? 0}
+														</Typography>
+													</Box>
+													<Box sx={{ textAlign: "right" }}>
+														<Typography variant="body2" color="text.secondary">
+															Next medal
+														</Typography>
+														<Typography variant="h6" sx={{ fontWeight: "bold" }}>
+															{rankProgress.nextRankName || "Max achieved"}
+														</Typography>
+														<Typography variant="caption" color="text.secondary">
+															{rankProgress.nextRankName
+																? `${rankProgress.remainingToNext} rating to ${rankProgress.nextRankName}`
+																: "You are at the top medal"}
+														</Typography>
+													</Box>
+												</Box>
+												<ProgressBar
+													score={rankProgress.progressPercent}
+													progressWidth="100%"
+													label={`${rankProgress.progressPercent}%`}
+													primaryColor="#2196f3"
+													secondaryColor="#64b5f6"
+													className="rank-progress-bar"
+													darkTheme
+												/>
+											</CardContent>
+										</Card>
+									</Box>
+								)}
 							</CardContent>
 						</QuestionCard>
 					</Box>
@@ -960,7 +1072,7 @@ const Quiz = ({ socket }) => {
 			)}
 
 			{/* TEMPORARY: Debug helper box - shows current question answer and TrueSkill data */}
-			{import.meta.env.DEV && questions.length > 0 && !quizSubmitted && questions[currentQuestionIndex] && (
+			{import.meta.env.DEV && currentQuestion && !quizSubmitted && (
 				<>
 					{/* Toggle Button - Show only when debug box is closed */}
 					{!debugBoxOpen && (
@@ -988,6 +1100,7 @@ const Quiz = ({ socket }) => {
 					{/* Debug Box - Conditionally rendered */}
 					{debugBoxOpen && (
 						<Box
+							key={`debug-box-${currentQuestionIndex}`}
 							sx={{
 								position: "fixed",
 								bottom: 16,
@@ -1043,10 +1156,10 @@ const Quiz = ({ socket }) => {
 									Correct Answer:
 								</Typography>
 								<Typography variant="body2" sx={{ fontWeight: "bold", color: "success.main" }}>
-									{questions[currentQuestionIndex].correctAnswer
-										? Array.isArray(questions[currentQuestionIndex].correctAnswer)
-											? questions[currentQuestionIndex].correctAnswer.join(", ")
-											: questions[currentQuestionIndex].correctAnswer
+									{currentQuestion.correctAnswer
+										? Array.isArray(currentQuestion.correctAnswer)
+											? currentQuestion.correctAnswer.join(", ")
+											: currentQuestion.correctAnswer
 										: "N/A"}
 								</Typography>
 							</Box>
@@ -1056,13 +1169,13 @@ const Quiz = ({ socket }) => {
 								<Typography variant="caption" sx={{ fontWeight: 600, color: "text.secondary" }}>
 									User TrueSkill:
 								</Typography>
-								{questions[currentQuestionIndex].trueskill ? (
+								{currentQuestion.trueskill ? (
 									<>
 										<Typography variant="body2">
-											μ: {questions[currentQuestionIndex].trueskill.mu?.toFixed(2) || "N/A"}
+											μ: {currentQuestion.trueskill.mu?.toFixed(2) || "N/A"}
 										</Typography>
 										<Typography variant="body2">
-											σ: {questions[currentQuestionIndex].trueskill.sigma?.toFixed(2) || "N/A"}
+											σ: {currentQuestion.trueskill.sigma?.toFixed(2) || "N/A"}
 										</Typography>
 									</>
 								) : (
@@ -1077,13 +1190,13 @@ const Quiz = ({ socket }) => {
 								<Typography variant="caption" sx={{ fontWeight: 600, color: "text.secondary" }}>
 									Question TrueSkill:
 								</Typography>
-								{questions[currentQuestionIndex].questionTrueskill ? (
+								{currentQuestion.questionTrueskill ? (
 									<>
 										<Typography variant="body2">
-											μ: {questions[currentQuestionIndex].questionTrueskill.mu?.toFixed(2) || "N/A"}
+											μ: {currentQuestion.questionTrueskill.mu?.toFixed(2) || "N/A"}
 										</Typography>
 										<Typography variant="body2">
-											σ: {questions[currentQuestionIndex].questionTrueskill.sigma?.toFixed(2) || "N/A"}
+											σ: {currentQuestion.questionTrueskill.sigma?.toFixed(2) || "N/A"}
 										</Typography>
 									</>
 								) : (
