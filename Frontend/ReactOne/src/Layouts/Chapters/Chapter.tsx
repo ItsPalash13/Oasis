@@ -7,7 +7,9 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+// @ts-ignore
 import { useGetAllMetadataQuery } from '../../features/api/metadataAPI';
+// @ts-ignore
 import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
 // @ts-ignore
 import axios from 'axios';

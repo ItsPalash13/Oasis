@@ -45,7 +45,7 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
     skip: !user // Skip if user is not authenticated
   });
   
-  const { data: chapterSessionsData, isLoading: sessionsLoading } = useGetChapterSessionsQuery(undefined, {
+  const { data: chapterSessionsData, isLoading: sessionsLoading, refetch: refetchChapterSessions } = useGetChapterSessionsQuery(undefined, {
     skip: !user // Skip if user is not authenticated
   });
   
@@ -99,6 +99,7 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
   React.useEffect(() => {
     console.log('Dashboard component mounted, refetching session...');
     refetchSession();
+    refetchChapterSessions();
   }, [refetchSession]);
   
   const jeeTopics = [

@@ -340,7 +340,7 @@ const Quiz = ({ socket }) => {
 												{quizResults.currentScore || 0}
 											</Typography>
 											<Typography variant="body1" sx={{ fontWeight: "bold", opacity: 0.9 }}>
-												Total XP
+												Total Marks
 											</Typography>
 										</Box>
 									</XpDisplay>
