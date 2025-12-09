@@ -10,11 +10,11 @@ const SIGMA_GT_SCALING_FACTOR: number = 0.01;
 const SIGMA_DECAY_CONST = 0.5;
 
 
-const USER_DEFAULT_MU: number = 2.5;
-const USER_DEFAULT_SIGMA: number = 3;
-const USER_RATING_MAX: number = 20000;
-const USER_RATING_DEFAULT: number = 0;
-const USER_RATING_MULTIPLIER: number = 100;
+const USER_DEFAULT_MU: number = parseFloat(process.env.USER_DEFAULT_MU || '2.5');
+const USER_DEFAULT_SIGMA: number = parseFloat(process.env.USER_DEFAULT_SIGMA || '3');
+const USER_RATING_MAX: number = parseInt(process.env.USER_RATING_MAX || '20000', 10);
+const USER_RATING_DEFAULT: number = parseInt(process.env.USER_RATING_DEFAULT || '0', 10);
+const USER_RATING_MULTIPLIER: number = parseInt(process.env.USER_RATING_MULTIPLIER || '100', 10);
 
 const QUESTION_FETCH_LIMIT: number = parseInt(process.env.QUESTION_FETCH_LIMIT || '3', 10);
 export interface SigmaBoostConfig {
