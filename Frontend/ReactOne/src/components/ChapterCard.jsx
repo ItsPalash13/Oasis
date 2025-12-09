@@ -70,11 +70,16 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
         console.log('Starting Quiz v3 via /level_v3/start');
         const result = await startGameV3(chapter._id).unwrap();
         console.log('Game started result:', result);
-        // Map `{ userChapterTicket }` into `{ data: { session: { id } } }` if backend returns ticket
-        const mapped = result && result.data ? result : { data: { session: { id: result.userChapterTicket } } };
-        dispatch(setquizSession(mapped.data.session));
-        console.log('Navigating to /quiz_v3/', mapped.data.session.id);
-        navigate(`/quiz_v3/${mapped.data.session.id}`);
+        // Normalize session payload to always include id and chapterId
+        const sessionPayload = result?.data?.session
+          ? result.data.session
+          : {
+              id: result?.data?.userChapterTicket ?? result?.userChapterTicket,
+              chapterId: result?.data?.chapterId ?? result?.chapterId ?? chapter._id,
+            };
+        dispatch(setquizSession(sessionPayload));
+        console.log('Navigating to /quiz_v3/', sessionPayload.id);
+        navigate(`/quiz_v3/${sessionPayload.id}`);
       } catch (err) {
         console.error('Quiz v3 start failed:', err);
         // Fallback: if start fails, go to chapter page

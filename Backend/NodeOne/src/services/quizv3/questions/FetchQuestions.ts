@@ -13,6 +13,15 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 	userMu: number;
 	excludeQuestionIds?: string[];
 }): Promise<IQuestionTs[]> => {
+	console.log(`[FetchQuestions] Starting fetchQuestionsByChapterIdAndMuRange`);
+	console.log(`[FetchQuestions] Parameters:`, {
+		chapterId,
+		userMu,
+		excludeQuestionIdsCount: excludeQuestionIds.length,
+		excludeQuestionIds: excludeQuestionIds,
+		QUESTION_FETCH_LIMIT
+	});
+
 	// Start with initial mu range: user mu ± 1
 	let muMin = userMu - 1;
 	let muMax = userMu + 1;
@@ -20,17 +29,41 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 	const allFetchedQuestions: IQuestionTs[] = [];
 	const fetchedQuestionIds = new Set<string>(excludeQuestionIds);
 	
+	console.log(`[FetchQuestions] Initial state:`, {
+		muMin,
+		muMax,
+		initialExcludedCount: excludeQuestionIds.length,
+		targetLimit: QUESTION_FETCH_LIMIT
+	});
+	
+	let iterationCount = 0;
+	
 	// Iteratively expand mu range until we have enough questions
 	while (allFetchedQuestions.length < QUESTION_FETCH_LIMIT) {
-		const questions = await QuestionTs.find({
+		iterationCount++;
+		console.log(`[FetchQuestions] Iteration ${iterationCount}:`, {
+			muRange: `[${muMin.toFixed(2)}, ${muMax.toFixed(2)}]`,
+			currentFetchedCount: allFetchedQuestions.length,
+			remainingNeeded: QUESTION_FETCH_LIMIT - allFetchedQuestions.length,
+			excludedQuestionIdsCount: fetchedQuestionIds.size
+		});
+
+		const queryFilter = {
 			chapterId,
 			"difficulty.mu": { $gte: muMin, $lte: muMax },
 			quesId: { $nin: Array.from(fetchedQuestionIds) },
 			type: { $in: ['single', 'multicorrect'] },
-		})
+		};
+		console.log(`[FetchQuestions] Query filter:`, JSON.stringify(queryFilter, null, 2));
+
+		const questions = await QuestionTs.find(queryFilter)
 			.populate("quesId")
 			.sort({ "difficulty.mu": 1 }) // Sort by mu ascending
 			.exec();
+		
+		console.log(`[FetchQuestions] Iteration ${iterationCount} - Found ${questions.length} questions from database`);
+		
+		let questionsAddedThisIteration = 0;
 		
 		// Add new questions that haven't been fetched yet
 		for (const question of questions) {
@@ -43,34 +76,71 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 			if (questionId && !fetchedQuestionIds.has(questionId)) {
 				allFetchedQuestions.push(question);
 				fetchedQuestionIds.add(questionId);
+				questionsAddedThisIteration++;
+				
+				console.log(`[FetchQuestions] Added question ${allFetchedQuestions.length}/${QUESTION_FETCH_LIMIT}:`, {
+					questionId,
+					questionMu: question.difficulty?.mu,
+					questionType: question.type
+				});
 				
 				// Stop if we've reached the limit
 				if (allFetchedQuestions.length >= QUESTION_FETCH_LIMIT) {
+					console.log(`[FetchQuestions] Reached QUESTION_FETCH_LIMIT (${QUESTION_FETCH_LIMIT}), breaking from inner loop`);
 					break;
 				}
+			} else {
+				console.log(`[FetchQuestions] Skipped question (already fetched or invalid ID):`, {
+					questionId,
+					alreadyInSet: questionId ? fetchedQuestionIds.has(questionId) : false
+				});
 			}
 		}
 		
+		console.log(`[FetchQuestions] Iteration ${iterationCount} summary:`, {
+			questionsFound: questions.length,
+			questionsAdded: questionsAddedThisIteration,
+			totalFetched: allFetchedQuestions.length,
+			targetLimit: QUESTION_FETCH_LIMIT
+		});
+		
 		// If we have enough questions, break
 		if (allFetchedQuestions.length >= QUESTION_FETCH_LIMIT) {
+			console.log(`[FetchQuestions] Reached QUESTION_FETCH_LIMIT (${QUESTION_FETCH_LIMIT}), breaking from while loop`);
 			break;
 		}
 		
 		// If no new questions were found in this iteration, break to avoid infinite loop
 		if (questions.length === 0) {
-			break;
+			console.log(`[FetchQuestions] No questions found in iteration ${iterationCount}, breaking to avoid infinite loop`);
+			// break;
 		}
 		
 		// Expand mu range by 0.5 on each side
 		muMin -= 0.5;
 		muMax += 0.5;
+		console.log(`[FetchQuestions] Expanding mu range for next iteration: [${muMin.toFixed(2)}, ${muMax.toFixed(2)}]`);
 	}
+	
+	console.log(`[FetchQuestions] While loop completed after ${iterationCount} iterations`);
+	console.log(`[FetchQuestions] Total questions fetched before shuffle: ${allFetchedQuestions.length}`);
 	
 	// Shuffle the fetched questions
 	const shuffledQuestions = allFetchedQuestions.sort(() => Math.random() - 0.5);
+	console.log(`[FetchQuestions] Questions shuffled, count: ${shuffledQuestions.length}`);
 	
 	// Return exactly QUESTION_FETCH_LIMIT questions (or all available if less)
-	return shuffledQuestions.slice(0, QUESTION_FETCH_LIMIT);
+	const finalQuestions = shuffledQuestions.slice(0, QUESTION_FETCH_LIMIT);
+	console.log(`[FetchQuestions] Final result:`, {
+		finalCount: finalQuestions.length,
+		requestedLimit: QUESTION_FETCH_LIMIT,
+		chapterId,
+		userMu,
+		totalIterations: iterationCount,
+		finalMuRange: `[${muMin.toFixed(2)}, ${muMax.toFixed(2)}]`
+	});
+	
+	return finalQuestions;
 };
 
 export const fetchUserChapterSessionQuestionPool = async ({

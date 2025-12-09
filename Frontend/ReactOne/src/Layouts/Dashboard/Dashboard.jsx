@@ -8,6 +8,7 @@ import { setSession } from '../../features/auth/authSlice';
 import { useTheme } from '@mui/material/styles';
 import { useGetAllMetadataQuery } from '../../features/api/metadataAPI';
 import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
+import { setMetadataList, setChapterSessionsMap } from '../../features/metadata/metadataSlice';
 
 // Chapters by Subject Component
 const ChaptersBySubject = ({ darkMode, metadataList, chapterSessionsMap }) => {
@@ -63,6 +64,19 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
     });
     return map;
   }, [chapterSessionsData]);
+
+  // Persist metadata and chapter session ratings into Redux for reuse (e.g., Quiz results)
+  React.useEffect(() => {
+    if (metadataData?.data) {
+      dispatch(setMetadataList(metadataData.data));
+    }
+  }, [metadataData, dispatch]);
+
+  React.useEffect(() => {
+    if (chapterSessionsMap && Object.keys(chapterSessionsMap).length > 0) {
+      dispatch(setChapterSessionsMap(chapterSessionsMap));
+    }
+  }, [chapterSessionsMap, dispatch]);
   
   // Helper function to serialize dates in an object
   const serializeDates = (obj) => {
@@ -98,9 +112,17 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
   // Force session refetch on component mount
   React.useEffect(() => {
     console.log('Dashboard component mounted, refetching session...');
-    refetchSession();
-    refetchChapterSessions();
-  }, [refetchSession]);
+    if (user) {
+      // Only refetch queries if user is authenticated
+      try {
+        refetchSession();
+        refetchChapterSessions();
+      } catch (error) {
+        // Silently handle errors if queries are not active (e.g., during logout)
+        console.warn('Error refetching queries:', error);
+      }
+    }
+  }, [refetchSession, refetchChapterSessions, user]);
   
   const jeeTopics = [
     'All',

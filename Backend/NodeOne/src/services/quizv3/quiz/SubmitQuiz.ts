@@ -204,9 +204,10 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 			averageAccuracy: currentAccuracy,
 		});
 		// Keep only last 10 entries
-		if (userChapterSession.analytics.userAttemptWindowList.length > 10) {
-			userChapterSession.analytics.userAttemptWindowList.shift();
-		}
+		// LIMIT 10
+		// if (userChapterSession.analytics.userAttemptWindowList.length > 10) {
+		// 	userChapterSession.analytics.userAttemptWindowList.shift();
+		// }
 
 		const userOnAverageAccuracy = userChapterSession.analytics.userAttemptWindowList.reduce((sum, entry) => sum + entry.averageAccuracy, 0) / userChapterSession.analytics.userAttemptWindowList.length;
 
@@ -320,6 +321,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 				questionsCorrect,
 				questionsIncorrect,
 				questionsAttempted,
+				userRating: userChapterSession.userRating,
 				currentScore,
 				accuracy,
 				maxScore: userChapterSession.maxScore,

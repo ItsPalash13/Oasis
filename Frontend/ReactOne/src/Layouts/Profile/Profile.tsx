@@ -18,6 +18,8 @@ import { useTheme } from '@mui/material/styles';
 import { selectCurrentUser } from '../../features/auth/authSlice';
 // @ts-ignore
 import { useGetUserInfoQuery, useUpdateUserInfoMutation } from '../../features/api/userAPI';
+// @ts-ignore
+import { useGetAllChaptersQuery } from '../../features/api/chapterAPI';
 import AvatarSelector from '../../components/AvatarSelector';
 import AvatarColorPicker from '../../components/AvatarColorPicker';
 import { getAvatarSrc, getDefaultAvatar, getDefaultAvatarBgColor } from '../../utils/avatarUtils';
