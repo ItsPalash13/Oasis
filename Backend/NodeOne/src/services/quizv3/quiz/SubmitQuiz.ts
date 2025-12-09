@@ -4,7 +4,6 @@ import { Question } from "../../../models/Questions";
 import { updateUserQuestionTrueskillBatch } from "../userchapter-session/TrueskillHandler";
 import { QuestionTs } from "../../../models/QuestionTs";
 import mongoose from "mongoose";
-import { USER_RATING_DEFAULT } from "../../../config/constants";
 import UserRatingService from "../user/rating/UserRatingService";
 import { UserProfile } from "../../../models/UserProfile";
 import { getQuestionCountByChapterId } from "../questions/FetchQuestions";
@@ -231,7 +230,6 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 
 
 		const updatedUserRating = await UserRatingService.calculateUserRatingByCurrentRatingAndMu({
-			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
 			chapterId: userChapterSession.chapterId,
 			mu: userChapterSession.trueSkillScore?.mu || 3,
 		});
