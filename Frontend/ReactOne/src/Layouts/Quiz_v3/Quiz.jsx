@@ -9,6 +9,13 @@ import DOMPurify from 'dompurify';
 import { renderTextWithLatex } from "../../utils/quesUtils";
 import QuestionPalette from "./QuestionPalette";
 
+// Import badge images
+import bronzeBadge from '../../assets/badges/bronze.png';
+import silverBadge from '../../assets/badges/silver.png';
+import goldBadge from '../../assets/badges/gold.png';
+import platinumBadge from '../../assets/badges/platinum.png';
+import diamondBadge from '../../assets/badges/diamond.png';
+
 const Quiz = ({ socket }) => {
 	const navigate = useNavigate();
 	const { quizId } = useParams();
@@ -239,6 +246,26 @@ const Quiz = ({ socket }) => {
 			ratingValue: effectiveUserRating ?? 0
 		};
 	}, [rankMetadata, effectiveUserRating]);
+
+	// Map rank name to badge image
+	const getBadgeImage = (rankName) => {
+		if (!rankName) return null;
+		const rankLower = rankName.toLowerCase();
+		switch (rankLower) {
+			case 'bronze':
+				return bronzeBadge;
+			case 'silver':
+				return silverBadge;
+			case 'gold':
+				return goldBadge;
+			case 'platinum':
+				return platinumBadge;
+			case 'diamond':
+				return diamondBadge;
+			default:
+				return null;
+		}
+	};
 
 	// Mark current question as visited when it changes
 	useEffect(() => {
@@ -522,23 +549,51 @@ const Quiz = ({ socket }) => {
 											<CardContent sx={{ p: 2 }}>
 												<Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
 													<Box>
-														<Typography variant="body2" color="text.secondary">
+														<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
 															Current medal
 														</Typography>
-														<Typography variant="h6" sx={{ fontWeight: "bold", color: "primary.main" }}>
-															{rankProgress.currentRankName}
-														</Typography>
+														<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+															{getBadgeImage(rankProgress.currentRankName) && (
+																<img
+																	src={getBadgeImage(rankProgress.currentRankName)}
+																	alt={rankProgress.currentRankName}
+																	style={{
+																		width: 32,
+																		height: 32,
+																		objectFit: "contain",
+																		filter: "drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2))",
+																	}}
+																/>
+															)}
+															<Typography variant="h6" sx={{ fontWeight: "bold", color: "primary.main" }}>
+																{rankProgress.currentRankName}
+															</Typography>
+														</Box>
 														<Typography variant="caption" color="text.secondary">
 															Rating: {rankProgress.ratingValue ?? 0}
 														</Typography>
 													</Box>
 													<Box sx={{ textAlign: "right" }}>
-														<Typography variant="body2" color="text.secondary">
+														<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
 															Next medal
 														</Typography>
-														<Typography variant="h6" sx={{ fontWeight: "bold" }}>
-															{rankProgress.nextRankName || "Max achieved"}
-														</Typography>
+														<Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: "flex-end" }}>
+															{rankProgress.nextRankName && getBadgeImage(rankProgress.nextRankName) ? (
+																<img
+																	src={getBadgeImage(rankProgress.nextRankName)}
+																	alt={rankProgress.nextRankName}
+																	style={{
+																		width: 32,
+																		height: 32,
+																		objectFit: "contain",
+																		filter: "drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2))",
+																	}}
+																/>
+															) : null}
+															<Typography variant="h6" sx={{ fontWeight: "bold" }}>
+																{rankProgress.nextRankName || "Max achieved"}
+															</Typography>
+														</Box>
 														<Typography variant="caption" color="text.secondary">
 															{rankProgress.nextRankName
 																? `${rankProgress.remainingToNext} rating to ${rankProgress.nextRankName}`
