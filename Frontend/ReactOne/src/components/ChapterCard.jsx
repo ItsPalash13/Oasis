@@ -6,10 +6,16 @@ import { setquizSession } from '../features/auth/quizSessionSlice';
 import {
   Typography,
   Box,
-  Chip,
 } from '@mui/material';
 import { StyledChapterCard, chapterCardStyles } from '../theme/chapterCardTheme';
 import { getRankForRating } from '../utils/rankUtils';
+
+// Import badge images
+import bronzeBadge from '../assets/badges/bronze.png';
+import silverBadge from '../assets/badges/silver.png';
+import goldBadge from '../assets/badges/gold.png';
+import platinumBadge from '../assets/badges/platinum.png';
+import diamondBadge from '../assets/badges/diamond.png';
 
 const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) => {
   const navigate = useNavigate();
@@ -19,6 +25,28 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
   
   // Get rank name based on userRating
   const rankName = getRankForRating(userRating, metadataList);
+
+  // Map rank name to badge image
+  const getBadgeImage = (rank) => {
+    if (!rank) return null;
+    const rankLower = rank.toLowerCase();
+    switch (rankLower) {
+      case 'bronze':
+        return bronzeBadge;
+      case 'silver':
+        return silverBadge;
+      case 'gold':
+        return goldBadge;
+      case 'platinum':
+        return platinumBadge;
+      case 'diamond':
+        return diamondBadge;
+      default:
+        return null;
+    }
+  };
+
+  const badgeImage = getBadgeImage(rankName);
 
   const handleChapterClick = () => {
     console.log("ChapterCard clicked");
@@ -102,23 +130,9 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
             >
               {chapter.name}
             </Typography>
-            {isActive && rankName && (
-              <Chip
-                label={`${rankName}, ${userRating}`}
-                size="small"
-                sx={{
-                  height: '20px',
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  color: 'inherit',
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
-                }}
-              />
-            )}
           </Box>
           
-          {!isActive && (
+          {!isActive ? (
             <Typography
               variant="caption"
               sx={{
@@ -131,6 +145,41 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
             >
               Coming Soon
             </Typography>
+          ) : (
+            isActive && badgeImage && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  mb:1.5
+                }}
+              >
+                <img
+                  src={badgeImage}
+                  alt={rankName}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2))',
+                  }}
+                />
+                {userRating > 0 && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      color: 'text.secondary',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {userRating}
+                  </Typography>
+                )}
+              </Box>
+            )
           )}
         </Box>
       </Box>
