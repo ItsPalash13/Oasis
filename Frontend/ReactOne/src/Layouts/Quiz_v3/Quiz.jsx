@@ -323,9 +323,7 @@ const Quiz = ({ socket }) => {
 	};
 
 	const handleBack = () => {
-		if (window.confirm("Are you sure you want to leave? Your progress will be saved.")) {
-			navigate(-1);
-		}
+		navigate("/dashboard", { replace: true });
 	};
 
 	return (
@@ -369,6 +367,16 @@ const Quiz = ({ socket }) => {
 				</Box>
 			) : quizSubmitted && quizResults ? (
 				<>
+					<Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+						<StyledButton
+							variant="outlined"
+							size="small"
+							onClick={handleBack}
+							sx={quizStyles.backButton}
+						>
+							<ArrowBackIcon fontSize="small" />
+						</StyledButton>
+					</Box>
 					<Box sx={{ mt: 3, maxWidth: 550, mx: "auto" }}>
 						{/* Results Display */}
 						<QuestionCard>
@@ -604,7 +612,7 @@ const Quiz = ({ socket }) => {
 												<ProgressBar
 													score={rankProgress.progressPercent}
 													progressWidth="100%"
-													label={`${rankProgress.progressPercent}%`}
+													// label={`${rankProgress.progressPercent}%`}
 													primaryColor="#2196f3"
 													secondaryColor="#64b5f6"
 													className="rank-progress-bar"
