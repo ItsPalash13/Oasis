@@ -11,6 +11,7 @@ import { colors } from './theme/colors';
 import Home from './components/Home';
 import Login from './Layouts/Auth/Login';
 import Register from './Layouts/Auth/Register';
+import WaitingApproval from './Layouts/Auth/WaitingApproval';
 import Dashboard from './Layouts/Dashboard/Dashboard';
 import Onboarding from './Layouts/Onboarding/Onboarding';
 import Quiz from './Layouts/Quiz/Quiz';
@@ -222,6 +223,7 @@ function AppContent() {
   const location = useLocation();
   const dispatch = useDispatch();
   const { data: session, isLoading } = authClient.useSession();
+  const user = useSelector((state) => state.auth.user);
   const [darkMode, setDarkMode] = useState(() => 
     getStorageValue(STORAGE_KEYS.DARK_MODE, false)
   );
@@ -304,7 +306,9 @@ function AppContent() {
   const showNavbar = !location.pathname.startsWith('/quiz');
   
   // Determine if we should show the sidebar
-  const showSidebar = isAuthenticated && !['/login', '/register', '/onboarding'].includes(location.pathname) && !location.pathname.startsWith('/quiz');
+  // Hide sidebar if user is waiting for approval (onboardingCompleted is false)
+  const isWaitingForApproval = user && !user.onboardingCompleted;
+  const showSidebar = isAuthenticated && !['/login', '/register', '/onboarding'].includes(location.pathname) && !location.pathname.startsWith('/quiz') && !isWaitingForApproval;
 
   // Show desktop-only message if screen is too small
   if (!isDesktop && import.meta.env.MODE !== 'development') {
@@ -420,7 +424,7 @@ function OnboardingProtectedRoute({ children }) {
   }
 
   if (session && user && !user.onboardingCompleted) {
-    return <Navigate to="/onboarding" replace />;
+    return <WaitingApproval />;
   }
 
   return children;

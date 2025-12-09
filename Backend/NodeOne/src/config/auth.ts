@@ -87,7 +87,7 @@ export const getAuth = async () => {
                                 email: email,
                                 dob: new Date(),
                                 bio: "",
-                                onboardingCompleted: true,
+                                onboardingCompleted: false,
                                 avatar: avatar,
                                 avatarBgColor: avatarBgColor,
                                 role: 'student'
