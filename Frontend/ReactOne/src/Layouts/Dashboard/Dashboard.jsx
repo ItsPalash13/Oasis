@@ -112,9 +112,17 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
   // Force session refetch on component mount
   React.useEffect(() => {
     console.log('Dashboard component mounted, refetching session...');
-    refetchSession();
-    refetchChapterSessions();
-  }, [refetchSession]);
+    if (user) {
+      // Only refetch queries if user is authenticated
+      try {
+        refetchSession();
+        refetchChapterSessions();
+      } catch (error) {
+        // Silently handle errors if queries are not active (e.g., during logout)
+        console.warn('Error refetching queries:', error);
+      }
+    }
+  }, [refetchSession, refetchChapterSessions, user]);
   
   const jeeTopics = [
     'All',

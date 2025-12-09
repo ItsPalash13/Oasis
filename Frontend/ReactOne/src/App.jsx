@@ -308,7 +308,7 @@ function AppContent() {
   // Determine if we should show the sidebar
   // Hide sidebar if user is waiting for approval (onboardingCompleted is false)
   const isWaitingForApproval = user && !user.onboardingCompleted;
-  const showSidebar = isAuthenticated && !['/login', '/register', '/onboarding'].includes(location.pathname) && !location.pathname.startsWith('/quiz') && !isWaitingForApproval;
+  const showSidebar = isAuthenticated && !['/login', '/register', '/onboarding'].includes(location.pathname) && !location.pathname.startsWith('/quiz');
 
   // Show desktop-only message if screen is too small
   if (!isDesktop && import.meta.env.MODE !== 'development') {
