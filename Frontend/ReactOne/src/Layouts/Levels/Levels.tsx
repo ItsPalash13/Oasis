@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { 
   Container, 
   Typography, 
@@ -214,6 +214,7 @@ const Levels: React.FC = () => {
   
   // Get user health from Redux store
   const userHealth = useSelector(selectUserHealth) as number;
+  const hasRefetchedRef = useRef(false);
   
   // Get session data from auth client
   const { data: session, refetch: refetchSession } = authClient.useSession();
@@ -248,14 +249,18 @@ const Levels: React.FC = () => {
     }
   }, [session, dispatch]);
 
-  // Force session refetch on component mount
+  // Force session refetch on component mount (only once)
   useEffect(() => {
+    if (hasRefetchedRef.current) return;
+    
     console.log('Levels component mounted, refetching session...');
     refetchSession();
+    hasRefetchedRef.current = true;
     // Clear any previous errors on component mount
     setHealthError(null);
     setApiError(null);
-  }, [refetchSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
 
   useEffect(() => {
     if (chapterId) {

@@ -34,6 +34,7 @@ const ChaptersBySubject = ({ darkMode, metadataList, chapterSessionsMap }) => {
 const Dashboard = ({ darkMode, onDarkModeToggle }) => {
   const dispatch = useDispatch();
   const [selectedTopic, setSelectedTopic] = React.useState('All');
+  const hasRefetchedRef = React.useRef(false);
   
   // Get session data from auth client
   const { data: session, refetch: refetchSession } = authClient.useSession();
@@ -109,20 +110,24 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
     }
   }, [session, dispatch]);
 
-  // Force session refetch on component mount
+  // Force session refetch on component mount (only once)
   React.useEffect(() => {
+    if (hasRefetchedRef.current) return;
+    
     console.log('Dashboard component mounted, refetching session...');
     if (user) {
       // Only refetch queries if user is authenticated
       try {
         refetchSession();
         refetchChapterSessions();
+        hasRefetchedRef.current = true;
       } catch (error) {
         // Silently handle errors if queries are not active (e.g., during logout)
         console.warn('Error refetching queries:', error);
       }
     }
-  }, [refetchSession, refetchChapterSessions, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
   
   const jeeTopics = [
     'All',
