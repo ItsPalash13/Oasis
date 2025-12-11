@@ -1,8 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { useStartGameV3Mutation } from '../features/api/chapterAPI';
-import { setquizSession } from '../features/auth/quizSessionSlice';
 import {
   Typography,
   Box,
@@ -19,8 +16,6 @@ import diamondBadge from '../assets/badges/diamond.png';
 
 const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [startGameV3] = useStartGameV3Mutation();
   const isActive = chapter.status !== false; // Use status from Chapter data
   
   // Get rank name based on userRating
@@ -55,37 +50,10 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
       return;
     }
     
-    // Old custom onClick (v1). To restore, uncomment the next lines.
-    // if (onClick) {
-    //   onClick(chapter);
-    //   return;
-    // }
-
-    // Old v1 navigation:
-    // navigate(`/chapter/${chapter._id}`);
-
-    // New v3 start flow
-    (async () => {
-      try {
-        console.log('Starting Quiz v3 via /level_v3/start');
-        const result = await startGameV3(chapter._id).unwrap();
-        console.log('Game started result:', result);
-        // Normalize session payload to always include id and chapterId
-        const sessionPayload = result?.data?.session
-          ? result.data.session
-          : {
-              id: result?.data?.userChapterTicket ?? result?.userChapterTicket,
-              chapterId: result?.data?.chapterId ?? result?.chapterId ?? chapter._id,
-            };
-        dispatch(setquizSession(sessionPayload));
-        console.log('Navigating to /quiz_v3/', sessionPayload.id);
-        navigate(`/quiz_v3/${sessionPayload.id}`);
-      } catch (err) {
-        console.error('Quiz v3 start failed:', err);
-        // Fallback: if start fails, go to chapter page
-        navigate(`/chapter/${chapter._id}`);
-      }
-    })();
+    // Navigate to PreQuizLayout with chapter data in state
+    navigate(`/pre-quiz/${chapter._id}`, {
+      state: { chapter }
+    });
   };
 
   return (

@@ -8,7 +8,7 @@ import { setSession } from '../../features/auth/authSlice';
 import { useTheme } from '@mui/material/styles';
 import { useGetAllMetadataQuery } from '../../features/api/metadataAPI';
 import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
-import { setMetadataList, setChapterSessionsMap } from '../../features/metadata/metadataSlice';
+import { setMetadataList, setChapterSessionsMap, setChapterSessionsFull } from '../../features/metadata/metadataSlice';
 
 // Chapters by Subject Component
 const ChaptersBySubject = ({ darkMode, metadataList, chapterSessionsMap }) => {
@@ -78,6 +78,13 @@ const Dashboard = ({ darkMode, onDarkModeToggle }) => {
       dispatch(setChapterSessionsMap(chapterSessionsMap));
     }
   }, [chapterSessionsMap, dispatch]);
+
+  // Store full chapter sessions in Redux (including analytics)
+  React.useEffect(() => {
+    if (chapterSessionsData?.data) {
+      dispatch(setChapterSessionsFull(chapterSessionsData.data));
+    }
+  }, [chapterSessionsData, dispatch]);
   
   // Helper function to serialize dates in an object
   const serializeDates = (obj) => {

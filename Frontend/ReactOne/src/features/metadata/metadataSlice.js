@@ -3,7 +3,8 @@ import { createSlice } from '@reduxjs/toolkit';
 // Stores metadata list and chapter session ratings fetched on home
 const initialState = {
   metadataList: [],
-  chapterSessionsMap: {}
+  chapterSessionsMap: {}, // chapterId -> userRating
+  chapterSessionsFull: [] // Full chapter session data including analytics
 };
 
 const metadataSlice = createSlice({
@@ -15,10 +16,13 @@ const metadataSlice = createSlice({
     },
     setChapterSessionsMap: (state, action) => {
       state.chapterSessionsMap = action.payload || {};
+    },
+    setChapterSessionsFull: (state, action) => {
+      state.chapterSessionsFull = Array.isArray(action.payload) ? action.payload : [];
     }
   }
 });
 
-export const { setMetadataList, setChapterSessionsMap } = metadataSlice.actions;
+export const { setMetadataList, setChapterSessionsMap, setChapterSessionsFull } = metadataSlice.actions;
 export default metadataSlice.reducer;
 
