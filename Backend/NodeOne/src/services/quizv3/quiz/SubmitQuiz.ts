@@ -196,13 +196,28 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 
 		const currentAccuracy = questionsAttempted > 0 ? (questionsCorrect / questionsAttempted) * 100 : 0;
 
-		if (!userChapterSession.analytics.userAttemptWindowList) {
+		// Update TrueSkill in batch for all answered questions FIRST
+		userChapterSession = await updateUserQuestionTrueskillBatch({
+			sessionId: userChapterSession.ongoing._id!.toString(),
+			answers: processedAnswers.filter(a => 
+				a.answerIndex !== null && 
+				!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
+			),
+		});
+
+		// Now update the userAttemptWindowList after getting the updated session
+		if (!Array.isArray(userChapterSession.analytics.userAttemptWindowList)) {
 			userChapterSession.analytics.userAttemptWindowList = [];
 		}
 		userChapterSession.analytics.userAttemptWindowList.push({
 			timestamp: new Date(),
 			averageAccuracy: currentAccuracy,
 		});
+
+		// Mark the nested path as modified so Mongoose tracks the change
+		userChapterSession.markModified('analytics.userAttemptWindowList');
+
+		console.log("The userAttemptWindowList is: ", userChapterSession.analytics.userAttemptWindowList);
 		// Keep only last 10 entries
 		// LIMIT 10
 		// if (userChapterSession.analytics.userAttemptWindowList.length > 10) {
@@ -214,24 +229,16 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		// get updated strength with userOnAverageAccuracy (0-100) mapped to (0-5)
 		const updatedStrength = Math.min(5, Math.max(0, Math.round((userOnAverageAccuracy / 100) * 5)));
 		userChapterSession.analytics.strengthStatus = updatedStrength;
+		userChapterSession.markModified('analytics.strengthStatus');
 
 		// Update maxScore if current score is higher
 		if (currentScore > userChapterSession.maxScore) {
 			userChapterSession.maxScore = currentScore;
 		}
 
-		// Update TrueSkill in batch for all answered questions
-		userChapterSession = await updateUserQuestionTrueskillBatch({
-			sessionId: userChapterSession.ongoing._id!.toString(),
-			answers: processedAnswers.filter(a => 
-				a.answerIndex !== null && 
-				!(Array.isArray(a.answerIndex) && a.answerIndex.length === 0)
-			),
-		});
-
 
 		const updatedUserRating = await UserRatingService.calculateUserRatingByCurrentRatingAndMu({
-			currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
+			// currentRating: userChapterSession.userRating || USER_RATING_DEFAULT,
 			chapterId: userChapterSession.chapterId,
 			mu: userChapterSession.trueSkillScore?.mu || 3,
 		});

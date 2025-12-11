@@ -139,11 +139,11 @@ router.get('/chapter-sessions', authMiddleware, async (req: Request, res: Respon
       return res.status(400).json({ success: false, error: 'User ID is required' });
     }
 
-    // Find all UserChapterSessions for this user
+    // Find all UserChapterSessions for this user, including analytics
     const sessions = await UserChapterSession.find({ 
       userId: new mongoose.Types.ObjectId(userId) 
     })
-    .select('chapterId userRating')
+    .select('chapterId userRating analytics.userAttemptWindowList')
     .lean();
 
     return res.json({ 
@@ -152,6 +152,48 @@ router.get('/chapter-sessions', authMiddleware, async (req: Request, res: Respon
     });
   } catch (error) {
     console.error('Error fetching user chapter sessions:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET user chapter session analytics by chapterId
+router.get('/chapter-session/:chapterId/analytics', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { chapterId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    if (!chapterId) {
+      return res.status(400).json({ success: false, error: 'Chapter ID is required' });
+    }
+
+    // Find UserChapterSession for this user and chapter
+    const session = await UserChapterSession.findOne({ 
+      userId: new mongoose.Types.ObjectId(userId),
+      chapterId: new mongoose.Types.ObjectId(chapterId)
+    })
+    .select('analytics.userAttemptWindowList')
+
+
+    console.log("The analytics data is: ", session);
+    if (!session) {
+      return res.json({ 
+        success: true, 
+        data: { userAttemptWindowList: [] } 
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      data: {
+        userAttemptWindowList: session.analytics?.userAttemptWindowList || []
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user chapter session analytics:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
