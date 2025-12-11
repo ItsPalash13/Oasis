@@ -72,6 +72,18 @@ export const userApi = createApi({
         method: 'GET'
       }),
       providesTags: ['UserProfile']
+    }),
+    getChapterSessionAnalytics: builder.query({
+      query: (chapterId) => {
+        if (!chapterId) {
+          throw new Error('Chapter ID is required');
+        }
+        return {
+          url: `/user/chapter-session/${chapterId}/analytics`,
+          method: 'GET'
+        };
+      },
+      providesTags: ['UserProfile']
     })
   })
 });
@@ -81,6 +93,7 @@ export const {
   useGetUserSettingsQuery,
   useUpdateUserSettingsMutation,
   useGetMonthlyLeaderboardQuery,
-  useGetChapterSessionsQuery
+  useGetChapterSessionsQuery,
+  useGetChapterSessionAnalyticsQuery
 } = userApi;
 
