@@ -44,12 +44,10 @@ const Quiz = ({ socket }) => {
 			socket.connect();
 		}
 		const onConnect = () => {
-			console.log("SOCKET INITIATE V3 SOCKET ID :", sessionId);
 			socket.emit("initiate", { sessionId });
 		};
 		
 		const onQuestions = (data) => {
-			console.log("Received questions V3:", data);
 			const questionsList = data.questions || [];
 			setQuestions(questionsList);
 			setSelectedAnswers({});
@@ -83,7 +81,6 @@ const Quiz = ({ socket }) => {
 		};
 
 		const onResults = (data) => {
-			console.log("Received results V3:", data);
 			setQuizSubmitted(true);
 			setQuizResults(data);
 			setIsLoading(false);
