@@ -43,6 +43,7 @@ const ongoingSchemaV3 = new Schema<IOngoingSessionV3>({
 export interface IUserAttemptWindow {
   timestamp: Date;
   averageAccuracy: number;
+  capturedRating: number,
 }
 
 export interface IUserChapterAnalytics {
@@ -62,6 +63,7 @@ const UserChapterAnalyticsSchema = new Schema<IUserChapterAnalytics>({
   totalQuestionsIncorrect: { type: Number, default: 0 },
 
   userAttemptWindowList: [{
+    capturedRating: { type: Number, required: true, default: 0 },
     timestamp: { type: Date, required: true, default: () => new Date() },
     averageAccuracy: { type: Number, required: true, default: 0 },
   }],

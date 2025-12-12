@@ -208,13 +208,7 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		if (!Array.isArray(userChapterSession.analytics.userAttemptWindowList)) {
 			userChapterSession.analytics.userAttemptWindowList = [];
 		}
-		userChapterSession.analytics.userAttemptWindowList.push({
-			timestamp: new Date(),
-			averageAccuracy: currentAccuracy,
-		});
-
-		// Mark the nested path as modified so Mongoose tracks the change
-		userChapterSession.markModified('analytics.userAttemptWindowList');
+	
 
 		console.log("The userAttemptWindowList is: ", userChapterSession.analytics.userAttemptWindowList);
 		// Keep only last 10 entries
@@ -244,6 +238,16 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 
 		userChapterSession.userRating = updatedUserRating;
 		userChapterSession.lastPlayedTs = new Date();
+
+
+		userChapterSession.analytics.userAttemptWindowList.push({
+			timestamp: new Date(),
+			averageAccuracy: currentAccuracy,
+			capturedRating: updatedUserRating,
+		});
+
+		// Mark the nested path as modified so Mongoose tracks the change
+		userChapterSession.markModified('analytics.userAttemptWindowList');
 		await userChapterSession.save();
 		// Calculate accuracy
 		const accuracy = questionsAttempted > 0 ? Math.round((questionsCorrect / questionsAttempted) * 100) : 0;
