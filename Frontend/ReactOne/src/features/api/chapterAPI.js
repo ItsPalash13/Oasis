@@ -43,6 +43,24 @@ export const chapterApi = createApi({
         method: 'POST',
         body: { chapterId }
       })
+    }),
+    getUserChapterSession: builder.query({
+      query: (chapterId) => {
+        if (!chapterId) {
+          throw new Error('Chapter ID is required');
+        }
+        return `/user/chapter-session/${chapterId}`;
+      },
+      providesTags: ['Chapter']
+    }),
+    getChapterLeaderboard: builder.query({
+      query: (chapterId) => {
+        if (!chapterId) {
+          throw new Error('Chapter ID is required');
+        }
+        return `/user/chapter-session/${chapterId}/leaderboard`;
+      },
+      providesTags: ['Chapter']
     })
   }),
 });
@@ -52,5 +70,7 @@ export const {
   useGetChaptersBySubjectQuery,
   useGetChapterByIdQuery,
   useStartGameMutation,
-  useStartGameV3Mutation
+  useStartGameV3Mutation,
+  useGetUserChapterSessionQuery,
+  useGetChapterLeaderboardQuery
 } = chapterApi; 

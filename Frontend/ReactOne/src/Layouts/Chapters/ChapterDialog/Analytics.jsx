@@ -1,11 +1,17 @@
 import React, { useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, Typography, useTheme, CircularProgress } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { colors } from '../../../theme/colors';
+import { useGetUserChapterSessionQuery } from '../../../features/api/chapterAPI';
 
 const Analytics = ({ chapter }) => {
   const theme = useTheme();
+  
+  // Fetch chapter session data for this chapter
+  const { data: chapterSessionData, isLoading: isLoadingSession } = useGetUserChapterSessionQuery(
+    chapter?._id,
+    { skip: !chapter?._id }
+  );
 
   // Get actual color values from theme - using neutral colors
   const textSecondary = theme.palette.mode === 'dark' ? colors.ui.dark.textSecondary : colors.ui.light.textSecondary;
@@ -17,21 +23,9 @@ const Analytics = ({ chapter }) => {
     ? colors.text.dark.primary  // White/gray for dark mode
     : colors.text.light.primary; // Dark gray for light mode
 
-  // Get chapter sessions from Redux (already fetched in Dashboard)
-  const chapterSessionsFull = useSelector((state) => state?.metadata?.chapterSessionsFull || []);
-
-  // Find the chapter session for this chapter
-  const currentChapterSession = useMemo(() => {
-    if (!chapter?._id || !chapterSessionsFull.length) return null;
-    const session = chapterSessionsFull.find((session) =>
-      session.chapterId && session.chapterId.toString() === chapter._id.toString()
-    );
-    return session;
-  }, [chapter?._id, chapterSessionsFull]);
-
-  // Format data for chart from Redux data
+  // Format data for chart from fetched chapter session data
   const chartData = useMemo(() => {
-    const userAttemptWindowList = currentChapterSession?.analytics?.userAttemptWindowList;
+    const userAttemptWindowList = chapterSessionData?.data?.analytics?.userAttemptWindowList;
 
     if (!userAttemptWindowList || userAttemptWindowList.length === 0) {
       return [];
@@ -51,7 +45,22 @@ const Analytics = ({ chapter }) => {
         fullTimestamp: new Date(entry.timestamp)
       }))
       .sort((a, b) => a.fullTimestamp - b.fullTimestamp);
-  }, [currentChapterSession]);
+  }, [chapterSessionData]);
+
+  // Show loading state while fetching
+  if (isLoadingSession) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%',
+        minHeight: 200 
+      }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>

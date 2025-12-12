@@ -156,6 +156,45 @@ router.get('/chapter-sessions', authMiddleware, async (req: Request, res: Respon
   }
 });
 
+// GET user chapter session data by chapterId (full session data)
+router.get('/chapter-session/:chapterId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { chapterId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    if (!chapterId) {
+      return res.status(400).json({ success: false, error: 'Chapter ID is required' });
+    }
+
+    // Find UserChapterSession for this user and chapter
+    const session = await UserChapterSession.findOne({ 
+      userId: new mongoose.Types.ObjectId(userId),
+      chapterId: new mongoose.Types.ObjectId(chapterId)
+    })
+    .select('chapterId userRating analytics maxScore lastPlayedTs')
+    .lean();
+
+    if (!session) {
+      return res.json({ 
+        success: true, 
+        data: null 
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      data: session
+    });
+  } catch (error) {
+    console.error('Error fetching user chapter session:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET user chapter session analytics by chapterId
 router.get('/chapter-session/:chapterId/analytics', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -194,6 +233,107 @@ router.get('/chapter-session/:chapterId/analytics', authMiddleware, async (req: 
     });
   } catch (error) {
     console.error('Error fetching user chapter session analytics:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET chapter leaderboard (top 10 by userRating)
+router.get('/chapter-session/:chapterId/leaderboard', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { chapterId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    if (!chapterId) {
+      return res.status(400).json({ success: false, error: 'Chapter ID is required' });
+    }
+
+    const chapterIdObj = new mongoose.Types.ObjectId(chapterId);
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+
+    // Get top 10 sessions sorted by userRating (descending), then by lastPlayedTs for consistency
+    const top10Sessions = await UserChapterSession.find({
+      chapterId: chapterIdObj,
+      userRating: { $exists: true, $gt: 0 }
+    })
+    .sort({ userRating: -1, lastPlayedTs: -1 })
+    .limit(10)
+    .lean();
+
+    // Populate user profiles for top 10 sessions
+    const top10SessionsWithProfiles = await Promise.all(
+      top10Sessions.map(async (session) => {
+        const userProfile = await UserProfile.findOne({ userId: session.userId.toString() }).select('userId fullName avatar avatarBgColor username').lean();
+        return {
+          ...session,
+          userProfile
+        };
+      })
+    );
+
+    // Check if current user is in top 10
+    const currentUserInTop10 = top10SessionsWithProfiles.some(
+      session => session.userProfile && session.userProfile.userId === userId
+    );
+
+    // Format top 10 leaderboard
+    const leaderboard = top10SessionsWithProfiles
+      .filter(session => session.userProfile) // Filter out any sessions where user profile wasn't found
+      .map((session, index) => ({
+        rank: index + 1,
+        userId: session.userProfile!.userId,
+        fullName: session.userProfile!.fullName || session.userProfile!.username || `User ${session.userProfile!.userId?.slice(-4)}`,
+        avatar: session.userProfile!.avatar,
+        avatarBgColor: session.userProfile!.avatarBgColor,
+        userRating: session.userRating
+      }));
+
+    // If user is not in top 10, get their session and calculate overall rank
+    if (!currentUserInTop10) {
+      const currentUserSession = await UserChapterSession.findOne({
+        userId: userIdObj,
+        chapterId: chapterIdObj
+      }).lean();
+
+      if (currentUserSession && currentUserSession.userRating > 0) {
+        // Count users with higher or equal rating to get overall rank
+        const usersWithHigherRating = await UserChapterSession.countDocuments({
+          chapterId: chapterIdObj,
+          userRating: { $gte: currentUserSession.userRating },
+          userId: { $ne: userIdObj } // Exclude current user from count
+        });
+        
+        const overallRank = usersWithHigherRating + 1;
+
+        // Get current user's profile
+        const currentUserProfile = await UserProfile.findOne({ userId }).select('fullName avatar avatarBgColor username').lean();
+
+        if (currentUserProfile) {
+          // Add current user to leaderboard
+          leaderboard.push({
+            rank: overallRank,
+            userId: userId,
+            fullName: currentUserProfile.fullName || currentUserProfile.username || `User ${userId.slice(-4)}`,
+            avatar: currentUserProfile.avatar,
+            avatarBgColor: currentUserProfile.avatarBgColor,
+            userRating: currentUserSession.userRating
+          });
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: leaderboard,
+      currentUserRank: currentUserInTop10 
+        ? leaderboard.findIndex(u => u.userId === userId) + 1
+        : leaderboard.length > 10 ? leaderboard[leaderboard.length - 1].rank : null
+    });
+  } catch (error) {
+    console.error('Error fetching chapter leaderboard:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
