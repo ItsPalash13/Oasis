@@ -312,6 +312,22 @@ export const adminApi = createApi({
       query: (id) => ({ url: `/api/admin/users/chapter-levels/${id}`, method: 'DELETE' }),
       invalidatesTags: ['User'],
     }),
+    // User Chapter Session endpoints (read-only)
+    getUserChapterSessions: builder.query({
+      query: (params) => ({ 
+        url: '/api/admin/users/user-chapter-sessions', 
+        method: 'GET',
+        params: params || {}
+      }),
+      providesTags: ['User'],
+    }),
+    getUserChapterSessionById: builder.query({
+      query: (id) => ({ 
+        url: `/api/admin/users/user-chapter-sessions/${id}`, 
+        method: 'GET'
+      }),
+      providesTags: ['User'],
+    }),
     // User Level Session endpoints (read-only)
     getUserLevelSessions: builder.query({
       query: (params) => ({ 
@@ -488,6 +504,9 @@ export const {
   useCreateUserChapterLevelMutation,
   useUpdateUserChapterLevelMutation,
   useDeleteUserChapterLevelMutation,
+  // User Chapter Session hooks (read-only)
+  useGetUserChapterSessionsQuery,
+  useGetUserChapterSessionByIdQuery,
   // User Level Session hooks (read-only)
   useGetUserLevelSessionsQuery,
   useGetUserLevelSessionByIdQuery,

@@ -21,6 +21,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import './App.css';
 import Admin from './Layouts/Admin/Admin';
+import UserChapterSessionView from './Layouts/Admin/UserChapterSessionView';
 import Profile from './Layouts/Profile/Profile';
 import TempResults from './Layouts/Temp/TempResults';
 import TempMath from './Layouts/Temp/TempMath';
@@ -377,6 +378,7 @@ function AppContent() {
               <Route path="/chapters" element={<ProtectedRoute><Chapters /></ProtectedRoute>} />
               <Route path="/chapter/:chapterId" element={<ProtectedRoute><Levels /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/admin/users/sessions/:sessionId" element={<ProtectedRoute><UserChapterSessionView /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/temp/result" element={<TempResults />} />
               <Route path="/temp/math" element={<TempMath />} />

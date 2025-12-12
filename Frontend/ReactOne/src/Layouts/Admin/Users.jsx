@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Tabs,
@@ -54,6 +55,8 @@ import {
   useGetUserLevelSessionHistoryQuery,
   useGetUserLevelSessionHistoryByIdQuery,
   useDeleteUserLevelSessionHistoryMutation,
+  // User Chapter Session hooks (read-only)
+  useGetUserChapterSessionsQuery,
   // Other hooks
   useGetChaptersQuery,
   useGetSectionsQuery,
@@ -95,17 +98,21 @@ export default function UsersAdmin() {
       <Typography variant="h4" sx={{ mb: 2 }}>Users Management</Typography>
       <Tabs value={tab} onChange={handleChange} aria-label="users tabs">
         <Tab label="User Profiles" id="users-tab-0" aria-controls="users-tabpanel-0" />
-        <Tab label="User Chapter Sections" id="users-tab-1" aria-controls="users-tabpanel-1" />
-        <Tab label="User Chapter Units" id="users-tab-2" aria-controls="users-tabpanel-2" />
-        <Tab label="User Chapter Levels" id="users-tab-3" aria-controls="users-tabpanel-3" />
-        <Tab label="User Level Sessions" id="users-tab-4" aria-controls="users-tabpanel-4" />
-        <Tab label="User Session History" id="users-tab-5" aria-controls="users-tabpanel-5" />
+        <Tab label="User Sessions" id="users-tab-1" aria-controls="users-tabpanel-1" />
+        {/* <Tab label="User Chapter Sections" id="users-tab-2" aria-controls="users-tabpanel-2" />
+        <Tab label="User Chapter Units" id="users-tab-3" aria-controls="users-tabpanel-3" />
+        <Tab label="User Chapter Levels" id="users-tab-4" aria-controls="users-tabpanel-4" />
+        <Tab label="User Level Sessions" id="users-tab-5" aria-controls="users-tabpanel-5" />
+        <Tab label="User Session History" id="users-tab-6" aria-controls="users-tabpanel-6" /> */}
       </Tabs>
 
       <TabPanel value={tab} index={0}>
         <UserProfilesTab />
       </TabPanel>
       <TabPanel value={tab} index={1}>
+        <UserChapterSessionsTab />
+      </TabPanel>
+      <TabPanel value={tab} index={2}>
         <UserChapterSectionsTab />
       </TabPanel>
       <TabPanel value={tab} index={2}>
@@ -120,6 +127,201 @@ export default function UsersAdmin() {
       <TabPanel value={tab} index={5}>
         <UserLevelSessionHistoryTab />
       </TabPanel>
+    </Box>
+  );
+}
+
+// ==================== USER CHAPTER SESSIONS TAB (READ ONLY) ====================
+function UserChapterSessionsTab() {
+  const navigate = useNavigate();
+  const [filterUserId, setFilterUserId] = useState('');
+  const [filterChapterId, setFilterChapterId] = useState('');
+  
+  // Explicitly pass empty object to fetch ALL sessions, or filters if provided
+  const filterParams = {};
+  if (filterUserId) filterParams.userId = filterUserId;
+  if (filterChapterId) filterParams.chapterId = filterChapterId;
+  
+  const { data: sessionsData, isLoading } = useGetUserChapterSessionsQuery(filterParams);
+  const { data: userProfilesData } = useGetUserProfilesQuery();
+  const { data: chaptersData } = useGetChaptersQuery();
+
+  const handleRowClick = (params) => {
+    navigate(`/admin/users/sessions/${params.row._id}`);
+  };
+
+  const handleClearFilters = () => {
+    setFilterUserId('');
+    setFilterChapterId('');
+  };
+
+  const columns = [
+    {
+      field: 'userProfile',
+      headerName: 'User & Role',
+      width: 300,
+      renderCell: (params) => {
+        if (params.value) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {params.value.username}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {params.value.email}
+                </Typography>
+              </Box>
+              {params.value.role && (
+                <Chip
+                  label={params.value.role}
+                  color={
+                    params.value.role === 'admin' ? 'error' : 
+                    params.value.role === 'teacher' ? 'warning' : 'primary'
+                  }
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          );
+        }
+        return params.row.userId || 'N/A';
+      },
+    },
+    {
+      field: 'chapterId',
+      headerName: 'Chapter',
+      width: 200,
+      renderCell: (params) => params.value?.name || params.value || 'N/A',
+    },
+    {
+      field: 'userRating',
+      headerName: 'User Rating',
+      width: 120,
+      renderCell: (params) => params.value?.toFixed(2) || '0.00',
+    },
+    {
+      field: 'maxScore',
+      headerName: 'Max Score',
+      width: 120,
+    },
+    {
+      field: 'trueSkillScore',
+      headerName: 'TrueSkill (μ)',
+      width: 120,
+      renderCell: (params) => params.value?.mu?.toFixed(2) || 'N/A',
+    },
+    {
+      field: 'analytics',
+      headerName: 'Strength Status',
+      width: 130,
+      renderCell: (params) => {
+        const strength = params.value?.strengthStatus;
+        if (strength !== undefined && strength !== null) {
+          return (
+            <Chip
+              label={`${strength}/5`}
+              color={
+                strength >= 4 ? 'success' : 
+                strength >= 3 ? 'info' : 
+                strength >= 2 ? 'warning' : 'default'
+              }
+              size="small"
+            />
+          );
+        }
+        return 'N/A';
+      },
+    },
+    {
+      field: 'lastPlayedTs',
+      headerName: 'Last Played',
+      width: 180,
+      renderCell: (params) => params.value ? new Date(params.value).toLocaleString() : 'N/A',
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 100,
+      renderCell: (params) => (
+        <Box>
+          <Tooltip title="View Details">
+            <IconButton onClick={() => handleRowClick(params)} size="small">
+              <ViewIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+        <Typography variant="h6">User Chapter Sessions (Read Only)</Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl sx={{ minWidth: 200 }} size="small">
+            <InputLabel>Filter by User</InputLabel>
+            <Select
+              value={filterUserId}
+              onChange={(e) => setFilterUserId(e.target.value)}
+              label="Filter by User"
+            >
+              <MenuItem value="">All Users</MenuItem>
+              {userProfilesData?.data?.map((user) => (
+                <MenuItem key={user._id} value={user.userId}>
+                  {user.username} ({user.email})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ minWidth: 200 }} size="small">
+            <InputLabel>Filter by Chapter</InputLabel>
+            <Select
+              value={filterChapterId}
+              onChange={(e) => setFilterChapterId(e.target.value)}
+              label="Filter by Chapter"
+            >
+              <MenuItem value="">All Chapters</MenuItem>
+              {chaptersData?.data?.map((chapter) => (
+                <MenuItem key={chapter._id} value={chapter._id}>
+                  {chapter.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {(filterUserId || filterChapterId) && (
+            <Button variant="outlined" size="small" onClick={handleClearFilters}>
+              Clear Filters
+            </Button>
+          )}
+        </Box>
+      </Box>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        This tab shows ALL user chapter sessions for quiz v3 from all users. Sessions are read-only and managed by the game system.
+        {sessionsData?.pagination?.total && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Total Sessions: {sessionsData.pagination.total}
+          </Typography>
+        )}
+      </Alert>
+
+      <DataGrid
+        rows={sessionsData?.data || []}
+        columns={columns}
+        loading={isLoading}
+        getRowId={(row) => row._id}
+        pageSizeOptions={[10, 25, 50]}
+        initialState={{
+          pagination: {
+            paginationModel: { page: 0, pageSize: 10 },
+          },
+        }}
+        getRowHeight={() => 'auto'}
+        sx={{ height: 500 }}
+      />
+
     </Box>
   );
 }
