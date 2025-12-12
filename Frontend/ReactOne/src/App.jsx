@@ -26,7 +26,6 @@ import TempResults from './Layouts/Temp/TempResults';
 import TempMath from './Layouts/Temp/TempMath';
 import QuizV2 from './Layouts/Quiz_v2/Quiz';
 import QuizV3 from './Layouts/Quiz_v3/Quiz';
-import PreQuizLayout from './Layouts/Quiz_v3/PreQuizLayout';
 
 // Create socket instance outside component
 export const socket = io(import.meta.env.VITE_BACKEND_URL, {
@@ -370,8 +369,6 @@ function AppContent() {
                 }
               />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-              {/* Pre-Quiz Layout route */}
-              <Route path="/pre-quiz/:chapterId" element={<ProtectedRoute><PreQuizLayout /></ProtectedRoute>} />
               <Route path="/quiz/:levelId" element={<ProtectedRoute><QuizWrapper socket={socket} /></ProtectedRoute>} />
               {/* New Quiz v2 route (dummy). To revert, comment this line. */}
               <Route path="/quiz_v2/:quizId" element={<ProtectedRoute><QuizWrapper_v2 socket={socket} /></ProtectedRoute>} />

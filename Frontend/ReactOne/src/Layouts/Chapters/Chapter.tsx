@@ -14,7 +14,7 @@ import { useGetChapterSessionsQuery } from '../../features/api/userAPI';
 // @ts-ignore
 import axios from 'axios';
 // @ts-ignore
-import ChapterCard from '../../components/ChapterCard';
+import ChapterCard from './ChapterCard';
 
 interface Chapter {
   _id: string;

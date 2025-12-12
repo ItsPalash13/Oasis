@@ -1,21 +1,21 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
   Typography,
   Box,
 } from '@mui/material';
-import { StyledChapterCard, chapterCardStyles } from '../theme/chapterCardTheme';
-import { getRankForRating } from '../utils/rankUtils';
+import { StyledChapterCard, chapterCardStyles } from '../../theme/chapterCardTheme';
+import { getRankForRating } from '../../utils/rankUtils';
+import ChapterDialog from './ChapterDialog/ChapterDialog';
 
 // Import badge images
-import bronzeBadge from '../assets/badges/bronze.png';
-import silverBadge from '../assets/badges/silver.png';
-import goldBadge from '../assets/badges/gold.png';
-import platinumBadge from '../assets/badges/platinum.png';
-import diamondBadge from '../assets/badges/diamond.png';
+import bronzeBadge from '../../assets/badges/bronze.png';
+import silverBadge from '../../assets/badges/silver.png';
+import goldBadge from '../../assets/badges/gold.png';
+import platinumBadge from '../../assets/badges/platinum.png';
+import diamondBadge from '../../assets/badges/diamond.png';
 
 const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) => {
-  const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const isActive = chapter.status !== false; // Use status from Chapter data
   
   // Get rank name based on userRating
@@ -45,15 +45,17 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
 
   const handleChapterClick = () => {
     console.log("ChapterCard clicked");
-    // Don't navigate if chapter is inactive
+    // Don't open dialog if chapter is inactive
     if (!isActive) {
       return;
     }
     
-    // Navigate to PreQuizLayout with chapter data in state
-    navigate(`/pre-quiz/${chapter._id}`, {
-      state: { chapter }
-    });
+    // Open ChapterDialog
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
   };
 
   return (
@@ -61,7 +63,6 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
       onClick={handleChapterClick}
       isActive={isActive}
       sx={{
-
         cursor: isActive ? 'pointer' : 'default',
         position: 'relative',
         ...(isActive ? {} : {
@@ -79,7 +80,6 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
             alt={chapter.name}
             style={{
               ...chapterCardStyles.image,
-
             }}
           />
         </Box>
@@ -151,8 +151,20 @@ const ChapterCard = ({ chapter, onClick, userRating = 0, metadataList = [] }) =>
           )}
         </Box>
       </Box>
+      <ChapterDialog
+        open={dialogOpen}
+        onClose={(e, reason) => {
+          // Stop any event propagation when closing
+          if (e) {
+            e.stopPropagation();
+          }
+          handleCloseDialog();
+        }}
+        chapter={chapter}
+      />
     </StyledChapterCard>
   );
 };
 
-export default ChapterCard; 
+export default ChapterCard;
+

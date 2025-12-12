@@ -9,7 +9,7 @@ import {
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useGetChaptersBySubjectQuery } from '../../features/api/chapterAPI';
-import ChapterCard from '../../components/ChapterCard';
+import ChapterCard from '../Chapters/ChapterCard';
 import { subjectSectionStyles } from '../../theme/subjectSectionTheme';
 
 const SubjectSection = ({ subject, metadataList = [], chapterSessionsMap = {} }) => {
