@@ -38,10 +38,10 @@ const Analytics = ({ chapter }) => {
     }
 
     return userAttemptWindowList
-      .filter(entry => entry && entry.timestamp && typeof entry.averageAccuracy === 'number')
+      .filter(entry => entry && entry.timestamp && typeof entry.capturedRating === 'number')
       .map((entry, index) => ({
         index: index + 1,
-        accuracy: Number(entry.averageAccuracy.toFixed(2)),
+        rating: Number(entry.capturedRating.toFixed(2)),
         timestamp: new Date(entry.timestamp).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -55,7 +55,7 @@ const Analytics = ({ chapter }) => {
 
   return (
     <Box>
-      {/* Accuracy Graph */}
+      {/* Rating Graph */}
       {chartData.length > 0 && (
         <Box>
           <Typography
@@ -67,7 +67,7 @@ const Analytics = ({ chapter }) => {
               color: textPrimary,
             }}
           >
-            Average Accuracy Over Time
+            Rating Over Time
           </Typography>
           <Box sx={{ width: '100%', height: 350 }}>
             <ResponsiveContainer>
@@ -82,10 +82,9 @@ const Analytics = ({ chapter }) => {
                   height={80}
                 />
                 <YAxis
-                  domain={[0, 100]}
                   stroke={textSecondary}
                   label={{
-                    value: 'Accuracy (%)',
+                    value: 'Rating',
                     angle: -90,
                     position: 'insideLeft',
                     style: { fill: textSecondary }
@@ -98,17 +97,17 @@ const Analytics = ({ chapter }) => {
                     borderRadius: '8px',
                     color: textPrimary,
                   }}
-                  formatter={(value) => [`${value}%`, 'Accuracy']}
+                  formatter={(value) => [`${value}`, 'Rating']}
                 />
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="accuracy"
+                  dataKey="rating"
                   stroke={chartLineColor}
                   strokeWidth={2}
                   dot={{ fill: chartLineColor, r: 4 }}
                   activeDot={{ r: 6 }}
-                  name="Average Accuracy (%)"
+                  name="Rating"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -126,7 +125,7 @@ const Analytics = ({ chapter }) => {
               fontStyle: 'italic',
             }}
           >
-            No accuracy data available yet. Start taking quizzes to see your progress!
+            No rating data available yet. Start taking quizzes to see your progress!
           </Typography>
         </Box>
       )}

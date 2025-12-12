@@ -217,7 +217,10 @@ const submitQuizSession = async ({ sessionId, answers }: { sessionId?: string; a
 		// 	userChapterSession.analytics.userAttemptWindowList.shift();
 		// }
 
-		const userOnAverageAccuracy = userChapterSession.analytics.userAttemptWindowList.reduce((sum, entry) => sum + entry.averageAccuracy, 0) / userChapterSession.analytics.userAttemptWindowList.length;
+		// Calculate average accuracy from userAttemptWindowList, or use currentAccuracy if list is empty
+		const userOnAverageAccuracy = userChapterSession.analytics.userAttemptWindowList.length > 0
+			? userChapterSession.analytics.userAttemptWindowList.reduce((sum, entry) => sum + entry.averageAccuracy, 0) / userChapterSession.analytics.userAttemptWindowList.length
+			: currentAccuracy;
 
 		// get updated strength with userOnAverageAccuracy (0-100) mapped to (0-5)
 		const updatedStrength = Math.min(5, Math.max(0, Math.round((userOnAverageAccuracy / 100) * 5)));
