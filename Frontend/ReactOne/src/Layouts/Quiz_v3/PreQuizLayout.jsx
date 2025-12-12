@@ -50,10 +50,10 @@ const PreQuizLayout = () => {
     }
 
     return userAttemptWindowList
-      .filter(entry => entry && entry.timestamp && typeof entry.averageAccuracy === 'number')
+      .filter(entry => entry && entry.timestamp && typeof entry.capturedRating === 'number')
       .map((entry, index) => ({
         index: index + 1,
-        accuracy: Number(entry.averageAccuracy.toFixed(2)),
+        rating: Number(entry.capturedRating.toFixed(2)),
         timestamp: new Date(entry.timestamp).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -182,7 +182,7 @@ const PreQuizLayout = () => {
             </Typography>
           )}
 
-          {/* Accuracy Graph */}
+          {/* Rating Graph */}
           {chartData.length > 0 && (
             <Box sx={{ mb: 4, mt: 2 }}>
               <Typography
@@ -194,7 +194,7 @@ const PreQuizLayout = () => {
                   color: themeColors.text.primary,
                 }}
               >
-                Average Accuracy Over Time
+                Rating Over Time
               </Typography>
               <Box sx={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
@@ -209,10 +209,9 @@ const PreQuizLayout = () => {
                       height={80}
                     />
                     <YAxis 
-                      domain={[0, 100]}
                       stroke={textSecondary}
                       label={{ 
-                        value: 'Accuracy (%)', 
+                        value: 'Rating', 
                         angle: -90, 
                         position: 'insideLeft',
                         style: { fill: textSecondary }
@@ -225,17 +224,17 @@ const PreQuizLayout = () => {
                         borderRadius: '8px',
                         color: textPrimary,
                       }}
-                      formatter={(value) => [`${value}%`, 'Accuracy']}
+                      formatter={(value) => [`${value}`, 'Rating']}
                     />
                     <Legend />
                     <Line 
                       type="monotone" 
-                      dataKey="accuracy" 
+                      dataKey="rating" 
                       stroke={buttonPrimary}
                       strokeWidth={2}
                       dot={{ fill: buttonPrimary, r: 4 }}
                       activeDot={{ r: 6 }}
-                      name="Average Accuracy (%)"
+                      name="Rating"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -253,7 +252,7 @@ const PreQuizLayout = () => {
                 fontStyle: 'italic',
               }}
             >
-              No accuracy data available yet. Start taking quizzes to see your progress!
+              No rating data available yet. Start taking quizzes to see your progress!
             </Typography>
           )}
 
