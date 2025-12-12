@@ -5,6 +5,7 @@ import { UserChapterSection } from '../../models/UserChapterSection';
 import { UserChapterLevel } from '../../models/UserChapterLevel';
 import { UserLevelSession } from '../../models/UserLevelSession';
 import { UserLevelSessionHistory } from '../../models/UserLevelSessionHistory';
+import UserChapterSession from '../../models/UserChapterSession';
 import { Chapter } from '../../models/Chapter';
 import { Section } from '../../models/Section';
 import { Unit } from '../../models/Units';
@@ -1107,6 +1108,99 @@ router.delete('/chapter-levels/:id', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to delete user chapter level',
+      error: error.message
+    });
+  }
+});
+
+// ==================== USER CHAPTER SESSIONS (READ ONLY) ====================
+
+// GET all user chapter sessions
+router.get('/user-chapter-sessions', async (req: Request, res: Response) => {
+  try {
+    const { userId, chapterId } = req.query;
+
+    let filter: any = {};
+    if (userId) filter.userId = userId;
+    if (chapterId) filter.chapterId = chapterId;
+
+    const [userChapterSessions, total] = await Promise.all([
+      UserChapterSession.find(filter)
+        .populate('chapterId', 'name')
+        .sort({ lastPlayedTs: -1 }),
+      UserChapterSession.countDocuments(filter)
+    ]);
+
+    // Populate user profile data for each user chapter session
+    const userChapterSessionsWithProfiles = await Promise.all(
+      userChapterSessions.map(async (session) => {
+        const userProfile = await UserProfile.findOne({ userId: session.userId });
+        return {
+          ...session.toObject(),
+          userProfile: userProfile ? {
+            _id: userProfile._id,
+            username: userProfile.username,
+            email: userProfile.email,
+            fullName: userProfile.fullName,
+            role: userProfile.role
+          } : null
+        };
+      })
+    );
+
+    return res.json({
+      success: true,
+      data: userChapterSessionsWithProfiles,
+      pagination: {
+        total,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user chapter sessions:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user chapter sessions',
+      error: error.message
+    });
+  }
+});
+
+// GET user chapter session by ID
+router.get('/user-chapter-sessions/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userChapterSession = await UserChapterSession.findById(id)
+      .populate('chapterId', 'name');
+
+    if (!userChapterSession) {
+      return res.status(404).json({
+        success: false,
+        message: 'User chapter session not found'
+      });
+    }
+
+    // Get user profile data
+    const userProfile = await UserProfile.findOne({ userId: userChapterSession.userId });
+    const userChapterSessionWithProfile = {
+      ...userChapterSession.toObject(),
+      userProfile: userProfile ? {
+        _id: userProfile._id,
+        username: userProfile.username,
+        email: userProfile.email,
+        fullName: userProfile.fullName,
+        role: userProfile.role
+      } : null
+    };
+
+    return res.json({
+      success: true,
+      data: userChapterSessionWithProfile
+    });
+  } catch (error) {
+    console.error('Error fetching user chapter session:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user chapter session',
       error: error.message
     });
   }
