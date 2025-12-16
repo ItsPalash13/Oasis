@@ -1,0 +1,218 @@
+{
+  "default": [
+    {
+      "userId": "dummy_user_001",
+      "fullName": "Amrit Mishra",
+      "userRating": 8500,
+      "avatarBgColor": "rgba(70, 130, 180, 0.8)"
+    },
+    {
+      "userId": "dummy_user_002",
+      "fullName": "Akash Kumar",
+      "userRating": 7200,
+      "avatarBgColor": "rgba(255, 105, 180, 0.8)"
+    },
+    {
+      "userId": "dummy_user_003",
+      "fullName": "Gitish",
+      "userRating": 6800,
+      "avatarBgColor": "rgba(34, 139, 34, 0.8)"
+    },
+    {
+      "userId": "dummy_user_004",
+      "fullName": "Gurkirat Singh",
+      "userRating": 5500,
+      "avatarBgColor": "rgba(255, 165, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_user_005",
+      "fullName": "Ryan Kumar",
+      "userRating": 4800,
+      "avatarBgColor": "rgba(138, 43, 226, 0.8)"
+    },
+    {
+      "userId": "dummy_user_006",
+      "fullName": "Maya Patel",
+      "userRating": 4200,
+      "avatarBgColor": "rgba(220, 20, 60, 0.8)"
+    },
+    {
+      "userId": "dummy_user_007",
+      "fullName": "Nikhil Jaiswal",
+      "userRating": 3500,
+      "avatarBgColor": "rgba(30, 144, 255, 0.8)"
+    },
+    {
+      "userId": "dummy_user_008",
+      "fullName": "Rohit Sharma",
+      "userRating": 2800,
+      "avatarBgColor": "rgba(255, 192, 203, 0.8)"
+    },
+    {
+      "userId": "dummy_user_009",
+      "fullName": "Abhay Singh",
+      "userRating": 2100,
+      "avatarBgColor": "rgba(60, 179, 113, 0.8)"
+    },
+    {
+      "userId": "dummy_user_010",
+      "fullName": "Anshuman Pandey",
+      "userRating": 1800,
+      "avatarBgColor": "rgba(255, 140, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_user_011",
+      "fullName": "Aryan Singh",
+      "userRating": 1200,
+      "avatarBgColor": "rgba(106, 90, 205, 0.8)"
+    },
+    {
+      "userId": "dummy_user_012",
+      "fullName": "Aryan Sharma",
+      "userRating": 900,
+      "avatarBgColor": "rgba(205, 92, 92, 0.8)"
+    },
+    {
+      "userId": "dummy_user_013",
+      "fullName": "Aryan Kumar",
+      "userRating": 650,
+      "avatarBgColor": "rgba(72, 209, 204, 0.8)"
+    },
+    {
+      "userId": "dummy_user_014",
+      "fullName": "Abhay patel",
+      "userRating": 450,
+      "avatarBgColor": "rgba(255, 218, 185, 0.8)"
+    },
+    {
+      "userId": "dummy_user_015",
+      "fullName": "Karan Patel",
+      "userRating": 280,
+      "avatarBgColor": "rgba(176, 196, 222, 0.8)"
+    }
+  ],
+  "YOUR_CHAPTER_ID_1": [
+    {
+      "userId": "dummy_ch1_user_001",
+      "fullName": "David Kim",
+      "userRating": 9200,
+      "avatarBgColor": "rgba(255, 99, 71, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_002",
+      "fullName": "Sarah Johnson",
+      "userRating": 8100,
+      "avatarBgColor": "rgba(147, 112, 219, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_003",
+      "fullName": "Michael Chen",
+      "userRating": 7500,
+      "avatarBgColor": "rgba(32, 178, 170, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_004",
+      "fullName": "Lisa Wang",
+      "userRating": 6200,
+      "avatarBgColor": "rgba(255, 20, 147, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_005",
+      "fullName": "Robert Taylor",
+      "userRating": 5100,
+      "avatarBgColor": "rgba(0, 191, 255, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_006",
+      "fullName": "Jennifer Lee",
+      "userRating": 4400,
+      "avatarBgColor": "rgba(255, 215, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_007",
+      "fullName": "William Park",
+      "userRating": 3700,
+      "avatarBgColor": "rgba(50, 205, 50, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_008",
+      "fullName": "Emily Zhang",
+      "userRating": 2900,
+      "avatarBgColor": "rgba(255, 69, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_009",
+      "fullName": "Daniel Brown",
+      "userRating": 2200,
+      "avatarBgColor": "rgba(186, 85, 211, 0.8)"
+    },
+    {
+      "userId": "dummy_ch1_user_010",
+      "fullName": "Jessica Liu",
+      "userRating": 1600,
+      "avatarBgColor": "rgba(0, 206, 209, 0.8)"
+    }
+  ],
+  "YOUR_CHAPTER_ID_2": [
+    {
+      "userId": "dummy_ch2_user_001",
+      "fullName": "Chris Anderson",
+      "userRating": 8800,
+      "avatarBgColor": "rgba(255, 140, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_002",
+      "fullName": "Amanda White",
+      "userRating": 7900,
+      "avatarBgColor": "rgba(199, 21, 133, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_003",
+      "fullName": "Kevin Singh",
+      "userRating": 7100,
+      "avatarBgColor": "rgba(65, 105, 225, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_004",
+      "fullName": "Nicole Garcia",
+      "userRating": 5800,
+      "avatarBgColor": "rgba(255, 192, 203, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_005",
+      "fullName": "Thomas Moore",
+      "userRating": 4900,
+      "avatarBgColor": "rgba(152, 251, 152, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_006",
+      "fullName": "Rachel Kim",
+      "userRating": 4100,
+      "avatarBgColor": "rgba(255, 165, 0, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_007",
+      "fullName": "Brandon Lee",
+      "userRating": 3300,
+      "avatarBgColor": "rgba(255, 20, 147, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_008",
+      "fullName": "Michelle Chang",
+      "userRating": 2600,
+      "avatarBgColor": "rgba(135, 206, 250, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_009",
+      "fullName": "Steven Park",
+      "userRating": 1900,
+      "avatarBgColor": "rgba(255, 105, 180, 0.8)"
+    },
+    {
+      "userId": "dummy_ch2_user_010",
+      "fullName": "Ashley Martinez",
+      "userRating": 1400,
+      "avatarBgColor": "rgba(144, 238, 144, 0.8)"
+    }
+  ]
+}
