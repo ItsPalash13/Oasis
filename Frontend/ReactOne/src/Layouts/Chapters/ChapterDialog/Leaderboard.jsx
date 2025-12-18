@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, Fragment, useMemo, useState } from 'react';
+import React, { useEffect, useRef, Fragment, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -15,7 +15,7 @@ import {
   EmojiEvents as TrophyIcon
 } from '@mui/icons-material';
 import { colors, themeScrollbar } from '../../../theme/colors';
-import { useGetChapterLeaderboardQuery } from '../../../features/api/chapterAPI';
+import { useGetChapterLeaderboardQuery, useGetDummyUsersQuery } from '../../../features/api/chapterAPI';
 import { getAvatarSrc as getAvatarSrcFromUtils } from '../../../utils/avatarUtils';
 import { getRankForRating } from '../../../utils/rankUtils';
 
@@ -25,9 +25,6 @@ import silverBadge from '../../../assets/badges/silver.png';
 import goldBadge from '../../../assets/badges/gold.png';
 import platinumBadge from '../../../assets/badges/platinum.png';
 import diamondBadge from '../../../assets/badges/diamond.png';
-
-// Import dummy users
-import dummyUsersData from '../../../data/dummyUsers.json';
 
 const Leaderboard = ({ chapter }) => {
   const theme = useTheme();
@@ -46,65 +43,13 @@ const Leaderboard = ({ chapter }) => {
   const realLeaderboard = leaderboardData?.data || [];
   const currentUserRank = leaderboardData?.currentUserRank || null;
 
-  // Get dummy users data from localStorage or fallback to JSON file
-  // Use state to make it reactive to localStorage changes
-  const [dummyUsersDataState, setDummyUsersDataState] = useState(() => {
-    try {
-      const savedData = localStorage.getItem('dummyUsersData');
-      if (savedData) {
-        return JSON.parse(savedData);
-      }
-    } catch (error) {
-      console.error('Error loading dummy users from localStorage:', error);
-    }
-    return dummyUsersData;
-  });
-
-  // Listen for storage events to update when data changes in other tabs/windows
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'dummyUsersData') {
-        try {
-          if (e.newValue) {
-            setDummyUsersDataState(JSON.parse(e.newValue));
-          } else {
-            setDummyUsersDataState(dummyUsersData);
-          }
-        } catch (error) {
-          console.error('Error parsing updated dummy users data:', error);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also check localStorage on mount/update in case changes were made in the same tab
-    const checkLocalStorage = () => {
-      try {
-        const savedData = localStorage.getItem('dummyUsersData');
-        if (savedData) {
-          const parsed = JSON.parse(savedData);
-          setDummyUsersDataState(parsed);
-        }
-      } catch (error) {
-        console.error('Error checking localStorage:', error);
-      }
-    };
-
-    // Check periodically (every 2 seconds) for changes in the same tab
-    const interval = setInterval(checkLocalStorage, 2000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
+  // Fetch dummy users from API
+  const chapterId = chapter?._id?.toString();
+  const { data: dummyUsersResponse } = useGetDummyUsersQuery(chapterId, { skip: !chapterId });
+  const chapterDummyUsers = dummyUsersResponse?.data || [];
 
   // Merge dummy users with real leaderboard data
   const leaderboard = useMemo(() => {
-    // Get chapter-specific dummy users, fallback to default if chapter ID not found
-    const chapterId = chapter?._id?.toString();
-    const chapterDummyUsers = dummyUsersDataState[chapterId] || dummyUsersDataState.default || [];
     
     // ============================================================
     // TO DISABLE DUMMY USERS: Change line below to:
@@ -135,7 +80,7 @@ const Leaderboard = ({ chapter }) => {
     }));
 
     return withRanks;
-  }, [realLeaderboard, currentUserId, chapter, dummyUsersDataState]);
+  }, [realLeaderboard, currentUserId, chapter, chapterDummyUsers]);
 
   // Recalculate current user rank after merging
   const finalCurrentUserRank = useMemo(() => {
