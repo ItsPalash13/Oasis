@@ -1,0 +1,262 @@
+2025-12-14 21:04:00,995 - INFO - Using credentials from: C:\Users\KIIT\Desktop\Project\Dev\Services\env\client_secret.json
+2025-12-14 21:04:00,995 - WARNING - Failed to use client_secret.json as service account: Service account info was not in the expected format, missing fields token_uri, client_email.
+2025-12-14 21:04:00,995 - WARNING - Trying default credentials...
+2025-12-14 21:04:13,323 - ERROR - Fatal error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-12-14 21:04:13,329 - ERROR - Traceback (most recent call last):
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 76, in __init__
+    self.storage_client = storage.Client.from_service_account_json(client_secret_path)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 117, in from_service_account_json
+    return cls.from_service_account_info(credentials_info, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 84, in from_service_account_info
+    credentials = service_account.Credentials.from_service_account_info(info)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\oauth2\service_account.py", line 245, in from_service_account_info
+    signer = _service_account_info.from_dict(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\auth\_service_account_info.py", line 50, in from_dict
+    raise exceptions.MalformedError(
+google.auth.exceptions.MalformedError: Service account info was not in the expected format, missing fields token_uri, client_email.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 508, in main
+    uploader = QuestionsImageUploader()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 80, in __init__
+    self.storage_client = storage.Client()
+                          ^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\storage\client.py", line 265, in __init__
+    super(Client, self).__init__(
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 287, in __init__
+    project = self._determine_default(project)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 306, in _determine_default
+    return _determine_default_project(project)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\_helpers\__init__.py", line 152, in _determine_default_project
+    _, project = google.auth.default()
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\auth\_default.py", line 739, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-12-14 21:05:39,005 - INFO - Using default credentials (gcloud auth or environment)
+2025-12-14 21:05:51,150 - ERROR - Fatal error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-12-14 21:05:51,153 - ERROR - Traceback (most recent call last):
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 508, in main
+    uploader = QuestionsImageUploader()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 90, in __init__
+    self.storage_client = storage.Client()
+                          ^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\storage\client.py", line 265, in __init__
+    super(Client, self).__init__(
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 287, in __init__
+    project = self._determine_default(project)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 306, in _determine_default
+    return _determine_default_project(project)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\_helpers\__init__.py", line 152, in _determine_default_project
+    _, project = google.auth.default()
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\auth\_default.py", line 739, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-12-14 21:08:06,634 - INFO - Using default credentials (gcloud auth or environment)
+2025-12-14 21:08:18,702 - ERROR - 
+======================================================================
+2025-12-14 21:08:18,702 - ERROR - GCS Authentication Failed!
+2025-12-14 21:08:18,702 - ERROR - ======================================================================
+2025-12-14 21:08:18,702 - ERROR - You need a Google Cloud Service Account JSON key file.
+2025-12-14 21:08:18,702 - ERROR - 
+Options:
+2025-12-14 21:08:18,702 - ERROR - 1. Set GOOGLE_APPLICATION_CREDENTIALS env var to point to service account JSON
+2025-12-14 21:08:18,702 - ERROR - 2. Place a service account JSON file in Services/env/ directory
+2025-12-14 21:08:18,702 - ERROR - 3. Run 'gcloud auth application-default login' to use default credentials
+2025-12-14 21:08:18,702 - ERROR - 
+Note: OAuth2 client_secret.json files won't work.
+2025-12-14 21:08:18,702 - ERROR - You need a service account key with 'type': 'service_account'
+2025-12-14 21:08:18,702 - ERROR - ======================================================================
+2025-12-14 21:08:18,702 - ERROR - Fatal error: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-12-14 21:08:18,713 - ERROR - Traceback (most recent call last):
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 538, in main
+    uploader = QuestionsImageUploader()
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\questions_image_uploader.py", line 107, in __init__
+    self.storage_client = storage.Client()
+                          ^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\storage\client.py", line 265, in __init__
+    super(Client, self).__init__(
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 339, in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 287, in __init__
+    project = self._determine_default(project)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\client\__init__.py", line 306, in _determine_default
+    return _determine_default_project(project)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\cloud\_helpers\__init__.py", line 152, in _determine_default_project
+    _, project = google.auth.default()
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KIIT\Desktop\Project\Dev\Services\nenv\lib\python3.11\site-packages\google\auth\_default.py", line 739, in default
+    raise exceptions.DefaultCredentialsError(_CLOUD_SDK_MISSING_CREDENTIALS)
+google.auth.exceptions.DefaultCredentialsError: Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+
+2025-12-14 21:13:31,830 - INFO - Using default credentials (gcloud auth or environment)
+2025-12-14 21:13:37,943 - INFO - Initialized QuestionsImageUploader
+2025-12-14 21:13:37,943 - INFO - MongoDB URI: mongodb+srv://admin:...
+2025-12-14 21:13:37,943 - INFO - GCS Bucket: quesimage
+2025-12-14 21:13:37,943 - INFO - === TEST MODE: Processing question 691ae8620500ee3c805daeb5 ===
+2025-12-14 21:13:37,943 - INFO - DRY RUN MODE: No changes will be saved to database
+2025-12-14 21:13:38,257 - INFO - Found question 691ae8620500ee3c805daeb5 in chapter 6918c031a230eb058f3eb240
+2025-12-14 21:13:38,257 - INFO - 
+--- Question Analysis ---
+2025-12-14 21:13:38,260 - INFO - Question text images: 1
+2025-12-14 21:13:38,260 - INFO - Solution images: 1
+2025-12-14 21:13:38,260 - INFO - Total images found: 2
+2025-12-14 21:13:38,260 - INFO - 
+--- Image URLs Found ---
+2025-12-14 21:13:38,260 - INFO -   Ques image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvux985y/1aaaf553-3065-49ef...
+2025-12-14 21:13:38,260 - INFO -   Solution image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvuxb5p6/db1cd108-cb9f-44ec...
+2025-12-14 21:13:38,260 - INFO - 
+--- Processing Question ---
+2025-12-14 21:13:38,272 - INFO - DRY RUN: Would process images and update database
+2025-12-14 21:13:38,272 - INFO - Run without --dry-run to actually process
+2025-12-14 21:14:27,198 - INFO - Using default credentials (gcloud auth or environment)
+2025-12-14 21:14:32,971 - INFO - Initialized QuestionsImageUploader
+2025-12-14 21:14:32,971 - INFO - MongoDB URI: mongodb+srv://admin:...
+2025-12-14 21:14:32,971 - INFO - GCS Bucket: quesimage
+2025-12-14 21:14:32,971 - INFO - === TEST MODE: Processing question 691ae8620500ee3c805daeb5 ===
+2025-12-14 21:14:33,495 - INFO - Found question 691ae8620500ee3c805daeb5 in chapter 6918c031a230eb058f3eb240
+2025-12-14 21:14:33,495 - INFO - 
+--- Question Analysis ---
+2025-12-14 21:14:33,503 - INFO - Question text images: 1
+2025-12-14 21:14:33,503 - INFO - Solution images: 1
+2025-12-14 21:14:33,503 - INFO - Total images found: 2
+2025-12-14 21:14:33,503 - INFO - 
+--- Image URLs Found ---
+2025-12-14 21:14:33,503 - INFO -   Ques image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvux985y/1aaaf553-3065-49ef...
+2025-12-14 21:14:33,512 - INFO -   Solution image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvuxb5p6/db1cd108-cb9f-44ec...
+2025-12-14 21:14:33,512 - INFO - 
+--- Processing Question ---
+2025-12-14 21:14:33,512 - INFO - Processing question 691ae8620500ee3c805daeb5
+2025-12-14 21:14:36,989 - ERROR - Failed to upload to GCS 6918c031a230eb058f3eb240/691ae8620500ee3c805daeb5_ques_0.png: 403 POST https://storage.googleapis.com/upload/storage/v1/b/quesimage/o?uploadType=multipart: {
+  "error": {
+    "code": 403,
+    "message": "The billing account for the owning project is disabled in state closed",
+    "errors": [
+      {
+        "message": "The billing account for the owning project is disabled in state closed",
+        "domain": "global",
+        "reason": "accountDisabled",
+        "locationType": "header",
+        "location": "Authorization"
+      }
+    ]
+  }
+}
+: ('Request failed with status code', 403, 'Expected one of', <HTTPStatus.OK: 200>)
+2025-12-14 21:14:36,989 - ERROR -   Failed to process ques image 0: 403 POST https://storage.googleapis.com/upload/storage/v1/b/quesimage/o?uploadType=multipart: {
+  "error": {
+    "code": 403,
+    "message": "The billing account for the owning project is disabled in state closed",
+    "errors": [
+      {
+        "message": "The billing account for the owning project is disabled in state closed",
+        "domain": "global",
+        "reason": "accountDisabled",
+        "locationType": "header",
+        "location": "Authorization"
+      }
+    ]
+  }
+}
+: ('Request failed with status code', 403, 'Expected one of', <HTTPStatus.OK: 200>)
+2025-12-14 21:14:36,989 - ERROR - 
+=== TEST FAILED: Question 691ae8620500ee3c805daeb5 processing failed ===
+2025-12-14 21:23:25,141 - INFO - Found service account file: C:\Users\KIIT\Desktop\Project\Dev\Services\env\serene-vim-480310-r9-d3a6bdc58229.json
+2025-12-14 21:23:25,141 - INFO - Using service account from: C:\Users\KIIT\Desktop\Project\Dev\Services\env\serene-vim-480310-r9-d3a6bdc58229.json
+2025-12-14 21:23:25,141 - INFO - Initialized QuestionsImageUploader
+2025-12-14 21:23:25,141 - INFO - MongoDB URI: mongodb+srv://admin:...
+2025-12-14 21:23:25,141 - INFO - GCS Bucket: quesimage
+2025-12-14 21:23:25,141 - INFO - === TEST MODE: Processing question 691ae8620500ee3c805daeb5 ===
+2025-12-14 21:23:25,917 - INFO - Found question 691ae8620500ee3c805daeb5 in chapter 6918c031a230eb058f3eb240
+2025-12-14 21:23:25,917 - INFO - 
+--- Question Analysis ---
+2025-12-14 21:23:25,917 - INFO - Question text images: 1
+2025-12-14 21:23:25,917 - INFO - Solution images: 1
+2025-12-14 21:23:25,917 - INFO - Total images found: 2
+2025-12-14 21:23:25,917 - INFO - 
+--- Image URLs Found ---
+2025-12-14 21:23:25,917 - INFO -   Ques image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvux985y/1aaaf553-3065-49ef...
+2025-12-14 21:23:25,935 - INFO -   Solution image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvuxb5p6/db1cd108-cb9f-44ec...
+2025-12-14 21:23:25,935 - INFO - 
+--- Processing Question ---
+2025-12-14 21:23:25,935 - INFO - Processing question 691ae8620500ee3c805daeb5
+2025-12-14 21:23:28,592 - ERROR - Failed to upload to GCS 6918c031a230eb058f3eb240/691ae8620500ee3c805daeb5_ques_0.png: 403 POST https://storage.googleapis.com/upload/storage/v1/b/quesimage/o?uploadType=multipart: {
+  "error": {
+    "code": 403,
+    "message": "The billing account for the owning project is disabled in state closed",
+    "errors": [
+      {
+        "message": "The billing account for the owning project is disabled in state closed",
+        "domain": "global",
+        "reason": "accountDisabled",
+        "locationType": "header",
+        "location": "Authorization"
+      }
+    ]
+  }
+}
+: ('Request failed with status code', 403, 'Expected one of', <HTTPStatus.OK: 200>)
+2025-12-14 21:23:28,592 - ERROR -   Failed to process ques image 0: 403 POST https://storage.googleapis.com/upload/storage/v1/b/quesimage/o?uploadType=multipart: {
+  "error": {
+    "code": 403,
+    "message": "The billing account for the owning project is disabled in state closed",
+    "errors": [
+      {
+        "message": "The billing account for the owning project is disabled in state closed",
+        "domain": "global",
+        "reason": "accountDisabled",
+        "locationType": "header",
+        "location": "Authorization"
+      }
+    ]
+  }
+}
+: ('Request failed with status code', 403, 'Expected one of', <HTTPStatus.OK: 200>)
+2025-12-14 21:23:28,592 - ERROR - 
+=== TEST FAILED: Question 691ae8620500ee3c805daeb5 processing failed ===
+2025-12-14 21:29:29,501 - INFO - Found service account file: C:\Users\KIIT\Desktop\Project\Dev\Services\env\serene-vim-480310-r9-d3a6bdc58229.json
+2025-12-14 21:29:29,501 - INFO - Using service account from: C:\Users\KIIT\Desktop\Project\Dev\Services\env\serene-vim-480310-r9-d3a6bdc58229.json
+2025-12-14 21:29:29,501 - INFO - Initialized QuestionsImageUploader
+2025-12-14 21:29:29,501 - INFO - MongoDB URI: mongodb+srv://admin:...
+2025-12-14 21:29:29,501 - INFO - GCS Bucket: questionsimages
+2025-12-14 21:29:29,501 - INFO - === TEST MODE: Processing question 691ae8620500ee3c805daeb5 ===
+2025-12-14 21:29:31,282 - INFO - Found question 691ae8620500ee3c805daeb5 in chapter 6918c031a230eb058f3eb240
+2025-12-14 21:29:31,297 - INFO - 
+--- Question Analysis ---
+2025-12-14 21:29:31,297 - INFO - Question text images: 1
+2025-12-14 21:29:31,301 - INFO - Solution images: 1
+2025-12-14 21:29:31,301 - INFO - Total images found: 2
+2025-12-14 21:29:31,301 - INFO - 
+--- Image URLs Found ---
+2025-12-14 21:29:31,301 - INFO -   Ques image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvux985y/1aaaf553-3065-49ef...
+2025-12-14 21:29:31,301 - INFO -   Solution image 0: https://app-content.cdn.examgoal.net/fly/1000/image/1lvuxb5p6/db1cd108-cb9f-44ec...
+2025-12-14 21:29:31,301 - INFO - 
+--- Processing Question ---
+2025-12-14 21:29:31,301 - INFO - Processing question 691ae8620500ee3c805daeb5
+2025-12-14 21:29:33,613 - INFO -   Processed ques image 0: 6918c031a230eb058f3eb240/691ae8620500ee3c805daeb5_ques_0.png
+2025-12-14 21:29:34,720 - INFO -   Processed solution image 0: 6918c031a230eb058f3eb240/691ae8620500ee3c805daeb5_solution_0.png
+2025-12-14 21:29:34,781 - INFO - Successfully updated question 691ae8620500ee3c805daeb5 with 2 field(s) modified
+2025-12-14 21:29:34,781 - INFO - 
+=== TEST SUCCESS: Question 691ae8620500ee3c805daeb5 processed successfully ===
