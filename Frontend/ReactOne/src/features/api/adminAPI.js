@@ -4,7 +4,7 @@ import { baseQueryWithAuth } from './baseQuery';
 export const adminApi = createApi({
   reducerPath: 'adminApi',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Subject', 'Chapter', 'Topic', 'Section', 'Question', 'Level', 'User', 'Badge', 'Organization', 'Batch'],
+  tagTypes: ['Subject', 'Chapter', 'Topic', 'Section', 'Question', 'Level', 'User', 'Badge', 'Organization', 'Batch', 'Misc'],
   endpoints: (builder) => ({
     // Subject endpoints
     getSubjects: builder.query({
@@ -435,6 +435,53 @@ export const adminApi = createApi({
       }),
       providesTags: ['User'],
     }),
+    // Misc endpoints (Dummy Users)
+    getAllMisc: builder.query({
+      query: () => ({ url: '/api/admin/misc', method: 'GET' }),
+      providesTags: ['Misc'],
+    }),
+    getMiscByChapter: builder.query({
+      query: (chapterId) => ({ url: `/api/admin/misc/chapter/${chapterId}`, method: 'GET' }),
+      providesTags: ['Misc'],
+    }),
+    createOrUpdateMiscChapter: builder.mutation({
+      query: ({ chapterId, users }) => ({ 
+        url: `/api/admin/misc/chapter/${chapterId}`, 
+        method: 'POST', 
+        body: { users } 
+      }),
+      invalidatesTags: ['Misc'],
+    }),
+    addMiscUser: builder.mutation({
+      query: ({ chapterId, ...userData }) => ({ 
+        url: `/api/admin/misc/chapter/${chapterId}/user`, 
+        method: 'POST', 
+        body: userData 
+      }),
+      invalidatesTags: ['Misc'],
+    }),
+    updateMiscUser: builder.mutation({
+      query: ({ chapterId, userId, ...userData }) => ({ 
+        url: `/api/admin/misc/chapter/${chapterId}/user/${userId}`, 
+        method: 'PUT', 
+        body: userData 
+      }),
+      invalidatesTags: ['Misc'],
+    }),
+    deleteMiscUser: builder.mutation({
+      query: ({ chapterId, userId }) => ({ 
+        url: `/api/admin/misc/chapter/${chapterId}/user/${userId}`, 
+        method: 'DELETE' 
+      }),
+      invalidatesTags: ['Misc'],
+    }),
+    deleteMiscChapter: builder.mutation({
+      query: (chapterId) => ({ 
+        url: `/api/admin/misc/chapter/${chapterId}`, 
+        method: 'DELETE' 
+      }),
+      invalidatesTags: ['Misc'],
+    }),
   }),
 });
 
@@ -535,4 +582,12 @@ export const {
   useSearchUsersByEmailQuery,
   // Organization user search hook
   useSearchUsersByOrganizationQuery,
+  // Misc hooks
+  useGetAllMiscQuery,
+  useGetMiscByChapterQuery,
+  useCreateOrUpdateMiscChapterMutation,
+  useAddMiscUserMutation,
+  useUpdateMiscUserMutation,
+  useDeleteMiscUserMutation,
+  useDeleteMiscChapterMutation,
 } = adminApi;

@@ -61,6 +61,16 @@ export const chapterApi = createApi({
         return `/user/chapter-session/${chapterId}/leaderboard`;
       },
       providesTags: ['Chapter']
+    }),
+    // Get dummy users for a chapter (public endpoint)
+    getDummyUsers: builder.query({
+      query: (chapterId) => {
+        if (!chapterId) {
+          throw new Error('Chapter ID is required');
+        }
+        return `/misc/chapter/${chapterId}`;
+      },
+      providesTags: ['Chapter']
     })
   }),
 });
@@ -72,5 +82,6 @@ export const {
   useStartGameMutation,
   useStartGameV3Mutation,
   useGetUserChapterSessionQuery,
-  useGetChapterLeaderboardQuery
+  useGetChapterLeaderboardQuery,
+  useGetDummyUsersQuery
 } = chapterApi; 

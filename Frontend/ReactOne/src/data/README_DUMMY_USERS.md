@@ -2,22 +2,29 @@
 
 This file explains how to configure dummy users for different chapters.
 
-## Structure
+## Overview
 
-The `dummyUsers.json` file is structured as an object where:
-- Each key is a chapter ID (as a string)
-- Each value is an array of dummy user objects
-- The `"default"` key is used as a fallback for chapters that don't have specific dummy users
+Dummy users are now stored in a **Misc** database table instead of a JSON file. This provides better data persistence, easier management, and real-time updates across all users.
+
+## Database Structure
+
+The `Misc` collection in MongoDB stores dummy users with the following structure:
+- **chapterId** (String, unique): The chapter ID
+- **users** (Array): Array of dummy user objects
+  - **userId** (String): Unique user identifier
+  - **fullName** (String): User's full name
+  - **userRating** (Number): User's rating/score
+  - **avatarBgColor** (String): Avatar background color in rgba format
 
 ## Admin Panel Management Tool
 
-A new **Misc** tab has been added to the Admin Panel that provides a user-friendly interface for managing dummy users. This tool allows you to:
+A **Misc** tab has been added to the Admin Panel that provides a user-friendly interface for managing dummy users. This tool allows you to:
 
 ### Features
 
-1. **View All Chapters**: Browse through all chapters (default, YOUR_CHAPTER_ID_1, YOUR_CHAPTER_ID_2, etc.) using tabs
-2. **Add New Chapters**: Click the "Add Chapter" button to create a new chapter with default user values
-   - Enter the chapter ID
+1. **View All Chapters**: Browse through all chapters using tabs
+2. **Add New Chapters**: Click the "Add Chapter" button to create a new chapter
+   - Enter the chapter ID (e.g., `693ee2941bb97c8f9945de78`)
    - The new chapter will be initialized with the same users as the "default" chapter
    - You can then customize the users as needed
 3. **Add Users**: Add new dummy users to any chapter
@@ -29,47 +36,33 @@ A new **Misc** tab has been added to the Admin Panel that provides a user-friend
 5. **Delete Users**: Remove users from any chapter
 6. **Delete Chapters**: Remove entire chapters (except the default chapter)
 7. **Auto-Sorting**: Users are automatically sorted by rating in descending order
-8. **Download JSON**: Download the updated JSON file to replace the original `dummyUsers.json`
-9. **Reset to Default**: Clear all changes and reload from the original JSON file
-10. **Persistence**: Changes are automatically saved to localStorage
+8. **Real-time Updates**: Changes are immediately saved to the database and reflected across all users
 
 ### How to Use
 
 1. Navigate to **Admin Panel** → **Misc** tab
 2. Select a chapter from the tabs (or add a new one)
 3. Use "Add User" to create new users or click the edit/delete icons to modify existing ones
-4. Changes are saved automatically to localStorage
-5. Use "Download JSON" to export the updated data
-6. Replace the original `dummyUsers.json` file with the downloaded file if you want to persist changes across sessions
+4. Changes are saved automatically to the database
+5. The leaderboard will automatically fetch and display the updated dummy users
 
-### Manual Configuration (Alternative Method)
+### API Endpoints
 
-If you prefer to edit the JSON file directly:
+**Admin Endpoints** (require authentication):
+- `GET /api/admin/misc` - Get all chapters with their dummy users
+- `GET /api/admin/misc/chapter/:chapterId` - Get dummy users for a specific chapter
+- `POST /api/admin/misc/chapter/:chapterId` - Create or update a chapter's dummy users
+- `POST /api/admin/misc/chapter/:chapterId/user` - Add a new user to a chapter
+- `PUT /api/admin/misc/chapter/:chapterId/user/:userId` - Update a user
+- `DELETE /api/admin/misc/chapter/:chapterId/user/:userId` - Delete a user
+- `DELETE /api/admin/misc/chapter/:chapterId` - Delete an entire chapter
 
-1. Open `dummyUsers.json`
-2. Add a new entry with your chapter ID as the key (you can find the chapter ID in the browser console or database)
-3. Copy the structure from `"default"` or another chapter
-4. Modify the user data (names, ratings, colors) as needed
-
-Example:
-```json
-{
-  "default": [...],
-  "YOUR_CHAPTER_ID_HERE": [
-    {
-      "userId": "dummy_ch3_user_001",
-      "fullName": "John Doe",
-      "userRating": 5000,
-      "avatarBgColor": "rgba(255, 0, 0, 0.8)"
-    },
-    ...
-  ]
-}
-```
+**Public Endpoint** (for leaderboard):
+- `GET /api/misc/chapter/:chapterId` - Get dummy users for a specific chapter (falls back to default if chapter not found)
 
 ## Disabling Dummy Users
 
-To disable dummy users entirely, edit `Leaderboard.jsx` at **line 59**:
+To disable dummy users entirely in the leaderboard, edit `Leaderboard.jsx`:
 
 Change this:
 ```javascript
@@ -81,17 +74,21 @@ To this:
 const filteredDummyUsers = [].filter(
 ```
 
-Or simply replace `chapterDummyUsers` with `[]` on line 59.
+Or simply replace `chapterDummyUsers` with `[]`.
+
+## Migration from JSON
+
+If you have existing data in `dummyUsers.json`, you can migrate it to the database by:
+
+1. Using the Admin Panel to manually add chapters and users
+2. Or creating a migration script that reads the JSON file and creates database entries via the API
 
 ## Implementation Details
 
-The Admin Panel tool (`Frontend/ReactOne/src/Layouts/Admin/Misc.jsx`) was created to provide an easy-to-use interface for managing dummy users. The component:
-
-- Loads data from `dummyUsers.json` on initialization
-- Saves changes to localStorage for persistence
-- Provides a download feature to export updated JSON
-- Includes validation and error handling
-- Automatically sorts users by rating
-- Prevents deletion of the default chapter
-- Validates chapter ID uniqueness when adding new chapters
-
+The system uses:
+- **Backend**: MongoDB collection named `Misc` with schema defined in `Backend/NodeOne/src/models/Misc.ts`
+- **Frontend Admin**: `Frontend/ReactOne/src/Layouts/Admin/Misc.jsx` - Admin interface for managing dummy users
+- **Frontend Leaderboard**: `Frontend/ReactOne/src/Layouts/Chapters/ChapterDialog/Leaderboard.jsx` - Fetches dummy users from API
+- **API Routes**: 
+  - Admin routes: `Backend/NodeOne/src/routes/admin/misc.ts`
+  - Public route: `Backend/NodeOne/src/routes/misc.ts`
