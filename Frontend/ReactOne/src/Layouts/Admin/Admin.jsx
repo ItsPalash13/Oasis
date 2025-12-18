@@ -12,6 +12,7 @@ import LevelsAdmin from './Levels';
 import UsersAdmin from './Users';
 import BadgeAdmin from './Badge';
 import OrganizationAdmin from './Organization';
+import MiscAdmin from './Misc';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -52,7 +53,8 @@ export default function Admin() {
       // { label: 'Levels', component: 'Levels' },
       { label: 'Users', component: 'Users' },
       // { label: 'Badges', component: 'Badges' },
-      { label: 'Organizations', component: 'Organizations' }
+      { label: 'Organizations', component: 'Organizations' },
+      { label: 'Misc', component: 'Misc' }
     ];
 
     let filteredTabs;
@@ -145,7 +147,8 @@ export default function Admin() {
           // 'Levels': <LevelsAdmin />,
           'Users': <UsersAdmin />,
           // 'Badges': <BadgeAdmin />,
-          'Organizations': <OrganizationAdmin />
+          'Organizations': <OrganizationAdmin />,
+          'Misc': <MiscAdmin />
         };
         
         return (

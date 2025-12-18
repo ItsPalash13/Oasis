@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, Fragment } from 'react';
+import React, { useEffect, useRef, Fragment, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
@@ -8,7 +8,6 @@ import {
   Avatar,
   Chip,
   Divider,
-  Tooltip,
   CircularProgress,
   useTheme
 } from '@mui/material';
@@ -27,6 +26,9 @@ import goldBadge from '../../../assets/badges/gold.png';
 import platinumBadge from '../../../assets/badges/platinum.png';
 import diamondBadge from '../../../assets/badges/diamond.png';
 
+// Import dummy users
+import dummyUsersData from '../../../data/dummyUsers.json';
+
 const Leaderboard = ({ chapter }) => {
   const theme = useTheme();
   const scrollContainerRef = useRef(null);
@@ -41,8 +43,106 @@ const Leaderboard = ({ chapter }) => {
     { skip: !chapter?._id }
   );
 
-  const leaderboard = leaderboardData?.data || [];
+  const realLeaderboard = leaderboardData?.data || [];
   const currentUserRank = leaderboardData?.currentUserRank || null;
+
+  // Get dummy users data from localStorage or fallback to JSON file
+  // Use state to make it reactive to localStorage changes
+  const [dummyUsersDataState, setDummyUsersDataState] = useState(() => {
+    try {
+      const savedData = localStorage.getItem('dummyUsersData');
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+    } catch (error) {
+      console.error('Error loading dummy users from localStorage:', error);
+    }
+    return dummyUsersData;
+  });
+
+  // Listen for storage events to update when data changes in other tabs/windows
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'dummyUsersData') {
+        try {
+          if (e.newValue) {
+            setDummyUsersDataState(JSON.parse(e.newValue));
+          } else {
+            setDummyUsersDataState(dummyUsersData);
+          }
+        } catch (error) {
+          console.error('Error parsing updated dummy users data:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check localStorage on mount/update in case changes were made in the same tab
+    const checkLocalStorage = () => {
+      try {
+        const savedData = localStorage.getItem('dummyUsersData');
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          setDummyUsersDataState(parsed);
+        }
+      } catch (error) {
+        console.error('Error checking localStorage:', error);
+      }
+    };
+
+    // Check periodically (every 2 seconds) for changes in the same tab
+    const interval = setInterval(checkLocalStorage, 2000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Merge dummy users with real leaderboard data
+  const leaderboard = useMemo(() => {
+    // Get chapter-specific dummy users, fallback to default if chapter ID not found
+    const chapterId = chapter?._id?.toString();
+    const chapterDummyUsers = dummyUsersDataState[chapterId] || dummyUsersDataState.default || [];
+    
+    // ============================================================
+    // TO DISABLE DUMMY USERS: Change line below to:
+    // const filteredDummyUsers = [].filter(
+    // ============================================================
+    const filteredDummyUsers = chapterDummyUsers.filter(
+      dummyUser => dummyUser.userId !== currentUserId
+    );
+
+    // Get real user IDs to avoid duplicates
+    const realUserIds = new Set(realLeaderboard.map(user => user.userId));
+    
+    // Filter dummy users that don't conflict with real users
+    const availableDummyUsers = filteredDummyUsers.filter(
+      dummyUser => !realUserIds.has(dummyUser.userId)
+    );
+
+    // Combine real and dummy users
+    const combined = [...realLeaderboard, ...availableDummyUsers];
+
+    // Sort by userRating descending
+    const sorted = combined.sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
+
+    // Reassign ranks (1-based)
+    const withRanks = sorted.map((user, index) => ({
+      ...user,
+      rank: index + 1
+    }));
+
+    return withRanks;
+  }, [realLeaderboard, currentUserId, chapter, dummyUsersDataState]);
+
+  // Recalculate current user rank after merging
+  const finalCurrentUserRank = useMemo(() => {
+    if (!currentUserId) return null;
+    const userEntry = leaderboard.find(user => user.userId === currentUserId);
+    return userEntry ? userEntry.rank : currentUserRank;
+  }, [leaderboard, currentUserId, currentUserRank]);
 
   // Map rank name to badge image
   const getBadgeImage = (rank) => {
@@ -66,7 +166,7 @@ const Leaderboard = ({ chapter }) => {
 
   // Find current user in leaderboard and scroll to their position
   useEffect(() => {
-    if (scrollContainerRef.current && currentUserRank && leaderboard.length > 0) {
+    if (scrollContainerRef.current && finalCurrentUserRank && leaderboard.length > 0) {
       const userIndex = leaderboard.findIndex(user => user.userId === currentUserId);
       
       if (userIndex !== -1) {
@@ -79,7 +179,7 @@ const Leaderboard = ({ chapter }) => {
         });
       }
     }
-  }, [leaderboard, currentUserRank, currentUserId]);
+  }, [leaderboard, finalCurrentUserRank, currentUserId]);
 
   // Resolve avatar image source using shared utils by filename
   const resolveAvatarSrc = (avatarPath) => {
@@ -173,7 +273,7 @@ const Leaderboard = ({ chapter }) => {
     );
   }
 
-  // Empty state
+  // Empty state (shouldn't happen now with dummy users, but keep for safety)
   if (!leaderboard || leaderboard.length === 0) {
     const textSecondary = theme.palette.mode === 'dark' ? colors.ui.dark.textSecondary : colors.ui.light.textSecondary;
     return (
@@ -217,7 +317,7 @@ const Leaderboard = ({ chapter }) => {
             fontWeight: 'bold', 
             color: '#FFA500'
           }}>
-            {currentUserRank && currentUserRank <= 10 ? 'Top 10 Leaderboard' : 'Leaderboard'}
+            {finalCurrentUserRank && finalCurrentUserRank <= 10 ? 'Top 10 Leaderboard' : 'Leaderboard'}
           </Typography>
         </Box>
 
@@ -252,7 +352,7 @@ const Leaderboard = ({ chapter }) => {
           {leaderboard.map((user, index) => {
             const isCurrentUser = user.userId === currentUserId;
             const isTop10 = user.rank <= 10;
-            const showSeparator = index === 10 && currentUserRank && currentUserRank > 10;
+            const showSeparator = index === 10 && finalCurrentUserRank && finalCurrentUserRank > 10;
             
             return (
               <Fragment key={user.userId || index}>
