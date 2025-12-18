@@ -29,22 +29,23 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 	const allFetchedQuestions: IQuestionTs[] = [];
 	const fetchedQuestionIds = new Set<string>(excludeQuestionIds);
 	
+	const targetFetchLimit = 2 * QUESTION_FETCH_LIMIT;
 	console.log(`[FetchQuestions] Initial state:`, {
 		muMin,
 		muMax,
 		initialExcludedCount: excludeQuestionIds.length,
-		targetLimit: QUESTION_FETCH_LIMIT
+		targetLimit: targetFetchLimit
 	});
 	
 	let iterationCount = 0;
 	
 	// Iteratively expand mu range until we have enough questions
-	while (allFetchedQuestions.length < QUESTION_FETCH_LIMIT) {
+	while (allFetchedQuestions.length < targetFetchLimit) {
 		iterationCount++;
 		console.log(`[FetchQuestions] Iteration ${iterationCount}:`, {
 			muRange: `[${muMin.toFixed(2)}, ${muMax.toFixed(2)}]`,
 			currentFetchedCount: allFetchedQuestions.length,
-			remainingNeeded: QUESTION_FETCH_LIMIT - allFetchedQuestions.length,
+			remainingNeeded: targetFetchLimit - allFetchedQuestions.length,
 			excludedQuestionIdsCount: fetchedQuestionIds.size
 		});
 
@@ -78,15 +79,15 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 				fetchedQuestionIds.add(questionId);
 				questionsAddedThisIteration++;
 				
-				console.log(`[FetchQuestions] Added question ${allFetchedQuestions.length}/${QUESTION_FETCH_LIMIT}:`, {
+				console.log(`[FetchQuestions] Added question ${allFetchedQuestions.length}/${targetFetchLimit}:`, {
 					questionId,
 					questionMu: question.difficulty?.mu,
 					questionType: question.type
 				});
 				
 				// Stop if we've reached the limit
-				if (allFetchedQuestions.length >= QUESTION_FETCH_LIMIT) {
-					console.log(`[FetchQuestions] Reached QUESTION_FETCH_LIMIT (${QUESTION_FETCH_LIMIT}), breaking from inner loop`);
+				if (allFetchedQuestions.length >= targetFetchLimit) {
+					console.log(`[FetchQuestions] Reached target fetch limit (${targetFetchLimit}), breaking from inner loop`);
 					break;
 				}
 			} else {
@@ -101,12 +102,12 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 			questionsFound: questions.length,
 			questionsAdded: questionsAddedThisIteration,
 			totalFetched: allFetchedQuestions.length,
-			targetLimit: QUESTION_FETCH_LIMIT
+			targetLimit: targetFetchLimit
 		});
 		
 		// If we have enough questions, break
-		if (allFetchedQuestions.length >= QUESTION_FETCH_LIMIT) {
-			console.log(`[FetchQuestions] Reached QUESTION_FETCH_LIMIT (${QUESTION_FETCH_LIMIT}), breaking from while loop`);
+		if (allFetchedQuestions.length >= targetFetchLimit) {
+			console.log(`[FetchQuestions] Reached target fetch limit (${targetFetchLimit}), breaking from while loop`);
 			break;
 		}
 		
@@ -125,8 +126,31 @@ export const fetchQuestionsByChapterIdAndMuRange = async ({
 	console.log(`[FetchQuestions] While loop completed after ${iterationCount} iterations`);
 	console.log(`[FetchQuestions] Total questions fetched before shuffle: ${allFetchedQuestions.length}`);
 	
+	// Fisher–Yates (Knuth) Shuffle
+	const fisherYatesShuffle = <T>(array: T[]): T[] => {
+		const shuffled = [...array];
+	  
+		// time + crypto entropy
+		let seed =
+		  Date.now() ^
+		  crypto.getRandomValues(new Uint32Array(1))[0];
+	  
+		for (let i = shuffled.length - 1; i > 0; i--) {
+		  // xorshift32 to diffuse entropy
+		  seed ^= seed << 13;
+		  seed ^= seed >>> 17;
+		  seed ^= seed << 5;
+	  
+		  const j = Math.abs(seed) % (i + 1);
+		  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+		}
+	  
+		return shuffled;
+	  };
+	  
+	
 	// Shuffle the fetched questions
-	const shuffledQuestions = allFetchedQuestions.sort(() => Math.random() - 0.5);
+	const shuffledQuestions = fisherYatesShuffle(allFetchedQuestions);
 	console.log(`[FetchQuestions] Questions shuffled, count: ${shuffledQuestions.length}`);
 	
 	// Return exactly QUESTION_FETCH_LIMIT questions (or all available if less)
