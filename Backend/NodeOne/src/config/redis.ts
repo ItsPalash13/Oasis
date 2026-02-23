@@ -1,14 +1,21 @@
 import { createClient } from '@redis/client';
 import { promisify } from 'util';
 import { logger } from '../utils/logger';
-const redisClient = createClient({
-    username: 'default',
-    password: 'UtiB1wDs7fpAveKIVpGtIP0ZuuqTFV6E',
-    socket: {
-        host: 'redis-17057.c92.us-east-1-3.ec2.redns.redis-cloud.com',
-        port: 17057
-    }
-});
+
+// Use REDIS_URL (e.g. redis://default:PASSWORD@host:port) or individual env vars. No hardcoded credentials.
+const redisUrl = process.env.REDIS_URL;
+const redisOptions = redisUrl
+  ? { url: redisUrl }
+  : {
+      username: process.env.REDIS_USERNAME || 'default',
+      password: process.env.REDIS_PASSWORD,
+      socket: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      },
+    };
+
+const redisClient = createClient(redisOptions);
 
 // Promisify Redis commands
 const getAsync = promisify(redisClient.get).bind(redisClient);

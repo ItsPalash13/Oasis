@@ -94,29 +94,23 @@ class QuestionsImageUploader:
                 logger.info(f"Using service account from: {service_account_path}")
                 self.storage_client = storage.Client.from_service_account_json(service_account_path)
             else:
-                # Try default service account path
-                default_path = os.path.join(os.path.dirname(__file__), '..', '..', 'Backend', 'NodeOne', 'secret', 'projectx-467806-3e87594035d9.json')
-                if os.path.exists(default_path):
-                    logger.info(f"Using credentials from default path: {default_path}")
-                    self.storage_client = storage.Client.from_service_account_json(default_path)
-                else:
-                    # Use default credentials (from environment or gcloud auth)
-                    logger.info("Using default credentials (gcloud auth or environment)")
-                    try:
-                        self.storage_client = storage.Client()
-                    except Exception as e:
-                        logger.error("\n" + "="*70)
-                        logger.error("GCS Authentication Failed!")
-                        logger.error("="*70)
-                        logger.error("You need a Google Cloud Service Account JSON key file.")
-                        logger.error("\nOptions:")
-                        logger.error("1. Set GOOGLE_APPLICATION_CREDENTIALS env var to point to service account JSON")
-                        logger.error("2. Place a service account JSON file in Services/env/ directory")
-                        logger.error("3. Run 'gcloud auth application-default login' to use default credentials")
-                        logger.error("\nNote: OAuth2 client_secret.json files won't work.")
-                        logger.error("You need a service account key with 'type': 'service_account'")
-                        logger.error("="*70)
-                        raise
+                # Use default credentials (gcloud auth or GOOGLE_APPLICATION_CREDENTIALS). Do not hardcode credential paths.
+                logger.info("Using default credentials (gcloud auth or set GOOGLE_APPLICATION_CREDENTIALS)")
+                try:
+                    self.storage_client = storage.Client()
+                except Exception as e:
+                    logger.error("\n" + "="*70)
+                    logger.error("GCS Authentication Failed!")
+                    logger.error("="*70)
+                    logger.error("You need a Google Cloud Service Account JSON key file.")
+                    logger.error("\nOptions:")
+                    logger.error("1. Set GOOGLE_APPLICATION_CREDENTIALS env var to point to service account JSON")
+                    logger.error("2. Place a service account JSON file in Services/env/ directory")
+                    logger.error("3. Run 'gcloud auth application-default login' to use default credentials")
+                    logger.error("\nNote: OAuth2 client_secret.json files won't work.")
+                    logger.error("You need a service account key with 'type': 'service_account'")
+                    logger.error("="*70)
+                    raise
         
         self.bucket = self.storage_client.bucket(self.bucket_name)
         

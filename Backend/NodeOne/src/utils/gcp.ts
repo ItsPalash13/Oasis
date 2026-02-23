@@ -13,13 +13,11 @@ let storageClient: Storage | null = null;
 const getStorageClient = (): Storage => {
   if (storageClient) return storageClient;
 
-  // If GOOGLE_APPLICATION_CREDENTIALS is set, the SDK will pick it up automatically.
-  // Otherwise, try to use the local secret path for development.
-  const keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS
-    || path.resolve(process.cwd(), 'src', '..', 'secret', 'projectx-467806-3e87594035d9.json');
+  // Use GOOGLE_APPLICATION_CREDENTIALS for the path to service account JSON. Do not commit credentials.
+  const keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
   storageClient = new Storage({
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS ? undefined : keyFilePath,
+    ...(keyFilePath ? { keyFilename: keyFilePath } : {}),
     projectId: process.env.GCP_PROJECT_ID,
   });
   return storageClient;

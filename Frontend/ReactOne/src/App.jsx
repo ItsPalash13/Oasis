@@ -39,8 +39,8 @@ const MIN_SCREEN_WIDTH = 1024; // Minimum width for desktop (1024px = tablet lan
 
 // localStorage keys
 const STORAGE_KEYS = {
-  DARK_MODE: 'projectx_dark_mode',
-  SIDEBAR_OPEN: 'projectx_sidebar_open',
+  DARK_MODE: 'oasis_dark_mode',
+  SIDEBAR_OPEN: 'oasis_sidebar_open',
 };
 
 // Helper functions for localStorage
